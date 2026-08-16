@@ -16,5 +16,5 @@ explicitly from the named marketplace afterwards.
 
 Plugin source remains in its own repository. This repository contains only the
 validated release package that Codex installs. For rapid local Dev Mesh iteration,
-use the private development marketplace (`glenzli-local`); publish an intentional,
+use a maintainer-configured private development marketplace. Publish an intentional,
 validated snapshot here before asking other users to install it.
