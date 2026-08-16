@@ -1,6 +1,6 @@
-# Glenzli Marketplace
+# Plugin Marketplace
 
-Installable, reviewed snapshots of Glenzli Codex plugins.
+An installable collection of reviewed Codex plugins.
 
 ## Install
 
@@ -9,8 +9,8 @@ codex plugin marketplace add glenzli/marketplace --ref main
 codex plugin add dev-mesh@glenzli-marketplace
 ```
 
-The first command registers this marketplace once. Install or update each plugin
-explicitly from the named marketplace afterwards.
+The first command registers this plugin collection once. Install or update each plugin
+explicitly from its configured source afterwards.
 
 ## Development and release boundary
 
