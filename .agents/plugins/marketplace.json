@@ -1,0 +1,20 @@
+{
+  "name": "glenzli-marketplace",
+  "interface": {
+    "displayName": "Glenzli Marketplace"
+  },
+  "plugins": [
+    {
+      "name": "dev-mesh",
+      "source": {
+        "source": "local",
+        "path": "./plugins/dev-mesh"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Developer Tools"
+    }
+  ]
+}

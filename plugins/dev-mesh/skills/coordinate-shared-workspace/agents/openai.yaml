@@ -1,0 +1,4 @@
+interface:
+  display_name: "Dev Mesh Coordination"
+  short_description: "Coordinate shared Git work safely"
+  default_prompt: "Use $coordinate-shared-workspace to claim, edit, and publish this shared-workspace task safely."
