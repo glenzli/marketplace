@@ -7,6 +7,7 @@ An installable collection of reviewed Codex plugins.
 ```bash
 codex plugin marketplace add glenzli/marketplace --ref main
 codex plugin add dev-mesh@glenzli-marketplace
+codex plugin add dev-skeleton@glenzli-marketplace
 ```
 
 The first command registers this plugin collection once. Install or update each plugin
