@@ -8,10 +8,14 @@ An installable collection of reviewed Codex plugins.
 codex plugin marketplace add glenzli/marketplace --ref main
 codex plugin add dev-mesh@glenzli-marketplace
 codex plugin add dev-skeleton@glenzli-marketplace
+codex plugin add math-workspace@glenzli-marketplace
 ```
 
 The first command registers this plugin collection once. Install or update each plugin
 explicitly from its configured source afterwards.
+
+`math-workspace` includes its CLI and Reader runtime in the plugin snapshot. It
+does not require a global `math-workspace` installation.
 
 ## Development and release boundary
 

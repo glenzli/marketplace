@@ -1,0 +1,39 @@
+{
+  "name": "math-workspace",
+  "version": "0.1.0+codex.20260828115510",
+  "description": "Query local Math Workspace context from Codex.",
+  "author": {
+    "name": "Glen Li",
+    "url": "https://gitlab.com/glenzli"
+  },
+  "homepage": "https://gitlab.com/glenzli/math-workspace",
+  "repository": "https://gitlab.com/glenzli/math-workspace",
+  "license": "MIT",
+  "keywords": [
+    "markdown",
+    "formal-math",
+    "mathematics",
+    "mcp",
+    "codex"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Math Workspace",
+    "shortDescription": "Open and query the local mathematical workspace.",
+    "longDescription": "Open or query the independent Math Workspace for a prepared project from Codex. The plugin resolves deliberate source marks, maintained project knowledge, cached audits, and formal/Lean evidence without duplicating a Codex discussion UI.",
+    "developerName": "Glen Li",
+    "category": "Productivity",
+    "capabilities": [
+      "Read",
+      "Interactive"
+    ],
+    "defaultPrompt": [
+      "Open Math Workspace for the current project."
+    ],
+    "brandColor": "#3478D4",
+    "composerIcon": "./assets/icon.svg",
+    "logo": "./assets/icon.svg",
+    "logoDark": "./assets/icon-dark.svg"
+  },
+  "mcpServers": "./.mcp.json"
+}
