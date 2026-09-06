@@ -5,12 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="color-scheme" content="light dark">
     <title>Dev Mesh Console</title>
+    <link rel="icon" type="image/png" href="/dev-mesh-icon.png">
     <link rel="stylesheet" href="/styles.css">
   </head>
   <body>
     <header class="topbar">
       <div class="brand">
-        <span class="brand-mark" aria-hidden="true">DM</span>
+        <img class="brand-mark" src="/dev-mesh-icon.png" alt="" aria-hidden="true">
         <div>
           <h1>Dev Mesh</h1>
           <p data-i18n="brand.subtitle">协作控制台</p>
@@ -55,19 +56,8 @@
 
       <section id="insights" class="insight-grid" aria-label="Coordination insights"></section>
 
-      <section class="panel project-collaboration-panel">
-        <div class="panel-heading compact-heading">
-          <div>
-            <span class="eyebrow" data-i18n="sections.projectCollaborationEyebrow">跨工作区</span>
-            <h2 data-i18n="sections.projectCollaboration">项目关系</h2>
-          </div>
-          <span id="project-collaboration-count" class="panel-count">0</span>
-        </div>
-        <div id="project-collaboration" class="project-collaboration"></div>
-      </section>
-
-      <section class="dashboard-grid">
-        <article class="panel projects-panel">
+      <section id="work-status-grid" class="dashboard-grid">
+        <article id="projects-panel" class="panel projects-panel">
           <div class="panel-heading">
             <div>
               <span class="eyebrow" data-i18n="sections.projectsEyebrow">项目边界</span>
@@ -81,7 +71,7 @@
         <article class="panel activity-panel">
           <div class="panel-heading">
             <div>
-              <span class="eyebrow" data-i18n="sections.activityEyebrow">当前权限</span>
+              <span class="eyebrow" data-i18n="sections.activityEyebrow">当前工作</span>
               <h2 data-i18n="sections.activity">正在发生</h2>
             </div>
             <span id="active-count" class="panel-count">0</span>
@@ -90,15 +80,26 @@
         </article>
       </section>
 
-      <section class="panel flow-panel">
-        <div class="panel-heading flow-heading">
+      <details id="flow-panel" class="panel flow-panel" open>
+        <summary class="panel-heading flow-heading">
           <div>
-            <span class="eyebrow" data-i18n="sections.flowEyebrow">跨任务因果</span>
-            <h2 data-i18n="sections.flow">协作流</h2>
+            <span class="eyebrow" data-i18n="sections.flowEyebrow">观察窗口 · 事后回看</span>
+            <h2 data-i18n="sections.flow">协作历程</h2>
           </div>
           <div id="flow-summary" class="flow-summary"></div>
-        </div>
-        <div class="legend" aria-label="Flow legend">
+        </summary>
+        <p class="history-note" data-i18n="flow.historyNote">只展示已记录的协作。节点按时间顺序排列，间距不代表耗时；连线不代表期间持续工作。</p>
+        <section id="project-collaboration-panel" class="project-collaboration-panel" hidden>
+          <div class="panel-heading compact-heading">
+            <div>
+              <span class="eyebrow" data-i18n="sections.projectCollaborationEyebrow">跨工作区</span>
+              <h3 data-i18n="sections.projectCollaboration">项目关系</h3>
+            </div>
+            <span id="project-collaboration-count" class="panel-count">0</span>
+          </div>
+          <div id="project-collaboration" class="project-collaboration"></div>
+        </section>
+        <div id="flow-legend" class="legend" aria-label="Flow legend">
           <span><i class="legend-line normal"></i><b data-i18n="legend.main">参与方时间线</b></span>
           <span><i class="legend-line branch"></i><b data-i18n="legend.branch">临时分支</b></span>
           <span><i class="legend-line handoff"></i><b data-i18n="legend.handoff">交接 / 通知</b></span>
@@ -110,11 +111,11 @@
           <span><i class="legend-work-number">1</i><b data-i18n="legend.workNumber">工作编号</b></span>
           <span><i class="legend-group"></i><b data-i18n="legend.relatedGroup">协作组</b></span>
         </div>
-        <div id="flow-empty" class="empty-state" hidden>
-          <strong data-i18n="empty.flowTitle">窗口内没有协作事件</strong>
-          <span data-i18n="empty.flowIndependentBody">当前只有独立运行，没有跨任务协作。</span>
+        <div id="flow-empty" class="empty-state compact-empty" hidden>
+          <strong data-i18n="empty.flowTitle">此窗口内没有已记录的协作</strong>
+          <span>可切换项目或扩大观察窗口；未记录的过程不补画。</span>
         </div>
-        <div class="flow-viewport">
+        <div id="flow-viewport" class="flow-viewport">
           <div class="flow-scrollbar-corner" aria-hidden="true"></div>
           <div id="flow-scrollbar" class="flow-scrollbar">
             <input id="flow-scrollbar-control" class="flow-scrollbar-control" type="range" min="0" max="0" value="0" aria-label="Collaboration flow timeline">
@@ -125,10 +126,10 @@
             <div id="flow-tooltip" class="flow-tooltip" hidden></div>
           </div>
         </div>
-      </section>
+      </details>
 
-      <section class="dashboard-grid lower-grid">
-        <article class="panel diagnostics-panel">
+      <section id="lower-grid" class="dashboard-grid lower-grid">
+        <article id="diagnostics-panel" class="panel diagnostics-panel">
           <div class="panel-heading">
             <div>
               <span class="eyebrow" data-i18n="sections.diagnosticsEyebrow">待确认与恢复</span>
@@ -147,6 +148,7 @@
             </div>
             <span id="event-count" class="panel-count">0</span>
           </summary>
+          <p id="events-window-note" class="history-note" hidden></p>
           <div id="events" class="event-list"></div>
         </details>
       </section>
