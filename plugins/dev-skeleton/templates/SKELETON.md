@@ -1,5 +1,8 @@
 # Project Skeleton
 
+Orientation only. Verify implementation facts against authoritative project artifacts.
+Keep sections with distinct project information; omit or merge the rest.
+
 ## Purpose and Boundaries
 
 Why this project exists, what it intentionally does not do, and any scope boundary an unfamiliar
@@ -12,34 +15,22 @@ outputs, release artifacts, or maintained public documentation.
 
 ## Repository Map
 
-List only stable concerns and the entry that routes to their semantic owner. Keep this map bounded;
-do not inventory modules, classes, functions, APIs, or current behavior.
+Include a map when it helps navigation. Pair stable concerns with source entries and short
+responsibility descriptions; do not inventory modules or summarize their current implementation.
 
 | Concern | Stable entry | Ownership boundary |
 | --- | --- | --- |
 | Example concern | `path/to/entry` | Durable responsibility, not an implementation summary |
 
-## Architectural Priors
+Route readers to an owner through stable source entries. Add a nested `SKELETON.md` only when a
+large subsystem cannot be navigated clearly through those entries alone.
 
-Durable choices and tradeoffs that source alone may not explain, while leaving context-dependent
-decisions to the maintainer.
+## Architectural Priors and Invariants
 
-## Project Invariants
-
-Constraints that future work must preserve. State policy and ownership boundaries, not today's
-mechanics.
-
-## Navigation Scope
-
-The root skeleton should normally route a task to its likely owner in one or two hops. Add a nested
-`SKELETON.md` only for a subsystem whose local ownership cannot be navigated clearly from source
-entries alone. README files may serve other audiences and are not required navigation artifacts.
+Record durable choices, their tradeoffs, and constraints future work must preserve. Distinguish
+required invariants from preferences that depend on context. Omit mechanics visible in source.
 
 ## Refresh Boundary
 
 Update this file when durable purpose, boundaries, authority, ownership, navigation, invariants, or
 architectural priors change. Routine implementation changes should not update it.
-
-## Contract
-
-Orientation only. Verify current facts against authoritative project artifacts.

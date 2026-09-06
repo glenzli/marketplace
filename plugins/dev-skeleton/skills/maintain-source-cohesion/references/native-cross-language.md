@@ -1,7 +1,7 @@
 # Native And Cross-Language Boundaries
 
-Use this reference for C/C++, Rust, FFI, ABI, translation units, embedded languages, generated
-bindings, or repositories with several maintained build graphs.
+Use the relevant sections when changing ABI, FFI mappings, translation-unit ownership, embedded
+language ownership, generated bindings, or build registration.
 
 ## Preserve Public Contracts
 
@@ -10,8 +10,8 @@ bindings, or repositories with several maintained build graphs.
   Extract behavior-rich conversion and lifecycle policy behind it instead of fragmenting declarations.
 - Treat PIMPL, opaque storage, a namespace, or one facade class as encapsulation, not proof of
   cohesion. Inventory protocol families, lifecycles, and consumer fan-out.
-- Before splitting an interleaved public hub, create a complete ownership ledger for types,
-  functions, overloads, aliases, constants, and forward declarations.
+- When splitting an interleaved public hub, account for its types, functions, overloads, aliases,
+  constants, and forward declarations so none lose their intended owner or visibility.
 - Audit every type in public signatures after a move. Requests, results, errors, callbacks, and
   aliases must remain nameable through the intended public surface.
 - Use declarations without definitions only where the language safely permits incomplete types.
@@ -47,20 +47,21 @@ bindings, or repositories with several maintained build graphs.
 - Keep structural boundary validation separate from route-dependent capability negotiation. The
   selected backend owns executability and provider policy.
 
-## Validate Every Build Graph
+## Validate Affected Build and Consumer Contracts
 
 - Update every explicit source list, generated-binding dependency, rerun manifest, IDE project,
   packaging target, and registration table that consumes the moved unit.
-- Make compilation and dependency tracking consume one executable source manifest within each build
-  graph. Use a fail-closed set comparison when two maintained graphs describe the same native library.
-- Force a clean link through every maintained orchestration graph. An incremental build can retain
-  stale objects or exercise only one manifest.
+- When changing source registration, check that compilation and dependency tracking cover the same
+  units in each affected graph. Reuse maintained manifest checks; do not introduce enforcement
+  tooling solely for a structural move.
+- Link through affected graphs when object inclusion or linkage changes. Use a clean build when
+  stale objects could mask the change and incremental evidence cannot rule that out.
 - Link at least one real consumer after adding a native unit behind a language bridge. Type checking
   and compile-only validation cannot expose an omitted object file.
-- Give cross-language DTO and codec mappings a production-linked contract test at the mapping layer.
+- When DTO or codec mappings change, exercise a production-linked contract check at the mapping layer.
   Lower-level tests do not prove optionality, units, enum values, identities, and every field survive
   the host projection.
 - For serialization, hashing, content addressing, or identity moves, compare canonical bytes and
   stable digest fixtures, not only behavioral equivalence.
-- Compare declaration and symbol multisets before and after structural moves. Distinguish definitions
-  from intentional forward declarations.
+- For public-hub splits with omission risk, compare declaration or symbol multisets before and after.
+  Distinguish definitions from intentional forward declarations.

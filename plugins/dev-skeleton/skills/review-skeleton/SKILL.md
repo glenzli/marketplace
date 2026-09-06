@@ -17,6 +17,8 @@ Use skeletons to bias review, not to prove facts.
 5. Cite concrete files and lines when possible.
 6. Separate skeleton-preference concerns from source-grounded correctness issues.
 
+Reuse files already read in this task unless they changed or the review enters a new subsystem.
+
 ## Focus
 
 - Purpose fit.

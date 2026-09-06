@@ -1,8 +1,7 @@
 # Test Topology And Migration
 
-Use this reference when tests obscure production ownership, live inline in growing implementation
-files, form a multi-responsibility suite, depend on legacy structure, or require a gradual topology
-migration.
+Use the relevant sections when reorganizing mixed suites, test visibility, runner reachability,
+or a repository-defined topology migration. Inline tests or a large suite alone are not a trigger.
 
 ## Respect Local Test Shape
 
@@ -12,12 +11,10 @@ migration.
   those choices in the repository that owns their costs and enforcement.
 - Reconsider the current shape when tests obscure the production owner, require unrelated fixtures
   or setup, or repeatedly force one concern to change another concern's suite.
-- Keep private-invariant tests adjacent to the production owner. Put public cross-owner behavior in
-  integration locations that consume the real product boundary.
-- Let the production owner declare its adjacent tests. Registration from a distant facade is
-  ownership drift unless the test deliberately exercises that facade.
-- Organize suites by production responsibility, not `misc`, `more_tests`, numbered parts, or broad
-  labels such as `contract` and `integration`.
+- Keep private-invariant tests with the production owner and cross-owner tests at the real product
+  boundary. Shared runner registration is fine when it does not hide the tested responsibility.
+- Name suites by production responsibility. Existing `unit` or `integration` directories may still
+  organize test levels; avoid using broad labels or numbered parts as the only ownership signal.
 
 ## Preserve Real Reachability
 

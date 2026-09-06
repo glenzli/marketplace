@@ -1,7 +1,7 @@
 # Large Payload And Acceleration Boundaries
 
-Use this reference when a change moves image, audio, tensor, geometry, or other large buffers
-through caches, previews, tiles, native bridges, GPUs, or other accelerators.
+Use the relevant sections when changing buffer lifetime, cache identity, resource admission,
+execution paths, or preview geometry for large payloads.
 
 ## Own The Payload Lifecycle
 
@@ -46,21 +46,22 @@ Apply this section only when a payload derives from authored continuous geometry
 
 ## Measure The Final Consumer
 
-- Instrument admission, queueing, preparation, execution, transfer, conversion, and presentation
-  separately. End-to-end latency cannot be inferred from kernel time alone.
-- Measure interactive latency after warm-up as well as first-use latency, throughput, peak resident
-  memory, copy volume, cancellation delay, and stale-result rate.
-- Place diagnostics at the final consumer boundary so a fast producer cannot hide a blocked upload,
-  conversion, or presentation path.
-- Keep counters and provenance bounded and stable enough for automated comparison.
+When the change could affect resource use or performance, measure the affected path through its
+final consumer. Reuse existing measurements and diagnostics where their inputs remain valid.
+
+- Select metrics for the risk: copies and peak memory for ownership changes; first-use and warm
+  latency for execution changes; cancellation delay and stale results for scheduling changes.
+- Separate preparation, execution, transfer, and presentation timing when locating a bottleneck.
+  Kernel time alone cannot establish interactive performance.
+- Keep any added diagnostics bounded. Do not introduce a full metric matrix for a mechanical move.
 
 ## Validate Parity And Pressure
 
-- Keep deterministic portable tests for coordinate math, plan identity, admission, eviction,
-  cancellation, and fallback behavior.
-- On real accelerated hardware, compare representative outputs with an accepted reference using
-  domain-appropriate tolerances. Include borders, tiles, odd dimensions, and large support regions.
-- Exercise memory pressure, rapid supersession, resize or scale changes, and resource loss. Verify
-  that stale work is rejected and resident memory returns within policy.
-- Benchmark representative payloads through the final consumer. A synthetic kernel benchmark does
-  not establish interactive performance.
+- Exercise portable checks for changed coordinate math, plan identity, admission, eviction,
+  cancellation, or fallback behavior.
+- When accelerated algorithms or execution paths change, compare representative outputs on real
+  hardware with an accepted reference and domain-appropriate tolerances. Include the edge cases the
+  change could affect, such as tile borders or odd dimensions.
+- When lifetime, admission, or invalidation changes, exercise relevant pressure, supersession,
+  scale-change, or resource-loss cases. Check stale-work rejection and memory recovery.
+- Broader hardware and performance matrices belong to the repository's validation policy.

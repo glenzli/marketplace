@@ -1,6 +1,6 @@
 ---
 name: skeleton-refresh
-description: Refresh existing SKELETON.md, REVIEW_SKELETON.md, or AGENTS.md when durable project intent, boundaries, source authority, stable ownership, navigation, architectural priors, invariants, runtime or release constraints, or review preferences changed. Also use to migrate legacy DEV_SKELETON.md. Do not use for first-time initialization or routine implementation edits.
+description: Update existing skeletons when durable intent, source authority, ownership, navigation, constraints, or review priorities change; also migrate legacy DEV_SKELETON.md. Skip first-time initialization and routine implementation edits.
 ---
 
 # Skeleton Refresh
@@ -18,7 +18,6 @@ target.
 - Stable domain assumptions.
 - Durable semantic ownership, subsystem entries, or navigation expectations.
 - Review priorities or red lines.
-- Stable entries that route common work to an owner.
 
 Skip routine refactors, renamed helpers, internal implementation movement, and test churn when the
 stable owner and navigation path did not change.
@@ -28,7 +27,8 @@ If only current implementation details changed, leave skeletons unchanged.
    durable content and remove the legacy file rather than maintaining both indefinitely.
 2. Inspect the source-of-truth files relevant to the claimed change.
 3. Remove stale detail before adding new detail.
-4. Keep semantic maps bounded and stable; a map should route to owners, not enumerate implementations.
+4. Keep semantic maps bounded: stable entries and short responsibility descriptions, not implementation
+   inventories. Omit or merge sections without distinct project information.
 5. Add a nested `SKELETON.md` only when a large subsystem cannot be navigated locally in one or two hops.
 6. Keep the result source-first and compact enough to remain useful.
 7. Mark uncertainty instead of hard-coding guesses.

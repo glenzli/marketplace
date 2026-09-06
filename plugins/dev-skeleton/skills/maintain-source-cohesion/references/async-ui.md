@@ -1,15 +1,15 @@
 # Async And UI Boundaries
 
-Use this reference when a change touches asynchronous controllers, long-running operations,
-declarative UI, runtime localization, visualization, gestures, or packaged component ownership.
+Use the relevant sections when changing asynchronous lifecycle, state projection, gesture,
+localization, or packaged UI ownership.
 
 ## Own Complete Lifecycles
 
 - Treat independently cancellable jobs, retries, watchers, task-result types, timers, and completion
   handlers as stronger boundary evidence than line count.
-- Extract a workflow with admission, request identity, state, progress, cancellation, retry,
-  terminal result, diagnostics, and destruction wait. Moving only the worker call leaves the facade
-  as the hidden lifecycle owner.
+- Move the workflow's admission, identity, state, and terminal handling together, including progress,
+  cancellation, retry, and destruction wait where supported. Moving only the worker call leaves the
+  facade as the hidden lifecycle owner.
 - Keep the visible affordance equivalent to the state machine's acceptance policy. An available
   action must be admitted atomically, rejected visibly, or queued; never let a shared task slot turn
   it into a silent no-op.
@@ -22,9 +22,9 @@ declarative UI, runtime localization, visualization, gestures, or packaged compo
 
 ## Own State Projections
 
-- Extract asynchronous collection management as one projection lifecycle: authoritative snapshot,
-  selection, immutable query and generation identity, stale-result rejection, serialized requests,
-  coalesced refresh, mutation result, invalidation, terminal status, and destruction wait.
+- Keep asynchronous collection projection with its snapshot, query identity, stale-result rejection,
+  and invalidation policy. Move selection, request scheduling, and terminal cleanup with the projection
+  when it owns them.
 - For batch mutations, keep input normalization, stable deduplication, backend request construction,
   partial-success projection, diagnostics, and downstream invalidation in one owner.
 - When queries populate incompatible subsets of one value type, use responsibility-specific
@@ -59,16 +59,18 @@ declarative UI, runtime localization, visualization, gestures, or packaged compo
 
 ## Validate Runtime Ownership
 
-- Load extracted components through the packaged module or resource namespace, not only a source path.
-- Exercise one representative real interaction. Direct controller calls do not prove pointer,
-  focus, accessibility, signal, or control wiring.
-- Switch every supported runtime language on the same live object tree and back when localization
-  is part of the boundary.
-- Inspect successful-run diagnostics. Fail relevant checks on unexpected binding, resource,
-  provider, or lifecycle warnings rather than collecting logs only after process failure.
+Select checks for the contracts the change could alter; broader coverage follows repository policy.
+
+- When component registration, resources, or imports change, load through the packaged namespace.
+- When interaction wiring moves, exercise a representative real interaction. Direct controller calls
+  do not prove pointer, focus, accessibility, signal, or control wiring.
+- When translation context or locale-change handling moves, switch language on the same live object
+  tree and back, covering the affected contexts. Run the full language matrix when required locally.
+- Inspect diagnostics from these checks, including successful runs, for relevant binding, resource,
+  provider, or lifecycle warnings.
 - Reject stale presentation callbacks with a complete resource or request identity. A visible
   generation counter alone is insufficient when storage, scale, color state, or backing resource
   can change independently.
 - Verify representative geometry visually when clipping, overlap, spacing, or gestures are material.
-- For shared operation slots, test a foreground action while a background operation owns the slot
-  and observe the foreground action's durable terminal effect.
+- When shared operation admission changes, test a foreground action while a background operation
+  owns the slot and observe the foreground action's durable terminal effect.

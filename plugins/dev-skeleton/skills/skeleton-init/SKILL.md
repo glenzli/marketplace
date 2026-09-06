@@ -1,6 +1,6 @@
 ---
 name: skeleton-init
-description: Initialize source-first SKELETON.md, REVIEW_SKELETON.md, and AGENTS.md files in a repository that does not yet have the canonical dev-skeleton contracts, or replace an explicitly selected KB/context setup. Capture durable project boundaries, source authority, a bounded semantic map, architectural priors, invariants, and review preferences without implementation summaries. Use skeleton-refresh for existing canonical files or legacy migration.
+description: Initialize SKELETON.md, REVIEW_SKELETON.md, and AGENTS.md for a repository adopting dev-skeleton, or replace an explicitly selected context setup. Use skeleton-refresh for existing orientation or legacy migration.
 ---
 
 # Skeleton Init
@@ -22,14 +22,19 @@ Read the maintained [SKELETON.md template](../../templates/SKELETON.md),
 assets, not project facts. If these bundle-level templates are unavailable, report an incomplete
 dev-skeleton distribution instead of synthesizing a competing template contract.
 
+Omit or merge sections without distinct project information. Do not invent principles or fill
+headings for completeness; templates suggest content, not a required document shape.
+
 ## Do
 
-1. Read enough authoritative source, manifests, configuration, tests, schemas, release artifacts, and
-   maintained documentation to distinguish project intent from current mechanics.
+1. Inspect the authoritative files needed to establish the project's boundaries and stable entries.
+   Follow relevant source, configuration, tests, or maintained documentation; do not survey every
+   artifact category by default.
 2. Capture durable orientation: purpose and boundaries, source authority, architectural priors,
    invariants, review priorities, and core red lines.
 3. Add a bounded semantic map when it materially shortens navigation. Map stable concerns to entry
-   points and ownership boundaries; do not inventory the tree.
+   points and ownership boundaries. A one-sentence stable responsibility description is useful;
+   do not inventory the tree or describe how each module currently works.
 4. Create the missing canonical files:
    - `SKELETON.md`
    - `REVIEW_SKELETON.md`
@@ -39,7 +44,7 @@ dev-skeleton distribution instead of synthesizing a competing template contract.
 
 ## Never Include
 
-- Function, class, method, API, or module summaries.
+- Per-function, class, API, or module implementation summaries.
 - Architecture mirrors, call graphs, generated or exhaustive source indexes, or test inventories.
 - Function-level entry hints.
 - Behavior that should be read from current source.
