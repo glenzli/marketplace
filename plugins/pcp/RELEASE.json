@@ -1,0 +1,17 @@
+{
+  "version": "0.2.0",
+  "sourceRepository": "https://github.com/glenzli/paged-context-protocol",
+  "sourceRevision": "7abed5355107430982099e781f6da0dc622b8ab4",
+  "binaryTarget": "aarch64-apple-darwin",
+  "sha256": {
+    ".codex-plugin/plugin.json": "aa7a2eb60bd8c8c6bea90c34477713551df4ace4f92887447be36b15899480a0",
+    ".mcp.json": "765f02d77999293a0e7a9566c93a6e5b1ccaa82314dea69a7e5eebc1a5fadb79",
+    "LICENSE": "ee0cf53f55e9d5be4fbfc19048adfcf221f81eea8306c5c710fc6a76272b9e86",
+    "assets/pcp.png": "738d01d2226021f6063dd9cdade0e2a302b7c34a4084d05bf38f0dab91cbad6e",
+    "dist/darwin-arm64/pcp-mcp": "df3b743241b3b540e74c83c9d18be54eb467602f1327a6e337474174f843097e",
+    "scripts/launch-pcp-mcp": "7e1a4b8fc1eae70abc844e3e328dc19b54b81a417d437652ee65429a278c7af2",
+    "skills/use-pcp/SKILL.md": "7f000fb7ad4a8f4e336df70fb42276114b8321e9b1e562abe5a7d429fe90ea9c",
+    "skills/use-pcp/references/staging.md": "b6f11a0783e0f9cd6da51f1ee37b9ad1945413af2f8cb56a7e8d86179d468961",
+    "skills/use-pcp/references/writing.md": "93674de6440a11eba363b88fbd88e16a8f7e0591eb824cb3fa2f879f8bad445f"
+  }
+}
