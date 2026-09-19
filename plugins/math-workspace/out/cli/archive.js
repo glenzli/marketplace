@@ -1,0 +1,15 @@
+"use strict";
+Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
+const oetConverter = require("./oet-converter-BexzT3e6.js");
+exports.AcademicArchive = oetConverter.AcademicArchive;
+exports.SigstoreVerifier = oetConverter.SigstoreVerifier;
+exports.archiveFormats = oetConverter.archiveFormats;
+exports.canonical = oetConverter.canonical;
+exports.captureSource = oetConverter.captureSource;
+exports.compareFiles = oetConverter.compareFiles;
+exports.convertOetArchive = oetConverter.convertOetArchive;
+exports.defaultVerifier = oetConverter.defaultVerifier;
+exports.discoverOetArchives = oetConverter.discoverOetArchives;
+exports.projectArchiveRecord = oetConverter.projectArchiveRecord;
+exports.sha256 = oetConverter.sha256;
+exports.validPolicy = oetConverter.validPolicy;
