@@ -9,7 +9,6 @@ codex plugin marketplace add glenzli/marketplace --ref main
 codex plugin add dev-mesh@glenzli-marketplace
 codex plugin add dev-skeleton@glenzli-marketplace
 codex plugin add math-workspace@glenzli-marketplace
-codex plugin add pcp@glenzli-marketplace
 ```
 
 The first command registers this plugin collection once. Install or update each plugin
@@ -18,11 +17,12 @@ explicitly from its configured source afterwards.
 `math-workspace` includes its CLI and Reader runtime in the plugin snapshot. It
 does not require a global `math-workspace` installation.
 
-`pcp` includes the Codex Skill, MCP launcher, artwork, license, and a compiled
-`pcp-mcp` for macOS on Apple silicon. PCP Runtime, Console, Store, enrollment,
-and their service lifecycle remain a separate local installation. On another
-platform, set `PCP_MCP_BINARY` to a compatible build or install PCP so the
-launcher can use `PCP_HOME/bin/pcp-mcp`.
+PCP is no longer distributed as a standalone Codex plugin. ChatGPT and Codex
+use the same ChatGPT PCP connection through the existing Secure MCP Tunnel.
+This avoids duplicate tools and separate plugin installation, version, enrollment,
+and usage-guidance state. PCP Runtime, Store, and the stdio MCP server remain local.
+See the [PCP setup and rationale](https://github.com/glenzli/paged-context-protocol#为什么不再单独维护-codex-插件)
+and the [English tunnel setup](https://github.com/glenzli/paged-context-protocol/blob/main/README-en.md#shared-chatgpt-and-codex-tunnel-access).
 
 ## Development and release boundary
 
