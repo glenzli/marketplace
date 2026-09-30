@@ -14801,6 +14801,59 @@ ZodTuple.create = (schemas, params) => {
     ...processCreateParams(params)
   });
 };
+let ZodRecord$1 = class ZodRecord extends ZodType$1 {
+  get keySchema() {
+    return this._def.keyType;
+  }
+  get valueSchema() {
+    return this._def.valueType;
+  }
+  _parse(input) {
+    const { status, ctx } = this._processInputParams(input);
+    if (ctx.parsedType !== ZodParsedType.object) {
+      addIssueToContext(ctx, {
+        code: ZodIssueCode.invalid_type,
+        expected: ZodParsedType.object,
+        received: ctx.parsedType
+      });
+      return INVALID;
+    }
+    const pairs = [];
+    const keyType = this._def.keyType;
+    const valueType = this._def.valueType;
+    for (const key in ctx.data) {
+      pairs.push({
+        key: keyType._parse(new ParseInputLazyPath(ctx, key, ctx.path, key)),
+        value: valueType._parse(new ParseInputLazyPath(ctx, ctx.data[key], ctx.path, key)),
+        alwaysSet: key in ctx.data
+      });
+    }
+    if (ctx.common.async) {
+      return ParseStatus.mergeObjectAsync(status, pairs);
+    } else {
+      return ParseStatus.mergeObjectSync(status, pairs);
+    }
+  }
+  get element() {
+    return this._def.valueType;
+  }
+  static create(first, second, third) {
+    if (second instanceof ZodType$1) {
+      return new ZodRecord({
+        keyType: first,
+        valueType: second,
+        typeName: ZodFirstPartyTypeKind.ZodRecord,
+        ...processCreateParams(third)
+      });
+    }
+    return new ZodRecord({
+      keyType: ZodString$1.create(),
+      valueType: first,
+      typeName: ZodFirstPartyTypeKind.ZodRecord,
+      ...processCreateParams(second)
+    });
+  }
+};
 class ZodMap extends ZodType$1 {
   get keySchema() {
     return this._def.keyType;
@@ -15548,6 +15601,7 @@ const objectType = ZodObject$1.create;
 ZodUnion$1.create;
 ZodIntersection$1.create;
 ZodTuple.create;
+const recordType = ZodRecord$1.create;
 const enumType = ZodEnum$1.create;
 ZodPromise.create;
 ZodOptional$1.create;
@@ -19592,14 +19646,14 @@ function intersection(left, right) {
     right
   });
 }
-const ZodRecord = /* @__PURE__ */ $constructor("ZodRecord", (inst, def) => {
+const ZodRecord2 = /* @__PURE__ */ $constructor("ZodRecord", (inst, def) => {
   $ZodRecord.init(inst, def);
   ZodType2.init(inst, def);
   inst.keyType = def.keyType;
   inst.valueType = def.valueType;
 });
 function record(keyType, valueType, params) {
-  return new ZodRecord({
+  return new ZodRecord2({
     type: "record",
     keyType,
     valueType,
@@ -32361,6 +32415,277 @@ class WorkspaceQueries {
     throw new Error("No Math Workspace project was found at or above that path. Run `math-workspace init` first.");
   }
 }
+const { fetch, AbortController: AbortController$1, TextDecoder } = globalThis;
+class ReaderAppGateway {
+  constructor(defaultRoot) {
+    this.defaultRoot = defaultRoot;
+    this.closed = false;
+    this.views = /* @__PURE__ */ new Map();
+    this.creating = /* @__PURE__ */ new Map();
+  }
+  async open(key, projectRoot, launcher = false) {
+    if (this.closed) throw new Error("Math Workspace panel is closed.");
+    if (!/^[a-f0-9]{32}$/.test(key)) throw new Error("Invalid Reader view identity.");
+    if (!this.views.has(key)) {
+      let pending = this.creating.get(key);
+      if (!pending) {
+        if (this.views.size + this.creating.size >= 16) throw new Error("Close an unused Math Workspace panel before opening another.");
+        pending = this.create(key, projectRoot, launcher);
+        this.creating.set(key, pending);
+      }
+      try {
+        await pending;
+      } finally {
+        this.creating.delete(key);
+      }
+    }
+    return { ready: true };
+  }
+  async create(key, projectRoot, launcher = false) {
+    const requested = projectRoot || (launcher ? void 0 : this.defaultRoot);
+    const rootPath = requested ? await findMathWorkspaceRoot(path__namespace.resolve(requested)) : void 0;
+    if (projectRoot && !rootPath) throw new Error("Choose a prepared Math Workspace project.");
+    const reader = await startReaderServer({ rootPath });
+    if (this.closed) {
+      await reader.close();
+      throw new Error("Math Workspace panel is closed.");
+    }
+    const view = { reader, abort: new AbortController$1(), events: [], sequence: 0, listeners: /* @__PURE__ */ new Set() };
+    this.views.set(key, view);
+    void this.watch(view);
+    return view;
+  }
+  async watch(view) {
+    while (!view.abort.signal.aborted) {
+      try {
+        const response = await fetch(view.reader.url + "/api/events", { signal: view.abort.signal });
+        if (!response.ok || !response.body) throw new Error("Reader updates are unavailable.");
+        const stream = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+        while (!view.abort.signal.aborted) {
+          const chunk = await stream.read();
+          if (chunk.done) break;
+          buffer += decoder.decode(chunk.value, { stream: true }).replace(/\r/g, "");
+          let end;
+          while ((end = buffer.indexOf("\n\n")) >= 0) {
+            const block2 = buffer.slice(0, end);
+            buffer = buffer.slice(end + 2);
+            const type2 = block2.match(/^event: (.+)$/m)?.[1];
+            const data = block2.split("\n").filter((line) => line.startsWith("data: ")).map((line) => line.slice(6)).join("\n");
+            if (!type2 || !["workspace-update", "reader-navigate"].includes(type2)) continue;
+            view.events.push({ sequence: ++view.sequence, type: type2, data });
+            if (view.events.length > 32) view.events.shift();
+            view.listeners.forEach((notify) => notify());
+          }
+        }
+      } catch {
+        if (view.abort.signal.aborted) return;
+      }
+      if (!view.abort.signal.aborted) await new Promise((resolve2) => {
+        const timer = setTimeout(done, 1e3);
+        function done() {
+          clearTimeout(timer);
+          view.abort.signal.removeEventListener("abort", done);
+          resolve2();
+        }
+        view.abort.signal.addEventListener("abort", done, { once: true });
+      });
+    }
+  }
+  async request(key, route, method = "GET", headers = {}, body) {
+    const view = this.views.get(key);
+    if (!view) throw new Error("Reader view not found.");
+    const rawPath = route.split("?")[0];
+    if (!/^\/api\/[a-z0-9/-]+$/.test(rawPath) || rawPath === "/api/events" || /(?:^|\/)\.\.(?:\/|$)|%2e|%2f|%5c/i.test(rawPath)) {
+      throw new Error("Invalid Reader API path.");
+    }
+    if (rawPath === "/api/plugin-context") {
+      if (method !== "GET") throw new Error("Reader context supports GET only.");
+      return {
+        status: 200,
+        headers: { "content-type": "application/json" },
+        body: Buffer.from(JSON.stringify({ projectRoot: view.reader.rootPath })).toString("base64")
+      };
+    }
+    const allowedHeaders = {};
+    for (const [name, value] of Object.entries(headers)) {
+      if (["content-type", "x-math-workspace-token", "x-math-workspace-project"].includes(name.toLowerCase())) allowedHeaders[name.toLowerCase()] = value;
+    }
+    const response = await fetch(view.reader.url + route, { method, headers: allowedHeaders, body, signal: view.abort.signal });
+    const bytes = Buffer.from(await response.arrayBuffer());
+    if (bytes.length > 16 * 1024 * 1024) throw new Error("Reader response is too large.");
+    const responseHeaders = {};
+    for (const name of ["content-type", "content-security-policy"]) {
+      const value = response.headers.get(name);
+      if (value) responseHeaders[name] = value;
+    }
+    return { status: response.status, headers: responseHeaders, body: bytes.toString("base64") };
+  }
+  async updates(key, cursor, waitMs) {
+    const view = this.views.get(key);
+    if (!view) throw new Error("Reader view not found.");
+    if (view.sequence <= cursor && !view.abort.signal.aborted) await new Promise((resolve2) => {
+      const timer = setTimeout(done, waitMs);
+      function done() {
+        clearTimeout(timer);
+        view.listeners.delete(done);
+        resolve2();
+      }
+      view.listeners.add(done);
+    });
+    const missed = view.events.length && cursor < view.events[0].sequence - 1;
+    const events = view.events.filter((event) => event.sequence > cursor);
+    if (missed) events.unshift({ sequence: view.sequence, type: "workspace-update", data: '{"changedPaths":[]}' });
+    return { cursor: view.sequence, events };
+  }
+  async closeView(key) {
+    await this.creating.get(key)?.catch(() => void 0);
+    const view = this.views.get(key);
+    if (!view) return;
+    this.views.delete(key);
+    view.abort.abort();
+    view.listeners.forEach((notify) => notify());
+    await view.reader.close();
+  }
+  async close() {
+    this.closed = true;
+    await Promise.allSettled([...this.creating.values()]);
+    await Promise.allSettled([...this.views.keys()].map((key) => this.closeView(key)));
+  }
+}
+async function readerAppHtml() {
+  const root = path__namespace.resolve(__dirname, "../reader");
+  let html = await fs__namespace.readFile(path__namespace.join(root, "index.html"), "utf8");
+  html = html.replace("<html", "<html data-math-workspace-app");
+  const stylesheet = html.match(/<link[^>]+href="([^"]+\.css)"[^>]*>/);
+  const script = html.match(/<script[^>]+src="([^"]+\.js)"[^>]*><\/script>/);
+  if (!stylesheet || !script) throw new Error("Build the Math Workspace Reader before opening the plugin.");
+  let css = await fs__namespace.readFile(path__namespace.join(root, stylesheet[1]), "utf8");
+  css = css.replace(/src:([^;}]+);/g, (declaration2, sources) => {
+    const woff2 = sources.match(/url\(([^)]+\.woff2)\)\s*format\(["']?woff2["']?\)/);
+    return woff2 ? "src:" + woff2[0] + ";" : declaration2;
+  });
+  const fonts = [...new Set([...css.matchAll(/url\(([^)]+\.woff2)\)/g)].map((match2) => match2[1]))];
+  for (const font of fonts) {
+    const bytes = await fs__namespace.readFile(path__namespace.join(root, "assets", font.replace(/^["']|["']$/g, "")));
+    css = css.split("url(" + font + ")").join("url(data:font/woff2;base64," + bytes.toString("base64") + ")");
+  }
+  const javascript = await fs__namespace.readFile(path__namespace.join(root, script[1]), "utf8");
+  return html.replace(stylesheet[0], () => "<style>" + css.replace(/<\/style/gi, "<\\/style") + "</style>").replace(script[0], () => '<script type="module">' + javascript.replace(/<\/script/gi, "<\\/script") + "<\/script>");
+}
+const RESOURCE_URI = "ui://math-workspace/reader-v2.html";
+function registerReaderApp(server, defaultRoot) {
+  const gateway = new ReaderAppGateway(defaultRoot);
+  server.registerResource("math-workspace-reader", RESOURCE_URI, {
+    title: "Math Workspace",
+    mimeType: "text/html;profile=mcp-app",
+    description: "The local Math Workspace Reader, shared by sidebar and conversation entrypoints."
+  }, async () => {
+    return { contents: [{
+      uri: RESOURCE_URI,
+      mimeType: "text/html;profile=mcp-app",
+      text: await readerAppHtml(),
+      _meta: {
+        ui: { csp: { frameDomains: ["blob:"], connectDomains: [], resourceDomains: ["data:", "blob:"] }, prefersBorder: false },
+        "openai/ui": { availableDisplayModes: ["inline", "fullscreen"], preferredDisplayMode: "fullscreen" },
+        "openai/widgetPrefersBorder": false
+      }
+    }] };
+  });
+  const projectRoot = stringType().optional().describe("Prepared Math Workspace project to open. Otherwise use the local project chooser.");
+  const pagePath = stringType().optional().describe("Project-relative Markdown page.");
+  for (const entrypoint of ["global", "thread"]) {
+    server.registerTool(entrypoint === "global" ? "open_workspace" : "open_reader", {
+      title: "Math Workspace",
+      description: entrypoint === "global" ? "Open Math Workspace from the sidebar, choose a local project, or resume reading." : "Open the existing Math Workspace Reader beside this conversation. Each panel keeps its own project and reading position.",
+      inputSchema: { projectRoot, pagePath },
+      annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+      _meta: {
+        ui: { resourceUri: RESOURCE_URI },
+        "openai/ui": { entrypoints: [{ type: entrypoint }] }
+      }
+    }, async (input) => {
+      try {
+        const requested = input.projectRoot || (entrypoint === "thread" ? defaultRoot : void 0);
+        const root = requested ? await findMathWorkspaceRoot(path__namespace.resolve(requested)) : void 0;
+        if (input.projectRoot && !root) throw new Error("Choose a prepared Math Workspace project.");
+        const reader = {
+          launcher: entrypoint === "global",
+          ...root ? { projectRoot: root } : {},
+          ...input.pagePath ? { pagePath: input.pagePath } : {}
+        };
+        return {
+          content: [{ type: "text", text: "Math Workspace Reader is ready." }],
+          structuredContent: { ready: true },
+          _meta: { reader }
+        };
+      } catch (error2) {
+        return { isError: true, content: [{ type: "text", text: error2 instanceof Error ? error2.message : String(error2) }] };
+      }
+    });
+  }
+  server.registerTool("reader_view", {
+    title: "Open a Reader view",
+    description: "Create or resume this MCP App instance’s independent local Reader.",
+    inputSchema: { viewKey: stringType().regex(/^[a-f0-9]{32}$/), projectRoot, pagePath, scrollTop: numberType().nonnegative().optional(), launcher: booleanType().optional() },
+    annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+    _meta: { ui: { visibility: ["app"] } }
+  }, async ({ viewKey, projectRoot: projectRoot2, pagePath: pagePath2, scrollTop, launcher }) => {
+    try {
+      return { content: [], structuredContent: await gateway.open(viewKey, projectRoot2, launcher) };
+    } catch (error2) {
+      return { isError: true, content: [{ type: "text", text: error2 instanceof Error ? error2.message : String(error2) }] };
+    }
+  });
+  server.registerTool("reader_request", {
+    title: "Read or update this Reader view",
+    description: "Use the existing protected Reader API within this app instance.",
+    inputSchema: {
+      viewKey: stringType().regex(/^[a-f0-9]{32}$/),
+      route: stringType().max(8192),
+      method: enumType(["GET", "POST", "DELETE"]).default("GET"),
+      headers: recordType(stringType()).optional(),
+      body: stringType().max(2 * 1024 * 1024).optional()
+    },
+    annotations: { destructiveHint: false, openWorldHint: false },
+    _meta: { ui: { visibility: ["app"] } }
+  }, async ({ viewKey, route, method, headers, body }) => {
+    try {
+      return { content: [], structuredContent: await gateway.request(viewKey, route, method, headers, body) };
+    } catch (error2) {
+      return { isError: true, content: [{ type: "text", text: error2 instanceof Error ? error2.message : String(error2) }] };
+    }
+  });
+  server.registerTool("reader_updates", {
+    title: "Watch this Reader view",
+    description: "Receive local file updates and source navigation for this app instance.",
+    inputSchema: {
+      viewKey: stringType().regex(/^[a-f0-9]{32}$/),
+      cursor: numberType().int().nonnegative(),
+      waitMs: numberType().int().min(0).max(15e3).default(15e3)
+    },
+    annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+    _meta: { ui: { visibility: ["app"] } }
+  }, async ({ viewKey, cursor, waitMs }) => {
+    try {
+      return { content: [], structuredContent: await gateway.updates(viewKey, cursor, waitMs) };
+    } catch (error2) {
+      return { isError: true, content: [{ type: "text", text: error2 instanceof Error ? error2.message : String(error2) }] };
+    }
+  });
+  server.registerTool("close_reader_view", {
+    title: "Close a Reader view",
+    description: "Release this MCP App instance’s local Reader.",
+    inputSchema: { viewKey: stringType().regex(/^[a-f0-9]{32}$/) },
+    annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+    _meta: { ui: { visibility: ["app"] } }
+  }, async ({ viewKey }) => {
+    await gateway.closeView(viewKey);
+    return { content: [], structuredContent: { closed: true } };
+  });
+  return gateway;
+}
 function normalizePagePath(value) {
   if (!value) return void 0;
   const normalized = value.trim().replaceAll("\\", "/").replace(/^\/+/, "");
@@ -32572,11 +32897,13 @@ ${JSON.stringify(result, null, 2)}`
       };
     }
   });
+  const readerApp = registerReaderApp(server, options.rootPath || process.cwd());
   const transport = new StdioServerTransport();
   let closing = false;
   const close = async () => {
     if (closing) return;
     closing = true;
+    await readerApp.close();
     await registry2.close();
     await server.close();
   };
