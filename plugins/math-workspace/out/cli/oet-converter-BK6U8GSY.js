@@ -17,7 +17,7 @@ function _interopNamespaceDefault(e) {
   return Object.freeze(n);
 }
 const path__namespace = /* @__PURE__ */ _interopNamespaceDefault(path);
-const fs$4 = require("node:fs/promises");
+const fs$6 = require("node:fs/promises");
 const crypto$1 = require("node:crypto");
 const os$1 = require("node:os");
 const MAX_ARCHIVE_BYTES = 192 * 1024 * 1024;
@@ -56,7 +56,7 @@ function parseJson(data, exact = false) {
 }
 async function exists(file) {
   try {
-    await fs$4.lstat(file);
+    await fs$6.lstat(file);
     return true;
   } catch (error) {
     if (error.code === "ENOENT") return false;
@@ -66,11 +66,11 @@ async function exists(file) {
 async function safePath(root, name) {
   const parts = relative(name).split("/");
   let current = path__namespace.resolve(root);
-  if ((await fs$4.lstat(current)).isSymbolicLink()) throw new Error("Archive roots cannot be symbolic links.");
+  if ((await fs$6.lstat(current)).isSymbolicLink()) throw new Error("Archive roots cannot be symbolic links.");
   for (const part of parts) {
     current = path__namespace.join(current, part);
     try {
-      if ((await fs$4.lstat(current)).isSymbolicLink()) throw new Error("Archive paths cannot pass through symbolic links.");
+      if ((await fs$6.lstat(current)).isSymbolicLink()) throw new Error("Archive paths cannot pass through symbolic links.");
     } catch (error) {
       if (error.code !== "ENOENT") throw error;
     }
@@ -79,9 +79,9 @@ async function safePath(root, name) {
 }
 async function readFile(root, name, limit = MAX_ARCHIVE_BYTES) {
   const file = await safePath(root, name);
-  const stat = await fs$4.stat(file);
+  const stat = await fs$6.stat(file);
   if (!stat.isFile() || stat.size > limit) throw new Error("Archive input is not a bounded regular file.");
-  return fs$4.readFile(file);
+  return fs$6.readFile(file);
 }
 async function readObject(root, hash) {
   const data = await readFile(root, `objects/${digest(hash)}`);
@@ -90,10 +90,10 @@ async function readObject(root, hash) {
 }
 async function writeObject(root, data) {
   const hash = sha256(data);
-  await fs$4.mkdir(path__namespace.join(root, "objects"), { recursive: true });
+  await fs$6.mkdir(path__namespace.join(root, "objects"), { recursive: true });
   const file = await safePath(root, `objects/${hash}`);
   try {
-    await fs$4.writeFile(file, data, { flag: "wx" });
+    await fs$6.writeFile(file, data, { flag: "wx" });
   } catch (error) {
     if (error.code !== "EEXIST") throw error;
     if (!(await readObject(root, hash)).equals(data)) throw new Error("Archive object collision.");
@@ -102,26 +102,26 @@ async function writeObject(root, data) {
 }
 async function atomicWrite(root, name, data) {
   const file = await safePath(root, name);
-  await fs$4.mkdir(path__namespace.dirname(file), { recursive: true });
+  await fs$6.mkdir(path__namespace.dirname(file), { recursive: true });
   const temporary = file + ".tmp-" + crypto$1.randomBytes(12).toString("hex");
   let handle;
   try {
-    handle = await fs$4.open(temporary, "wx");
+    handle = await fs$6.open(temporary, "wx");
     await handle.writeFile(data);
     await handle.sync();
     await handle.close();
     handle = void 0;
-    await fs$4.rename(temporary, file);
+    await fs$6.rename(temporary, file);
   } finally {
     if (handle) await handle.close();
-    await fs$4.rm(temporary, { force: true });
+    await fs$6.rm(temporary, { force: true });
   }
 }
 async function withLock(root, work) {
   const file = await safePath(root, "LOCK.json");
   const token = crypto$1.randomBytes(16).toString("hex");
   try {
-    await fs$4.writeFile(file, canonical({ pid: process.pid, host: os$1.hostname(), token }), { flag: "wx" });
+    await fs$6.writeFile(file, canonical({ pid: process.pid, host: os$1.hostname(), token }), { flag: "wx" });
   } catch (error) {
     if (error.code === "EEXIST") throw new Error("Another archive operation owns this project. If it exited, use archive recover-lock.");
     throw error;
@@ -129,7 +129,7 @@ async function withLock(root, work) {
   try {
     return await work();
   } finally {
-    if (parseJson(await readFile(root, "LOCK.json")).token === token) await fs$4.unlink(file);
+    if (parseJson(await readFile(root, "LOCK.json")).token === token) await fs$6.unlink(file);
   }
 }
 async function recoverLock(root) {
@@ -143,10 +143,10 @@ async function recoverLock(root) {
     if (error.code !== "ESRCH") throw error;
   }
   if (!(await readFile(root, "LOCK.json")).equals(data)) throw new Error("The archive lock changed during recovery.");
-  await fs$4.unlink(await safePath(root, "LOCK.json"));
+  await fs$6.unlink(await safePath(root, "LOCK.json"));
 }
 const { spawn } = require("node:child_process");
-const fs$3 = require("node:fs/promises");
+const fs$5 = require("node:fs/promises");
 const os = require("node:os");
 const { URL } = require("node:url");
 function runProcess(command, args, options = {}) {
@@ -192,6 +192,16 @@ function deviceAuthentication(output) {
     }
   }
 }
+function normalAuthentication(output) {
+  for (const match of output.matchAll(/https:\/\/oauth2\.sigstore\.dev\/[^\s<>"']+(?=[\s<>"'])/g)) {
+    try {
+      const url = new URL(match[0]), redirect = new URL(url.searchParams.get("redirect_uri") || "");
+      if (url.origin !== "https://oauth2.sigstore.dev" || url.pathname !== "/auth/auth" || url.username || url.password || url.hash || url.searchParams.get("client_id") !== "sigstore" || url.searchParams.get("response_type") !== "code" || redirect.protocol !== "http:" || !["localhost", "127.0.0.1", "[::1]"].includes(redirect.hostname) || !redirect.port || redirect.pathname !== "/auth/callback" || redirect.username || redirect.password || redirect.search || redirect.hash || url.href.length > 8e3) continue;
+      return { url: url.href, flow: "normal" };
+    } catch (_) {
+    }
+  }
+}
 function sameIdentity(a, b) {
   return a?.identity === b?.identity && a?.issuer === b?.issuer;
 }
@@ -231,13 +241,13 @@ class SigstoreVerifier {
     const info = await this.inspect(bundle);
     if (sha256(payload) !== info.digest) throw new Error("The bundle does not sign these payload bytes.");
     if (!identities.some((identity) => sameIdentity(identity, info.identity))) throw new Error("The signing identity is not accepted by this project.");
-    const trustBytes = this.trustedRoot ? await fs$3.readFile(this.trustedRoot) : Buffer.from("cosign-default-trust");
+    const trustBytes = this.trustedRoot ? await fs$5.readFile(this.trustedRoot) : Buffer.from("cosign-default-trust");
     const key = [sha256(payload), sha256(bundle), sha256(trustBytes)].join(":");
     if (this.verified.has(key)) return this.verified.get(key);
-    const directory = await fs$3.mkdtemp(path__namespace.join(os.tmpdir(), "math-archive-verify-"));
+    const directory = await fs$5.mkdtemp(path__namespace.join(os.tmpdir(), "math-archive-verify-"));
     try {
-      await fs$3.writeFile(path__namespace.join(directory, "payload"), payload);
-      await fs$3.writeFile(path__namespace.join(directory, "bundle"), bundle);
+      await fs$5.writeFile(path__namespace.join(directory, "payload"), payload);
+      await fs$5.writeFile(path__namespace.join(directory, "bundle"), bundle);
       const args = [
         "verify-blob",
         path__namespace.join(directory, "payload"),
@@ -256,7 +266,7 @@ class SigstoreVerifier {
       this.verified.set(key, info);
       return info;
     } finally {
-      await fs$3.rm(directory, { recursive: true, force: true });
+      await fs$5.rm(directory, { recursive: true, force: true });
     }
   }
 }
@@ -266,7 +276,10 @@ async function defaultVerifier(explicit) {
   const cached = path__namespace.join(os.homedir(), ".sigstore/root/tuf-repo-cdn.sigstore.dev/targets/trusted_root.json");
   return new SigstoreVerifier(requested || (await exists(cached) ? cached : void 0));
 }
-const crypto = require("node:crypto");
+function validWorkId(value) {
+  if (typeof value !== "string" || !/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$/.test(value)) throw new Error("Invalid stable work identifier.");
+  return value;
+}
 function validScope(value) {
   if (!value || !Array.isArray(value.paths) || !value.paths.length || value.paths.length > 128 || !Array.isArray(value.extensions) || !value.extensions.length || value.extensions.some((item) => typeof item !== "string" || !/^\.[a-zA-Z0-9]+$/.test(item))) throw new Error("An explicit archive file scope is required.");
   const paths = value.paths.map(relative);
@@ -284,19 +297,73 @@ function fileMap(value) {
   if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).length > 3e4) throw new Error("Invalid archive file map.");
   return Object.fromEntries(Object.entries(value).map(([name, hash]) => [relative(name), digest(hash)]));
 }
+const sameJson = (a, b) => canonical(a).equals(canonical(b));
+const matchesPath = (name, prefix) => name === prefix || name.startsWith(prefix + "/");
 function inScope(name, scope) {
-  if (name.split("/").some((part) => part === ".git" || part === ".math-archive") || scope.exclude?.some((prefix) => name === prefix || name.startsWith(prefix + "/"))) return false;
+  if (name.split("/").some((part) => part === ".git" || part === ".math-archive") || scope.exclude?.some((prefix) => matchesPath(name, prefix))) return false;
   return scope.paths.some((prefix) => name === prefix || name.startsWith(prefix + "/") && scope.extensions.includes(path__namespace.extname(name).toLowerCase()) && name.slice(prefix.length + 1).split("/").length <= (scope.maxDepth || 100) && !name.slice(prefix.length + 1).split("/").some((part) => part.startsWith(".")));
 }
+function validPolicy(value) {
+  if (value?.schema !== "math-workspace.archive-policy/v1" || typeof value.title !== "string" || !value.title || value.title.length > 300 || !Array.isArray(value.identities) || !value.identities.length || value.identities.length > 32) throw new Error("Invalid academic archive policy.");
+  const identities = value.identities.map(validIdentity), signingIdentity = validIdentity(value.signingIdentity);
+  if (!identities.some((identity) => sameIdentity(identity, signingIdentity))) throw new Error("The active signer must be an accepted project identity.");
+  const scope = validScope(value.scope);
+  let volumes;
+  if (value.volumes !== void 0) {
+    if (!Array.isArray(value.volumes) || value.volumes.length > 128) throw new Error("Invalid declared archive volumes.");
+    const ids = /* @__PURE__ */ new Set(), prefixes = [];
+    volumes = value.volumes.map((volume) => {
+      const id = validWorkId(volume?.id);
+      if (ids.has(id)) throw new Error("Archive volume identifiers must be unique.");
+      ids.add(id);
+      if (typeof volume.title !== "string" || !volume.title || volume.title.length > 200 || !Array.isArray(volume.paths) || !volume.paths.length || volume.paths.length > 128) throw new Error("A volume requires a title and explicit paths.");
+      const paths = volume.paths.map(relative).sort();
+      for (const prefix of paths) {
+        if (!scope.paths.some((root) => matchesPath(prefix, root)) || scope.exclude?.some((exclude) => matchesPath(prefix, exclude))) throw new Error("A declared volume path is outside the archive scope.");
+        if (prefixes.some((old) => matchesPath(prefix, old) || matchesPath(old, prefix))) throw new Error("Declared volume paths overlap.");
+        prefixes.push(prefix);
+      }
+      return { id, title: volume.title, paths };
+    }).sort((a, b) => a.id.localeCompare(b.id));
+  }
+  return {
+    schema: value.schema,
+    workId: validWorkId(value.workId),
+    title: value.title,
+    scope,
+    identities,
+    signingIdentity,
+    ...volumes !== void 0 ? { volumes } : {}
+  };
+}
+function partitionFiles(files, policy) {
+  const volumes = (policy.volumes || []).map((volume) => ({ ...volume, files: {} }));
+  const outside = {};
+  for (const [name, hash] of Object.entries(fileMap(files))) {
+    if (!inScope(name, policy.scope)) throw new Error("A snapshot file is outside its signed scope.");
+    const matches = volumes.filter((volume) => volume.paths.some((prefix) => matchesPath(name, prefix)));
+    if (matches.length > 1) throw new Error("A snapshot file belongs to overlapping volumes.");
+    if (matches.length) {
+      matches[0].files[name] = hash;
+    } else outside[name] = hash;
+  }
+  return { volumes, outside };
+}
+const crypto = require("node:crypto");
 function pointer(value, recordKey = "record", bundleKey = "bundle") {
   return value === null ? null : { record: digest(value?.[recordKey]), bundle: digest(value?.[bundleKey]) };
 }
-function workId(value) {
-  if (typeof value !== "string" || !/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$/.test(value)) throw new Error("Invalid stable work identifier.");
-  return value;
-}
 async function checkFiles(context, files) {
-  for (const hash of new Set(Object.values(files))) await context.object(hash);
+  const missing = [];
+  for (const [name, hash] of Object.entries(files)) {
+    try {
+      await context.object(hash);
+    } catch (error) {
+      if (error.code !== "ENOENT") throw error;
+      missing.push({ path: name, expected: hash });
+    }
+  }
+  return missing;
 }
 const nativeFormat = {
   id: "math-workspace.archive-record/v1",
@@ -309,22 +376,103 @@ const nativeFormat = {
     const files = fileMap(record.files);
     if (!Object.keys(files).length) throw new Error("An archive snapshot cannot be empty.");
     if (Object.keys(files).some((name) => !inScope(name, scope))) throw new Error("A snapshot file is outside its signed scope.");
-    await checkFiles(context, files);
+    const missing = await checkFiles(context, files);
     for (const hash of record.imports) {
       const imported = parseJson(await context.object(digest(hash)), true);
       if (imported.schema !== "math-workspace.archive-import/v1" || imported.workId !== record.workId || !Array.isArray(imported.objects)) throw new Error("A native archive import binding is invalid.");
-      for (const objectHash of imported.objects) await context.object(digest(objectHash));
+      for (const objectHash of imported.objects) {
+        try {
+          await context.object(digest(objectHash));
+        } catch (error) {
+          if (error.code !== "ENOENT") throw error;
+        }
+      }
     }
     return {
-      workId: workId(record.workId),
+      workId: validWorkId(record.workId),
       label: record.label,
       kind: "snapshot",
       files,
-      missing: [],
+      missing,
       sequence: record.sequence,
       previous,
       imports: record.imports.map(digest),
       signer: validIdentity(record.signer),
+      ...record.sourceLocator ? { sourceLocator: record.sourceLocator } : {}
+    };
+  }
+};
+async function signedPolicy(context, record) {
+  const policyDigest = digest(record.policy), bytes = await context.object(policyDigest);
+  const raw = parseJson(bytes, true), policy = validPolicy(raw);
+  if (sha256(bytes) !== policyDigest || !sameJson(raw, policy) || record.workId !== policy.workId || !sameJson(validIdentity(record.signer), policy.signingIdentity)) throw new Error("The signed archive policy, work or author identity differs.");
+  if (typeof record.preparedAt !== "string" || !Number.isFinite(Date.parse(record.preparedAt))) throw new Error("Invalid archive preparation time.");
+  return { policy, policyDigest };
+}
+const volumeFormat = {
+  id: "math-workspace.archive-volume/v1",
+  async project(context) {
+    const record = parseJson(context.payload, true);
+    if (record.schema !== this.id) throw new Error("Invalid archive volume payload.");
+    const { policy, policyDigest } = await signedPolicy(context, record);
+    const volume = policy.volumes?.find((item) => item.id === record.volumeId);
+    if (!volume || volume.title !== record.title) throw new Error("The volume is not declared by its signed policy.");
+    const files = fileMap(record.files), partition = partitionFiles(files, policy);
+    if (!sameJson(partition.volumes.find((item) => item.id === volume.id).files, files)) throw new Error("A volume includes a file outside its declared mapping.");
+    const missing = await checkFiles(context, files);
+    return {
+      workId: policy.workId,
+      label: volume.title,
+      kind: "volume",
+      volumeId: volume.id,
+      policyDigest,
+      files,
+      missing,
+      signer: policy.signingIdentity
+    };
+  }
+};
+const totalFormat = {
+  id: "math-workspace.archive-total/v1",
+  async project(context) {
+    const record = parseJson(context.payload, true);
+    if (record.schema !== this.id || !Number.isSafeInteger(record.sequence) || record.sequence < 1 || typeof record.label !== "string" || !record.label || record.label.length > 200 || !Array.isArray(record.imports) || !Array.isArray(record.volumes)) throw new Error("Invalid archive total payload.");
+    const { policy, policyDigest } = await signedPolicy(context, record), scope = validScope(record.scope);
+    if (!sameJson(scope, policy.scope)) throw new Error("The total scope differs from its signed policy.");
+    const previous = pointer(record.previous);
+    if (record.sequence === 1 !== (previous === null)) throw new Error("Invalid archive total predecessor.");
+    const files = fileMap(record.files);
+    if (!Object.keys(files).length) throw new Error("An archive total cannot be empty.");
+    const partition = partitionFiles(files, policy);
+    const volumes = record.volumes.map((item) => ({ id: validWorkId(item.id), record: digest(item.record), bundle: digest(item.bundle) }));
+    if (volumes.length !== partition.volumes.length || new Set(volumes.map((item) => item.id)).size !== volumes.length) throw new Error("Total volume mappings are missing, additional or repeated.");
+    for (const volume of partition.volumes) {
+      const receipt = volumes.find((item) => item.id === volume.id);
+      if (!receipt) throw new Error("A declared volume is missing from the total.");
+      const payload = await context.object(receipt.record), bundle = await context.object(receipt.bundle);
+      if (sha256(payload) !== receipt.record || sha256(bundle) !== receipt.bundle) throw new Error("A total volume receipt digest differs.");
+      const projected = await volumeFormat.project({ ...context, input: { format: volumeFormat.id, payload: receipt.record, bundle: receipt.bundle }, payload });
+      if (projected.volumeId !== volume.id || projected.policyDigest !== policyDigest || !sameJson(projected.files, volume.files)) throw new Error("A total does not bind the exact declared volume file map and policy.");
+    }
+    const imports = record.imports.map(digest);
+    if (new Set(imports).size !== imports.length) throw new Error("Total imports must be unique.");
+    for (const hash of imports) {
+      const imported = parseJson(await context.object(hash), true);
+      if (imported.schema !== "math-workspace.archive-import/v1" || imported.workId !== policy.workId || !Array.isArray(imported.objects)) throw new Error("A total import binding is invalid.");
+    }
+    return {
+      workId: policy.workId,
+      label: record.label,
+      kind: "total",
+      policyDigest,
+      files,
+      missing: await checkFiles(context, files),
+      sequence: record.sequence,
+      previous,
+      imports,
+      signer: policy.signingIdentity,
+      volumes,
+      outside: partition.outside,
       ...record.sourceLocator ? { sourceLocator: record.sourceLocator } : {}
     };
   }
@@ -400,7 +548,7 @@ const oetLegacyFormat = {
     if (!sourceRoot) throw new Error("OET source locator is outside its declared project.");
     const sourceFiles = Object.fromEntries(Object.entries(files).filter(([name]) => name.endsWith(".md")));
     return {
-      workId: workId(index.work_id),
+      workId: validWorkId(index.work_id),
       label: path__namespace.posix.dirname(rootManifest),
       kind: record.kind === "root" ? "root" : "volume",
       files: sourceFiles,
@@ -457,7 +605,7 @@ const oetRecordFormat = {
     const prefix = relative(record.source_locator?.project_path);
     const locatedFiles = Object.fromEntries(Object.entries(files).filter(([name]) => name.endsWith(".md")).map(([name, hash]) => [prefix + "/" + name, hash]));
     return {
-      workId: workId(record.work_id),
+      workId: validWorkId(record.work_id),
       label: `OET #${record.sequence}`,
       kind: "snapshot",
       files: locatedFiles,
@@ -472,7 +620,7 @@ const oetRecordFormat = {
   }
 };
 const archiveFormats = new Map(
-  [nativeFormat, oetLegacyFormat, oetRecordFormat].map((format) => [format.id, format])
+  [nativeFormat, volumeFormat, totalFormat, oetLegacyFormat, oetRecordFormat].map((format) => [format.id, format])
 );
 async function projectArchiveRecord(context) {
   digest(context.input.payload);
@@ -482,9 +630,17 @@ async function projectArchiveRecord(context) {
   if (!format) throw new Error(`Unsupported archive format: ${context.input.format}`);
   return format.project(context);
 }
-const fs$2 = require("node:fs/promises");
+const fs$4 = require("node:fs/promises");
 function inputId(input) {
   return sha256(canonical(input));
+}
+function selectRecord(records, selector) {
+  digest(selector);
+  const exact = records.find((record) => record.id === selector);
+  if (exact) return exact;
+  const matches = records.filter((record) => record.payload === selector);
+  if (matches.length !== 1) throw new Error(matches.length ? "The archive payload selector is ambiguous; use its record ID." : "Archive record not found.");
+  return matches[0];
 }
 function inputRecord(value) {
   if (!value || typeof value.format !== "string" || !archiveFormats.has(value.format)) throw new Error("Unknown archive evidence format.");
@@ -497,11 +653,20 @@ async function readHead(store) {
   if (head.schema !== "math-workspace.archive-head/v1" || !Number.isSafeInteger(head.sequence) || head.sequence < 1) throw new Error("Invalid archive head.");
   return { pointer: { record: digest(head.record), bundle: digest(head.bundle) }, sequence: head.sequence };
 }
+async function readRetainedHeads(store) {
+  if (!await exists(path__namespace.join(store, "retained-heads.json"))) return [];
+  const value = parseJson(await readFile(store, "retained-heads.json"), true);
+  if (value.schema !== "math-workspace.archive-retained-heads/v1" || !Array.isArray(value.heads) || value.heads.length > 5e3) throw new Error("Invalid retained archive heads.");
+  return value.heads.map((head) => {
+    if (!Number.isSafeInteger(head.sequence) || head.sequence < 1) throw new Error("Invalid retained archive sequence.");
+    return { pointer: { record: digest(head.record), bundle: digest(head.bundle) }, sequence: head.sequence };
+  });
+}
 async function readCatalog(store, policy) {
   const imports = [], inputs = [], objects = /* @__PURE__ */ new Set();
   const importDir = await safePath(store, "imports");
   if (await exists(importDir)) {
-    const names = (await fs$2.readdir(importDir)).sort();
+    const names = (await fs$4.readdir(importDir)).sort();
     if (names.length > 5e3) throw new Error("Too many archive imports.");
     for (const name of names) {
       if (!/^[a-f0-9]{64}\.json$/.test(name)) throw new Error("Unexpected archive import file.");
@@ -516,27 +681,51 @@ async function readCatalog(store, policy) {
     }
   }
   const head = await readHead(store);
-  let pointer2 = head?.pointer || null, sequence = head?.sequence || 0;
-  const seen = /* @__PURE__ */ new Set();
-  while (pointer2) {
-    if (seen.has(pointer2.record)) throw new Error("Archive chain contains a cycle.");
-    seen.add(pointer2.record);
-    const payload = await readFile(store, `entries/${pointer2.record}/record.json`);
-    const bundle = await readFile(store, `entries/${pointer2.record}/record.bundle`);
-    if (sha256(payload) !== pointer2.record || sha256(bundle) !== pointer2.bundle) throw new Error("Archive chain receipt has changed.");
-    const record = parseJson(payload, true);
-    if (record.schema !== "math-workspace.archive-record/v1" || record.workId !== policy.workId || record.sequence !== sequence) throw new Error("Archive chain sequence or work identity differs.");
-    inputs.push({ format: record.schema, payload: pointer2.record, bundle: pointer2.bundle });
-    objects.add(pointer2.record);
-    objects.add(pointer2.bundle);
-    Object.values(record.files || {}).forEach((hash) => objects.add(digest(hash)));
-    if (!Array.isArray(record.imports) || record.imports.some((hash) => !imports.includes(digest(hash)))) throw new Error("An archive import bound by the chain is missing.");
-    pointer2 = record.previous === null ? null : { record: digest(record.previous?.record), bundle: digest(record.previous?.bundle) };
-    sequence--;
-  }
-  if (sequence !== 0) throw new Error("Archive chain ended before its first entry.");
+  const retained = await readRetainedHeads(store);
+  const seen = /* @__PURE__ */ new Map();
+  const volumeInputs = [];
+  const walk = async (start) => {
+    let pointer2 = start?.pointer || null, sequence = start?.sequence || 0;
+    const chain = /* @__PURE__ */ new Set();
+    while (pointer2) {
+      if (chain.has(pointer2.record)) throw new Error("Archive chain contains a cycle.");
+      chain.add(pointer2.record);
+      if (seen.has(pointer2.record)) {
+        const old = seen.get(pointer2.record);
+        if (old.bundle !== pointer2.bundle || old.sequence !== sequence) throw new Error("Retained archive predecessor bundle or sequence differs.");
+        break;
+      }
+      const payload = await readFile(store, `entries/${pointer2.record}/record.json`);
+      const bundle = await readFile(store, `entries/${pointer2.record}/record.bundle`);
+      if (sha256(payload) !== pointer2.record || sha256(bundle) !== pointer2.bundle) throw new Error("Archive chain receipt has changed.");
+      const record = parseJson(payload, true);
+      if (!["math-workspace.archive-record/v1", "math-workspace.archive-total/v1"].includes(record.schema) || record.workId !== policy.workId || record.sequence !== sequence) throw new Error("Archive chain sequence or work identity differs.");
+      seen.set(pointer2.record, { bundle: pointer2.bundle, sequence });
+      inputs.push({ format: record.schema, payload: pointer2.record, bundle: pointer2.bundle });
+      objects.add(pointer2.record);
+      objects.add(pointer2.bundle);
+      Object.values(record.files || {}).forEach((hash) => objects.add(digest(hash)));
+      if (record.schema === "math-workspace.archive-total/v1") {
+        objects.add(digest(record.policy));
+        if (!Array.isArray(record.volumes)) throw new Error("Invalid total volume bindings.");
+        for (const item of record.volumes) {
+          const payload2 = digest(item.record), bundle2 = digest(item.bundle);
+          volumeInputs.push({ format: "math-workspace.archive-volume/v1", payload: payload2, bundle: bundle2 });
+          objects.add(payload2);
+          objects.add(bundle2);
+        }
+      }
+      if (!Array.isArray(record.imports) || record.imports.some((hash) => !imports.includes(digest(hash)))) throw new Error("An archive import bound by the chain is missing.");
+      pointer2 = record.previous === null ? null : { record: digest(record.previous?.record), bundle: digest(record.previous?.bundle) };
+      sequence--;
+    }
+    if (!pointer2 && sequence !== 0) throw new Error("Archive chain ended before its first entry.");
+  };
+  await walk(head);
+  for (const old of retained) await walk(old);
+  inputs.push(...volumeInputs);
   const entryDir = await safePath(store, "entries");
-  const orphans = await exists(entryDir) ? (await fs$2.readdir(entryDir)).filter((name) => !seen.has(name)).map(digest) : [];
+  const orphans = await exists(entryDir) ? (await fs$4.readdir(entryDir)).filter((name) => !seen.has(name)).map(digest) : [];
   const unique = /* @__PURE__ */ new Map();
   for (const input of inputs) {
     const key = `${input.format}:${input.payload}:${input.bundle}`;
@@ -582,9 +771,13 @@ async function projectInputs(inputs, object, policy, verifier, verify = false, p
       const imported = parseJson(await object(hash), true);
       for (const input of imported.records) if (!byReceipt.has(`${input.payload}:${input.bundle}`)) throw new Error("A snapshot is missing a signature from its bound import.");
     }
+    for (const receipt of view.volumes || []) {
+      const volume = byReceipt.get(`${receipt.record}:${receipt.bundle}`);
+      if (!volume || volume.format !== "math-workspace.archive-volume/v1" || volume.volumeId !== receipt.id || volume.policyDigest !== view.policyDigest || !sameIdentity(volume.identity, view.identity)) throw new Error("A total is missing the exact original volume signature.");
+    }
     if (!view.previous) continue;
     const previous = byReceipt.get(`${view.previous.record}:${view.previous.bundle}`);
-    if (!previous || previous.sequence !== view.sequence - 1 || previous.format !== view.format) throw new Error("Archive predecessor or original predecessor bundle is missing.");
+    if (!previous || previous.sequence !== view.sequence - 1 || !(previous.format === view.format || view.format === "math-workspace.archive-total/v1" && previous.format === "math-workspace.archive-record/v1")) throw new Error("Archive predecessor or original predecessor bundle is missing.");
   }
   return views.sort((a, b) => (b.loggedAt || "").localeCompare(a.loggedAt || "") || a.id.localeCompare(b.id));
 }
@@ -614,7 +807,11 @@ async function importExchange(store, policy, exchange, verifier, progress) {
   }
   const object = async (hash) => {
     const data2 = bytes.get(digest(hash));
-    if (!data2) throw new Error(`Exchange is missing original evidence: ${hash}`);
+    if (!data2) {
+      const error = new Error(`Exchange is missing original evidence: ${hash}`);
+      error.code = "ENOENT";
+      throw error;
+    }
     return data2;
   };
   const records = exchange.records.map(inputRecord);
@@ -632,7 +829,7 @@ async function importExchange(store, policy, exchange, verifier, progress) {
       if (existing && inputId(existing) !== inputId(input)) throw new Error("Import would alter metadata for an existing receipt.");
       combined.set(key, input);
     }
-    await fs$2.mkdir(path__namespace.join(store, "imports"), { recursive: true });
+    await fs$4.mkdir(path__namespace.join(store, "imports"), { recursive: true });
     const target = await safePath(store, `imports/${imported}.json`);
     const alreadyPresent = await exists(target);
     if (alreadyPresent) {
@@ -641,43 +838,55 @@ async function importExchange(store, policy, exchange, verifier, progress) {
     } else {
       for (const value of bytes.values()) await writeObject(store, value);
       await writeObject(store, data);
-      await fs$2.writeFile(target, data, { flag: "wx" });
+      await fs$4.writeFile(target, data, { flag: "wx" });
     }
     return { imported, records: records.length, objects: hashes.length, alreadyPresent };
   });
 }
-async function exportExchange(store, policy) {
+async function exportExchange(store, policy, recordId) {
   const catalog = await readCatalog(store, policy);
+  let inputs = catalog.inputs, hashes = catalog.objects;
+  if (recordId) {
+    const selected = selectRecord(catalog.inputs.map((item) => ({ ...item, id: inputId(item) })), recordId);
+    const { id: _, ...input } = selected;
+    if (input.format === "math-workspace.archive-volume/v1") {
+      const payload = await readObject(store, input.payload), object = cachedObjects(store);
+      const projection = await projectArchiveRecord({ input, payload, object });
+      inputs = [input];
+      hashes = /* @__PURE__ */ new Set([input.payload, input.bundle, projection.policyDigest, ...Object.values(projection.files)]);
+    }
+  }
   const objects = {};
   let total = 0;
-  for (const hash of [...catalog.objects].sort()) {
-    const data = await readObject(store, hash);
+  for (const hash of [...hashes].sort()) {
+    let data;
+    try {
+      data = await readObject(store, hash);
+    } catch (error) {
+      if (error.code !== "ENOENT") throw error;
+      continue;
+    }
     total += data.length;
     if (total > MAX_ARCHIVE_BYTES) throw new Error("Archive export exceeds its byte limit.");
     objects[hash] = data.toString("base64");
   }
-  return { schema: "math-workspace.archive-exchange/v1", workId: policy.workId, records: catalog.inputs, objects };
+  for (const input of inputs) if (!objects[input.payload] || !objects[input.bundle]) throw new Error("Archive export is missing original signature evidence.");
+  return { schema: "math-workspace.archive-exchange/v1", workId: policy.workId, records: inputs, objects };
 }
-const fs$1 = require("node:fs/promises");
-function validPolicy(value) {
-  if (value?.schema !== "math-workspace.archive-policy/v1" || !/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$/.test(value.workId || "") || typeof value.title !== "string" || !value.title || value.title.length > 300 || !Array.isArray(value.identities) || !value.identities.length || value.identities.length > 32) throw new Error("Invalid academic archive policy.");
-  const identities = value.identities.map(validIdentity), signingIdentity = validIdentity(value.signingIdentity);
-  if (!identities.some((identity) => sameIdentity(identity, signingIdentity))) throw new Error("The active signer must be an accepted project identity.");
-  return { schema: value.schema, workId: value.workId, title: value.title, scope: validScope(value.scope), identities, signingIdentity };
-}
+const fs$3 = require("node:fs/promises");
 async function captureSource(projectRoot, scope) {
   scope = validScope(scope);
   const files = /* @__PURE__ */ new Map();
   let total = 0;
   const excluded = /* @__PURE__ */ new Set([".git", ".math-archive", ".signatures", "node_modules", "out", "dist"]);
   const visit = async (name, depth, explicit) => {
-    const file = await safePath(projectRoot, name), stat = await fs$1.lstat(file);
+    const file = await safePath(projectRoot, name), stat = await fs$3.lstat(file);
     if (stat.isSymbolicLink()) throw new Error("Snapshot inputs cannot be symbolic links.");
     if (scope.exclude?.some((prefix) => name === prefix || name.startsWith(prefix + "/"))) return;
     if (name.split("/").includes(ARCHIVE_DIRECTORY) || name.split("/").includes(".git")) throw new Error("An archive cannot include itself or Git internals.");
     if (stat.isDirectory()) {
       if (depth >= (scope.maxDepth || 100)) return;
-      const names = (await fs$1.readdir(file)).sort();
+      const names = (await fs$3.readdir(file)).sort();
       for (const child of names) {
         if (child.startsWith(".") || excluded.has(child)) continue;
         await visit(`${name}/${child}`, depth + 1, false);
@@ -706,6 +915,256 @@ function compareFiles(previous, current) {
     return [{ path: name, change: !Object.hasOwn(previous, name) ? "added" : !Object.hasOwn(current, name) ? "removed" : "modified" }];
   });
 }
+const fs$2 = require("node:fs/promises");
+function volumeStatus(files, policy, records, policyDigest) {
+  const partition = partitionFiles(files, policy);
+  return { outside: partition.outside, volumes: partition.volumes.map((volume) => {
+    const reusable = records.find((record) => record.format === "math-workspace.archive-volume/v1" && record.volumeId === volume.id && record.policyDigest === policyDigest && record.verification === "verified" && record.contentComplete && sameJson(record.files, volume.files));
+    const latest = records.find((record) => record.format === "math-workspace.archive-volume/v1" && record.volumeId === volume.id);
+    return {
+      id: volume.id,
+      title: volume.title,
+      files: Object.keys(volume.files).length,
+      fileMap: volume.files,
+      changed: !reusable,
+      reused: !!reusable,
+      changes: compareFiles(latest?.files || {}, volume.files),
+      ...reusable ? { record: reusable.payload, bundle: reusable.bundle } : {}
+    };
+  }) };
+}
+async function prepareArchive(archive, label) {
+  if (typeof label !== "string" || !label.trim() || label.length > 200) throw new Error("A snapshot label between 1 and 200 characters is required.");
+  return withLock(archive.directory, async () => {
+    const policy = await archive.policy(), policyBytes = await readFile(archive.directory, "policy.json");
+    const state = await archive.records(true, void 0, true);
+    if (state.orphans.length) throw new Error(`Completed records await publication; resume with archive sign --prepared ${state.orphans[0]}`);
+    const files = await captureSource(archive.projectRoot, policy.scope), hashes = hashFiles(files), policyObject = canonical(policy);
+    const policyHash = sha256(policyObject), head = state.records.find((row) => row.payload === state.head?.record && row.bundle === state.head?.bundle);
+    if (head?.kind === "total" && head.policyDigest === policyHash && sameJson(head.files, hashes) && sameJson(head.imports, state.imports)) {
+      return { prepared: head.payload, alreadySigned: true, sequence: head.sequence, changes: [], scheme: "volume-total" };
+    }
+    const status = volumeStatus(hashes, policy, state.records, policyHash), preparedAt = (/* @__PURE__ */ new Date()).toISOString();
+    const volumes = [];
+    for (const volume of status.volumes) {
+      if (volume.reused) volumes.push({ id: volume.id, record: volume.record, bundle: volume.bundle });
+      else {
+        const record = {
+          schema: "math-workspace.archive-volume/v1",
+          workId: policy.workId,
+          volumeId: volume.id,
+          title: volume.title,
+          preparedAt,
+          signer: policy.signingIdentity,
+          policy: policyHash,
+          files: volume.fileMap
+        };
+        volumes.push({ id: volume.id, record: await writeObject(archive.directory, canonical(record)), bundle: null });
+      }
+    }
+    let sourceLocator;
+    try {
+      const commit = (await runProcess("git", ["-C", archive.projectRoot, "rev-parse", "HEAD"])).trim();
+      if (/^[a-f0-9]{40,64}$/.test(commit)) sourceLocator = { gitBaseCommit: commit, meaning: "Git is a locator; archived files contain the actual working-tree bytes." };
+    } catch (_) {
+    }
+    const plan = {
+      schema: "math-workspace.archive-plan/v1",
+      workId: policy.workId,
+      label: label.trim(),
+      sequence: (head?.sequence || 0) + 1,
+      preparedAt,
+      signer: policy.signingIdentity,
+      previous: state.head,
+      imports: state.imports,
+      scope: policy.scope,
+      policy: policyHash,
+      files: hashes,
+      volumes,
+      ...sourceLocator ? { sourceLocator } : {}
+    };
+    if (!(await readFile(archive.directory, "policy.json")).equals(policyBytes) || !sameJson((await readHead(archive.directory))?.pointer || null, state.head) || !sameJson(hashes, hashFiles(await captureSource(archive.projectRoot, policy.scope)))) throw new Error("Source, head or signing policy changed during preparation.");
+    for (const bytes of files.values()) await writeObject(archive.directory, bytes);
+    await writeObject(archive.directory, policyObject);
+    const data = canonical(plan), prepared = sha256(data), pending = await safePath(archive.directory, `pending/${prepared}`);
+    await fs$2.mkdir(pending, { recursive: true });
+    await fs$2.writeFile(path__namespace.join(pending, "plan.json"), data, { flag: "wx" });
+    return {
+      prepared,
+      alreadySigned: false,
+      scheme: "volume-total",
+      sequence: plan.sequence,
+      label: plan.label,
+      files: files.size,
+      volumes: status.volumes.map(({ fileMap: fileMap2, ...view }) => ({ ...view, record: volumes.find((item) => item.id === view.id).record })),
+      outside: status.outside,
+      outsideFiles: Object.keys(status.outside).length,
+      totalSignaturePending: true,
+      changes: compareFiles(head?.files || {}, hashes),
+      signatureCreated: false
+    };
+  });
+}
+async function signBundle(archive, directory, payload, signer, onAuthentication, authFlow, identity) {
+  await fs$2.mkdir(directory, { recursive: true });
+  const recordPath = path__namespace.join(directory, "record.json"), bundlePath = path__namespace.join(directory, "record.bundle");
+  if (await exists(recordPath)) {
+    if (!(await readFile(directory, "record.json")).equals(payload)) throw new Error("The prepared record changed during authentication.");
+  } else await fs$2.writeFile(recordPath, payload, { flag: "wx" });
+  if (!await exists(bundlePath)) {
+    if (signer) await signer(recordPath, bundlePath);
+    else {
+      const args = ["sign-blob", "--yes", "--oidc-disable-ambient-providers", "--fulcio-auth-flow", authFlow, "--timeout", "15m", "--bundle", bundlePath, recordPath];
+      if (archive.verifier instanceof SigstoreVerifier && archive.verifier.trustedRoot) args.push("--trusted-root", archive.verifier.trustedRoot);
+      const output = { stdout: "", stderr: "" };
+      let authenticationUrl = "";
+      await runProcess("cosign", args, { timeout: 15 * 60 * 1e3, stream: true, onOutput: (chunk, stream) => {
+        output[stream] = (output[stream] + chunk).slice(-16e3);
+        const authentication = authFlow === "normal" ? normalAuthentication(output[stream]) : deviceAuthentication(output[stream]);
+        if (authentication && authentication.url !== authenticationUrl) {
+          authenticationUrl = authentication.url;
+          onAuthentication?.(authentication);
+        }
+      } });
+    }
+  }
+  if (!(await readFile(directory, "record.json")).equals(payload)) throw new Error("The prepared record changed during authentication.");
+  const bundle = await readFile(directory, "record.bundle");
+  const info = await archive.verifier.verify(payload, bundle, [identity]);
+  if (info.digest !== sha256(payload)) throw new Error("The original signature bundle does not bind the prepared payload.");
+  return bundle;
+}
+async function signArchive(archive, prepared, signer, onAuthentication, options = {}) {
+  digest(prepared);
+  const authFlow = options.authFlow || "normal";
+  if (!["normal", "device"].includes(authFlow)) throw new Error("Archive authentication flow must be normal or device.");
+  return withLock(archive.directory, async () => {
+    const policy = await archive.policy(), policyBytes = await readFile(archive.directory, "policy.json");
+    const before = await archive.records(true, void 0, true);
+    if (before.head?.record === prepared) return { signed: true, alreadyPublished: true, head: before.head };
+    const pending = await safePath(archive.directory, `pending/${prepared}`);
+    const pendingPlan = await exists(path__namespace.join(pending, "plan.json"));
+    let plan, directory;
+    if (pendingPlan) {
+      const data = await readFile(pending, "plan.json");
+      if (sha256(data) !== prepared) throw new Error("Prepared archive bytes have changed.");
+      plan = parseJson(data, true);
+      directory = pending;
+      if (plan.schema !== "math-workspace.archive-plan/v1") throw new Error("Invalid prepared volume signing operation.");
+      if (await exists(path__namespace.join(pending, "result.json"))) {
+        const result = parseJson(await readFile(pending, "result.json"), true);
+        if (before.head?.record === result.head?.record && before.head?.bundle === result.head?.bundle) return { signed: true, alreadyPublished: true, head: before.head };
+      }
+    } else {
+      directory = await safePath(archive.directory, `entries/${prepared}`);
+      const data = await readFile(directory, "record.json");
+      if (sha256(data) !== prepared) throw new Error("Completed archive bytes have changed.");
+      plan = parseJson(data, true);
+      if (plan.schema !== "math-workspace.archive-total/v1" && plan.schema !== "math-workspace.archive-record/v1") throw new Error("Choose a prepared volume signing operation or completed original record.");
+    }
+    let allowedOrphan = prepared;
+    if (pendingPlan) {
+      if (await exists(path__namespace.join(pending, "total/record.json"))) allowedOrphan = sha256(await readFile(pending, "total/record.json"));
+      else if (await exists(path__namespace.join(pending, "result.json"))) allowedOrphan = digest(parseJson(await readFile(pending, "result.json"), true).head?.record);
+      else if (await exists(path__namespace.join(pending, "receipts.json"))) {
+        const receipts = parseJson(await readFile(pending, "receipts.json"), true).volumes;
+        if (Array.isArray(receipts) && receipts.length === plan.volumes.length) {
+          const { schema: _, volumes: __, ...base } = plan;
+          allowedOrphan = sha256(canonical({ ...base, schema: "math-workspace.archive-total/v1", volumes: receipts }));
+        }
+      } else if (!plan.volumes.length) {
+        const { schema: _, volumes: __, ...base } = plan;
+        allowedOrphan = sha256(canonical({ ...base, schema: "math-workspace.archive-total/v1", volumes: [] }));
+      }
+    }
+    if (pendingPlan && before.head?.record === allowedOrphan) return { signed: true, alreadyPublished: true, head: before.head };
+    if (before.orphans.some((hash) => hash !== allowedOrphan)) throw new Error("Another completed record awaits publication.");
+    const checkUnchanged = async () => {
+      const currentHead = await readHead(archive.directory);
+      if (!(await readFile(archive.directory, "policy.json")).equals(policyBytes) || !sameJson(currentHead?.pointer || null, before.head) || !sameJson(plan.previous, before.head) || plan.sequence !== (currentHead?.sequence || 0) + 1 || plan.workId !== policy.workId || !sameJson(plan.signer, policy.signingIdentity) || !sameJson(plan.scope, policy.scope) || plan.schema !== "math-workspace.archive-total/v1" && plan.schema !== "math-workspace.archive-plan/v1" && pendingPlan) {
+        throw new Error("The predecessor, scope or signing policy changed; prepare a new record.");
+      }
+      if (plan.schema !== "math-workspace.archive-record/v1" && plan.policy !== sha256(canonical(policy))) throw new Error("The signed policy changed; prepare a new record.");
+      if (!sameJson(plan.files, hashFiles(await captureSource(archive.projectRoot, policy.scope)))) throw new Error("Source files changed after preparation; the archive head was not advanced.");
+      const catalog = await readCatalog(archive.directory, policy);
+      if (!sameJson(catalog.imports, plan.imports)) throw new Error("Imported history changed after preparation.");
+      for (const hash of Object.values(plan.files)) await readObject(archive.directory, hash);
+    };
+    await checkUnchanged();
+    let record, payload, bundle, recordHash;
+    if (pendingPlan) {
+      const signedPlan = plan, partition = partitionFiles(plan.files, policy), receipts = [];
+      if (signedPlan.volumes.length !== partition.volumes.length || new Set(signedPlan.volumes.map((item) => item.id)).size !== signedPlan.volumes.length) throw new Error("Prepared volume mappings differ from the policy.");
+      const totalOperations = signedPlan.volumes.filter((item) => !item.bundle).length + 1;
+      let done = 0;
+      options.onProgress?.(0, totalOperations);
+      for (const volume of signedPlan.volumes) {
+        const bytes = await readObject(archive.directory, digest(volume.record));
+        const projection = await projectArchiveRecord({ input: { format: "math-workspace.archive-volume/v1", payload: volume.record, bundle: volume.bundle || "0".repeat(64) }, payload: bytes, object: (hash) => readObject(archive.directory, hash) });
+        const expected = partition.volumes.find((item) => item.id === volume.id);
+        if (!expected || projection.policyDigest !== signedPlan.policy || projection.volumeId !== volume.id || !sameJson(projection.files, expected.files)) throw new Error("Prepared volume file map or policy differs.");
+        await checkUnchanged();
+        let original;
+        if (volume.bundle) {
+          const trusted = before.records.find((row) => row.payload === volume.record && row.bundle === volume.bundle && row.verification === "verified");
+          if (!trusted || trusted.format !== "math-workspace.archive-volume/v1" || !trusted.contentComplete) throw new Error("A reused volume does not have a verified original receipt.");
+          original = await readObject(archive.directory, volume.bundle);
+          await archive.verifier.verify(bytes, original, [policy.signingIdentity]);
+        } else {
+          original = await signBundle(archive, path__namespace.join(pending, "volumes", volume.record), bytes, signer, onAuthentication, authFlow, policy.signingIdentity);
+          await writeObject(archive.directory, original);
+          options.onProgress?.(++done, totalOperations);
+        }
+        receipts.push({ id: volume.id, record: volume.record, bundle: await writeObject(archive.directory, original) });
+        await atomicWrite(pending, "receipts.json", canonical({ schema: "math-workspace.archive-receipts/v1", volumes: receipts }));
+        await checkUnchanged();
+      }
+      const { schema: _, volumes: __, ...base } = signedPlan;
+      record = { ...base, schema: "math-workspace.archive-total/v1", volumes: receipts };
+      payload = canonical(record);
+      recordHash = sha256(payload);
+      const destination2 = await safePath(archive.directory, `entries/${recordHash}`);
+      if (await exists(destination2)) {
+        if (!(await readFile(destination2, "record.json")).equals(payload)) throw new Error("The completed total differs from its preparation.");
+        bundle = await readFile(destination2, "record.bundle");
+        await archive.verifier.verify(payload, bundle, [policy.signingIdentity]);
+      } else {
+        await checkUnchanged();
+        bundle = await signBundle(archive, path__namespace.join(pending, "total"), payload, signer, onAuthentication, authFlow, policy.signingIdentity);
+      }
+      options.onProgress?.(++done, totalOperations);
+    } else {
+      record = plan;
+      payload = await readFile(directory, "record.json");
+      recordHash = prepared;
+      bundle = await readFile(directory, "record.bundle");
+      await archive.verifier.verify(payload, bundle, [policy.signingIdentity]);
+      for (const receipt of record.volumes || []) await archive.verifier.verify(await readObject(archive.directory, receipt.record), await readObject(archive.directory, receipt.bundle), [policy.signingIdentity]);
+    }
+    await writeObject(archive.directory, payload);
+    const bundleHash = await writeObject(archive.directory, bundle);
+    await projectArchiveRecord({ input: { format: record.schema, payload: recordHash, bundle: bundleHash }, payload, object: (hash) => readObject(archive.directory, hash) });
+    await checkUnchanged();
+    await archive.records(true, void 0, true);
+    await checkUnchanged();
+    const destination = await safePath(archive.directory, `entries/${recordHash}`);
+    const head = { record: recordHash, bundle: bundleHash };
+    if (pendingPlan) await atomicWrite(pending, "result.json", canonical({ head }));
+    if (!await exists(destination)) {
+      await fs$2.mkdir(path__namespace.dirname(destination), { recursive: true });
+      await fs$2.rename(path__namespace.join(pending, "total"), destination);
+    }
+    await atomicWrite(archive.directory, "HEAD.json", canonical({ schema: "math-workspace.archive-head/v1", sequence: record.sequence, ...head }));
+    return {
+      signed: true,
+      alreadyPublished: false,
+      head,
+      scheme: record.schema === "math-workspace.archive-total/v1" ? "volume-total" : "native-original",
+      ...record.volumes ? { volumes: record.volumes } : {}
+    };
+  });
+}
+const fs$1 = require("node:fs/promises");
 class AcademicArchive {
   constructor(projectRoot, verifier) {
     this.projectRoot = projectRoot;
@@ -726,7 +1185,7 @@ class AcademicArchive {
   }
   async initialize(input) {
     const policy = validPolicy(input);
-    await captureSource(this.projectRoot, policy.scope);
+    partitionFiles(hashFiles(await captureSource(this.projectRoot, policy.scope)), policy);
     await safePath(this.projectRoot, ARCHIVE_DIRECTORY);
     await fs$1.mkdir(this.directory, { recursive: true });
     return withLock(this.directory, async () => {
@@ -740,53 +1199,171 @@ class AcademicArchive {
       return policy;
     });
   }
-  async records(verify = false, progress) {
+  async updatePolicy(input, expectedPolicy) {
+    const policy = validPolicy(input);
+    return withLock(this.directory, async () => {
+      const old = await this.policy(), bytes = await readFile(this.directory, "policy.json");
+      if (expectedPolicy && sha256(canonical(old)) !== digest(expectedPolicy)) throw new Error("The archive policy changed before this update.");
+      if (policy.workId !== old.workId) throw new Error("A policy update cannot change the stable work identity.");
+      for (const identity of old.identities) if (!policy.identities.some((item) => equal(item, identity))) throw new Error("A policy update must retain accepted historical identities.");
+      partitionFiles(hashFiles(await captureSource(this.projectRoot, policy.scope)), policy);
+      if (!(await readFile(this.directory, "policy.json")).equals(bytes)) throw new Error("The archive policy changed during this update.");
+      await atomicWrite(this.directory, "policy.json", canonical(policy));
+      return policy;
+    });
+  }
+  async hiddenIds() {
+    if (!await exists(path__namespace.join(this.directory, "visibility.json"))) return [];
+    const value = parseJson(await readFile(this.directory, "visibility.json"), true);
+    if (value.schema !== "math-workspace.archive-visibility/v1" || !Array.isArray(value.hidden) || value.hidden.length > 1e4) throw new Error("Invalid local archive visibility.");
+    return [...new Set(value.hidden.map(digest))];
+  }
+  async hide(id, retireHead = false) {
+    return this.visibility(id, true, retireHead);
+  }
+  async restore(id) {
+    return this.visibility(id, false, false);
+  }
+  async visibility(id, hidden, retireHead) {
+    digest(id);
+    return withLock(this.directory, async () => {
+      const state = await this.records(false, void 0, true), record = selectRecord(state.records, id);
+      const ids = new Set(await this.hiddenIds());
+      hidden ? ids.add(record.id) : ids.delete(record.id);
+      if (retireHead) {
+        const head = await readHead(this.directory);
+        const retained = await readRetainedHeads(this.directory);
+        const alreadyRetained = retained.some((old) => old.pointer.record === record.payload && old.pointer.bundle === record.bundle);
+        const active = head?.pointer.record === record.payload && head?.pointer.bundle === record.bundle;
+        if (!hidden || !active && !alreadyRetained) throw new Error("Only the active original head can be explicitly retired.");
+        if (!active && (!equal(head?.pointer || null, record.previous || null) || (head?.sequence || 0) !== (record.sequence || 1) - 1)) throw new Error("The active head advanced after retirement; it will not be rolled back.");
+        if (active) {
+          if (!alreadyRetained) retained.push(head);
+          await atomicWrite(this.directory, "retained-heads.json", canonical({
+            schema: "math-workspace.archive-retained-heads/v1",
+            heads: retained.map((old) => ({ sequence: old.sequence, ...old.pointer }))
+          }));
+          if (record.previous) await atomicWrite(this.directory, "HEAD.json", canonical({ schema: "math-workspace.archive-head/v1", sequence: head.sequence - 1, ...record.previous }));
+          else await fs$1.unlink(await safePath(this.directory, "HEAD.json"));
+        }
+      }
+      await atomicWrite(this.directory, "visibility.json", canonical({ schema: "math-workspace.archive-visibility/v1", hidden: [...ids].sort() }));
+      return { record: record.id, payload: record.payload, hidden, retiredHead: retireHead, originalEvidencePreserved: true };
+    });
+  }
+  async records(verify = false, progress, includeHidden = false) {
     const policy = await this.policy();
     const catalog = await readCatalog(this.directory, policy), object = cachedObjects(this.directory);
-    if (verify) for (const hash of catalog.objects) await object(hash);
-    const records = await projectInputs(catalog.inputs, object, policy, this.verifier, verify, progress);
-    return { records, head: catalog.head, imports: catalog.imports, orphans: catalog.orphans };
+    const missingObjects = [];
+    if (verify) for (const hash of catalog.objects) {
+      try {
+        await object(hash);
+      } catch (error) {
+        if (error.code !== "ENOENT") throw error;
+        missingObjects.push(hash);
+      }
+    }
+    const hidden = new Set(await this.hiddenIds());
+    const all = (await projectInputs(catalog.inputs, object, policy, this.verifier, verify, progress)).map((row) => ({ ...row, hidden: hidden.has(row.id) }));
+    return { records: includeHidden ? all : all.filter((row) => !row.hidden), hiddenRecords: all.filter((row) => row.hidden), head: catalog.head, imports: catalog.imports, orphans: catalog.orphans, missingObjects };
   }
   async status() {
     if (!await this.configured()) return { configured: false, records: [], pending: [] };
     const policy = await this.policy(), state = await this.records();
     const files = hashFiles(await captureSource(this.projectRoot, policy.scope));
-    const headRecord = state.records.find((record) => record.payload === state.head?.record && record.bundle === state.head?.bundle);
+    const allRecords = [...state.records, ...state.hiddenRecords];
+    const headRecord = allRecords.find((record) => record.payload === state.head?.record && record.bundle === state.head?.bundle);
     const pendingRoot = await safePath(this.directory, "pending");
     const pending = [];
     if (await exists(pendingRoot)) for (const name of (await fs$1.readdir(pendingRoot)).sort()) {
       if (!/^[a-f0-9]{64}$/.test(name)) continue;
-      const data = await readFile(this.directory, `pending/${name}/record.json`);
+      const plan = await exists(path__namespace.join(pendingRoot, name, "plan.json"));
+      if (await exists(path__namespace.join(pendingRoot, name, "result.json"))) {
+        const result = parseJson(await readFile(this.directory, `pending/${name}/result.json`), true);
+        if (allRecords.some((row) => row.payload === result.head?.record && row.bundle === result.head?.bundle)) continue;
+      }
+      const data = await readFile(this.directory, `pending/${name}/${plan ? "plan" : "record"}.json`);
       if (sha256(data) !== name) throw new Error("A pending archive record has changed.");
       const record = parseJson(data, true);
+      let details = {};
+      if (plan) {
+        const signedPolicy2 = validPolicy(parseJson(await readObject(this.directory, record.policy), true)), partition2 = partitionFiles(record.files, signedPolicy2);
+        const receipts = await exists(path__namespace.join(pendingRoot, name, "receipts.json")) ? parseJson(await readFile(this.directory, `pending/${name}/receipts.json`), true).volumes : [];
+        details = {
+          scheme: "volume-total",
+          outside: partition2.outside,
+          outsideFiles: Object.keys(partition2.outside).length,
+          totalSignaturePending: true,
+          volumes: partition2.volumes.map((volume) => {
+            const item = record.volumes.find((row) => row.id === volume.id), receipt = receipts.find((row) => row.id === volume.id && row.record === item?.record);
+            const previous = headRecord?.volumes?.find((row) => row.id === volume.id);
+            const old = allRecords.find((row) => row.payload === previous?.record && row.bundle === previous?.bundle);
+            return {
+              id: volume.id,
+              title: volume.title,
+              files: Object.keys(volume.files).length,
+              fileMap: volume.files,
+              changed: !item?.bundle,
+              reused: !!item?.bundle,
+              signed: !!item?.bundle || !!receipt,
+              record: item?.record,
+              bundle: item?.bundle || receipt?.bundle,
+              changes: compareFiles(old?.files || {}, volume.files)
+            };
+          })
+        };
+      }
       pending.push({
         prepared: name,
         label: record.label,
         preparedAt: record.preparedAt,
-        currentMatches: equal(record.files, files),
+        currentMatches: equal(record.files, files) && equal(record.previous, state.head) && (!plan || record.policy === sha256(canonical(policy))),
         files: Object.keys(record.files).length,
         scope: record.scope,
-        changes: compareFiles(headRecord?.files || {}, record.files)
+        changes: compareFiles(headRecord?.files || {}, record.files),
+        ...details
       });
     }
+    const partition = partitionFiles(files, policy);
     return {
       configured: true,
       policy,
+      policyDigest: sha256(canonical(policy)),
       ...state,
       pending,
-      current: { files: Object.keys(files).length, coveredByHead: !!headRecord && equal(headRecord.files, files), changes: compareFiles(headRecord?.files || {}, files) },
+      current: {
+        files: Object.keys(files).length,
+        coveredByHead: !!headRecord && equal(headRecord.files, files),
+        changes: compareFiles(headRecord?.files || {}, files),
+        outside: partition.outside,
+        outsideFiles: Object.keys(partition.outside).length,
+        volumes: partition.volumes.map((volume) => {
+          const receipt = headRecord?.volumes?.find((row) => row.id === volume.id), old = allRecords.find((row) => row.payload === receipt?.record && row.bundle === receipt?.bundle);
+          const changed = !old || old.policyDigest !== sha256(canonical(policy)) || !equal(old.files, volume.files);
+          return {
+            id: volume.id,
+            title: volume.title,
+            files: Object.keys(volume.files).length,
+            changed,
+            reused: !changed,
+            reuseRequiresVerification: true,
+            changes: compareFiles(old?.files || {}, volume.files),
+            ...receipt ? { record: receipt.record, bundle: receipt.bundle } : {}
+          };
+        })
+      },
       cryptographicVerificationPerformed: false,
       mathematicalCorrectnessAssessed: false
     };
   }
   async verify(expectedHead, progress) {
-    const state = await this.records(true, progress);
+    const state = await this.records(true, progress, true);
     if (expectedHead && state.head?.record !== digest(expectedHead)) throw new Error("The archive head differs from the independently known head.");
     if (state.orphans.length) throw new Error(`Completed records await publication; resume with archive sign --prepared ${state.orphans[0]}`);
     return {
       ...state,
       verified: true,
-      contentComplete: state.records.every((record) => record.contentComplete),
+      contentComplete: state.records.every((record) => record.contentComplete) && !state.missingObjects.length,
       missingReferences: state.records.reduce((sum, record) => sum + record.missing.length, 0),
       externalHeadChecked: !!expectedHead,
       currentWorkingTreeChecked: false,
@@ -796,133 +1373,19 @@ class AcademicArchive {
   async import(exchange, progress) {
     return importExchange(this.directory, await this.policy(), exchange, this.verifier, progress);
   }
-  async export() {
-    return exportExchange(this.directory, await this.policy());
+  async export(record) {
+    return exportExchange(this.directory, await this.policy(), record);
   }
   async prepare(label) {
-    if (typeof label !== "string" || !label.trim() || label.length > 200) throw new Error("A snapshot label between 1 and 200 characters is required.");
-    const policy = await this.policy();
-    return withLock(this.directory, async () => {
-      const state = await this.verify();
-      const files = await captureSource(this.projectRoot, policy.scope), hashes = hashFiles(files);
-      const headRecord = state.records.find((row) => row.payload === state.head?.record && row.bundle === state.head?.bundle);
-      if (headRecord && equal(headRecord.files, hashes) && equal(headRecord.imports, state.imports)) {
-        return { prepared: headRecord.payload, alreadySigned: true, sequence: headRecord.sequence, changes: [] };
-      }
-      let sourceLocator;
-      try {
-        const commit = (await runProcess("git", ["-C", this.projectRoot, "rev-parse", "HEAD"])).trim();
-        if (/^[a-f0-9]{40,64}$/.test(commit)) sourceLocator = { gitBaseCommit: commit, meaning: "Git is a locator; archived files contain the actual working-tree bytes." };
-      } catch (_) {
-      }
-      const record = {
-        schema: "math-workspace.archive-record/v1",
-        workId: policy.workId,
-        label: label.trim(),
-        sequence: headRecord ? headRecord.sequence + 1 : 1,
-        preparedAt: (/* @__PURE__ */ new Date()).toISOString(),
-        signer: policy.signingIdentity,
-        previous: state.head,
-        imports: state.imports,
-        scope: policy.scope,
-        files: hashes,
-        ...sourceLocator ? { sourceLocator } : {}
-      };
-      const data = canonical(record), prepared = sha256(data);
-      const pending = await safePath(this.directory, `pending/${prepared}`);
-      await fs$1.mkdir(pending, { recursive: true });
-      for (const bytes of files.values()) await writeObject(this.directory, bytes);
-      await writeObject(this.directory, data);
-      const target = path__namespace.join(pending, "record.json");
-      if (await exists(target)) {
-        if (!(await readFile(this.directory, `pending/${prepared}/record.json`)).equals(data)) throw new Error("A prepared record was modified.");
-      } else await fs$1.writeFile(target, data, { flag: "wx" });
-      return {
-        prepared,
-        alreadySigned: false,
-        sequence: record.sequence,
-        label: record.label,
-        files: files.size,
-        changes: compareFiles(headRecord?.files || {}, hashes),
-        signatureCreated: false
-      };
-    });
+    return prepareArchive(this, label);
   }
-  async sign(prepared, signer, onAuthentication) {
-    digest(prepared);
-    const policy = await this.policy(), policyBytes = await readFile(this.directory, "policy.json");
-    return withLock(this.directory, async () => {
-      const pending = await safePath(this.directory, `pending/${prepared}`), destination = await safePath(this.directory, `entries/${prepared}`);
-      const directory = await exists(pending) ? pending : destination;
-      const payload = await readFile(directory, "record.json");
-      if (sha256(payload) !== prepared) throw new Error("Prepared archive bytes have changed.");
-      const record = parseJson(payload, true);
-      await projectArchiveRecord({
-        input: { format: "math-workspace.archive-record/v1", payload: prepared, bundle: "0".repeat(64) },
-        payload,
-        object: (hash) => readObject(this.directory, hash)
-      });
-      const before = await this.records(true);
-      if (before.head?.record === prepared) return { signed: true, alreadyPublished: true, head: before.head };
-      if (before.orphans.some((hash) => hash !== prepared)) throw new Error("Another completed record awaits publication.");
-      const checkUnchanged = async () => {
-        const currentPolicy = await readFile(this.directory, "policy.json");
-        const currentHead = await readHead(this.directory);
-        if (!currentPolicy.equals(policyBytes) || !equal(currentHead?.pointer || null, before.head) || !equal(record.previous, before.head) || record.sequence !== (currentHead?.sequence || 0) + 1 || !sameIdentity(record.signer, policy.signingIdentity) || record.workId !== policy.workId || !equal(record.scope, policy.scope)) {
-          throw new Error("The predecessor, scope or signing policy changed; prepare a new record.");
-        }
-        if (!equal(record.files, hashFiles(await captureSource(this.projectRoot, policy.scope)))) throw new Error("Source files changed after preparation; the archive head was not advanced.");
-        const catalog = await readCatalog(this.directory, policy);
-        if (!equal(catalog.imports, record.imports)) throw new Error("Imported history changed after preparation.");
-        for (const hash of Object.values(record.files)) await readObject(this.directory, hash);
-      };
-      await checkUnchanged();
-      const recordPath = path__namespace.join(directory, "record.json"), bundlePath = path__namespace.join(directory, "record.bundle");
-      if (!await exists(bundlePath)) {
-        if (signer) await signer(recordPath, bundlePath);
-        else {
-          const args = ["sign-blob", "--yes", "--oidc-disable-ambient-providers", "--timeout", "15m", "--bundle", bundlePath, recordPath];
-          if (this.verifier instanceof SigstoreVerifier && this.verifier.trustedRoot) args.push("--trusted-root", this.verifier.trustedRoot);
-          const output = { stdout: "", stderr: "" };
-          let authenticationUrl = "";
-          await runProcess("cosign", args, {
-            timeout: 15 * 60 * 1e3,
-            stream: true,
-            onOutput: (chunk, stream) => {
-              output[stream] = (output[stream] + chunk).slice(-16e3);
-              const authentication = deviceAuthentication(output[stream]);
-              if (authentication && authentication.url !== authenticationUrl) {
-                authenticationUrl = authentication.url;
-                onAuthentication?.(authentication);
-              }
-            }
-          });
-        }
-      }
-      if (!(await readFile(directory, "record.json")).equals(payload)) throw new Error("The prepared record changed during authentication.");
-      const bundle = await readFile(directory, "record.bundle");
-      await this.verifier.verify(payload, bundle, [policy.signingIdentity]);
-      await checkUnchanged();
-      await this.records(true);
-      await checkUnchanged();
-      const bundleHash = await writeObject(this.directory, bundle);
-      await writeObject(this.directory, payload);
-      if (directory !== destination) {
-        await fs$1.mkdir(path__namespace.dirname(destination), { recursive: true });
-        if (await exists(destination)) throw new Error("The completed record already exists; it will not be overwritten.");
-        await fs$1.rename(directory, destination);
-      }
-      const head = { schema: "math-workspace.archive-head/v1", sequence: record.sequence, record: prepared, bundle: bundleHash };
-      await atomicWrite(this.directory, "HEAD.json", canonical(head));
-      return { signed: true, alreadyPublished: false, head: { record: prepared, bundle: bundleHash } };
-    });
+  async sign(prepared, signer, onAuthentication, options = {}) {
+    return signArchive(this, prepared, signer, onAuthentication, options);
   }
   async record(id, verify = false) {
     digest(id);
-    const state = await this.records(verify);
-    const record = state.records.find((row) => row.id === id);
-    if (!record) throw new Error("Archive record not found.");
-    return record;
+    const state = await this.records(verify, void 0, true);
+    return selectRecord(state.records, id);
   }
   async source(id, name) {
     relative(name);
@@ -943,12 +1406,10 @@ class AcademicArchive {
     return { filePath: name, sha256: sha256(data), content, source: "current-working-tree" };
   }
   async compare(left, right) {
-    const state = await this.records();
+    const state = await this.records(false, void 0, true);
     const files = async (id) => {
       if (id === "current") return hashFiles(await captureSource(this.projectRoot, (await this.policy()).scope));
-      const record = state.records.find((row) => row.id === digest(id));
-      if (!record) throw new Error("Choose an available archive record.");
-      return record.files;
+      return selectRecord(state.records, id).files;
     };
     return { left, right, changes: compareFiles(await files(left), await files(right)) };
   }
@@ -1080,8 +1541,11 @@ exports.captureSource = captureSource;
 exports.compareFiles = compareFiles;
 exports.convertOetArchive = convertOetArchive;
 exports.defaultVerifier = defaultVerifier;
+exports.deviceAuthentication = deviceAuthentication;
 exports.discoverOetArchives = discoverOetArchives;
+exports.normalAuthentication = normalAuthentication;
 exports.parseJson = parseJson;
+exports.partitionFiles = partitionFiles;
 exports.projectArchiveRecord = projectArchiveRecord;
 exports.recoverLock = recoverLock;
 exports.sha256 = sha256;
