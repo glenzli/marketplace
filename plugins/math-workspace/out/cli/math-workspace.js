@@ -3,7 +3,7 @@
 const fs$5 = require("node:fs/promises");
 const path$1 = require("node:path");
 const crypto$1 = require("node:crypto");
-const publication = require("./index-Cj0jQ_JX.js");
+const publication = require("./index-n3ezPYOc.js");
 const oetConverter = require("./oet-converter-BK6U8GSY.js");
 const process$1 = require("node:process");
 function _interopNamespaceDefault(e) {

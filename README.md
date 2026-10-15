@@ -14,8 +14,21 @@ codex plugin add math-workspace@glenzli-marketplace
 The first command registers this plugin collection once. Install or update each plugin
 explicitly from its configured source afterwards.
 
-`math-workspace` includes its CLI and Reader runtime in the plugin snapshot. It
-does not require a global `math-workspace` installation.
+## Math Workspace
+
+[Math Workspace](https://github.com/glenzli/math-workspace) is a local writing and
+review workspace for mathematical manuscripts: book navigation, stable references,
+prose/Lean comparison, Codex-assisted review, and selected-chapter PDF editions.
+Front matter, afterwords, and continuing-work notices stay in the manuscript.
+
+The plugin snapshot includes its CLI and Reader runtime; it does not require a
+global `math-workspace` installation. Start a new Codex task after an update.
+See the [workflow guide and current screenshots](https://github.com/glenzli/math-workspace#readme)
+and [project setup](https://github.com/glenzli/math-workspace/blob/main/docs/install.md).
+
+![Math Workspace Reader](https://raw.githubusercontent.com/glenzli/math-workspace/main/media/readme/banner.jpg)
+
+## PCP connection
 
 PCP is no longer distributed as a standalone Codex plugin. ChatGPT and Codex
 use the same ChatGPT PCP connection through the existing Secure MCP Tunnel.

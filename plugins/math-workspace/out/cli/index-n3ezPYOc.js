@@ -3715,15 +3715,17 @@ async function renderPublication(store, plan, snapshot, recheck, options, progre
     await fs.mkdir(frozen);
     try {
       progress.onProgress?.("Freezing selected sources, formal numbering inputs, and local resources");
+      const configName = ".math-workspace/config.json";
       for (const [name, bytes] of snapshot.files) {
+        if (name === configName) continue;
         const destination2 = await safePath(frozen, name);
         await fs.mkdir(path__namespace.dirname(destination2), { recursive: true });
         await fs.writeFile(destination2, bytes, { flag: "wx" });
       }
-      if (!snapshot.files.has(".math-workspace/config.json")) {
-        await fs.mkdir(path__namespace.join(frozen, ".math-workspace"), { recursive: true });
-        await fs.writeFile(path__namespace.join(frozen, ".math-workspace/config.json"), canonical(snapshot.config), { flag: "wx" });
-      }
+      const sourceConfig = snapshot.files.has(configName) ? JSON.parse(snapshot.files.get(configName).toString("utf8")) : snapshot.config;
+      const exportConfig = { ...sourceConfig, lean: { ...sourceConfig?.lean, projects: [] } };
+      await fs.mkdir(path__namespace.join(frozen, ".math-workspace"), { recursive: true });
+      await fs.writeFile(path__namespace.join(frozen, configName), canonical(exportConfig), { flag: "wx" });
       const invoke = options.runCli || ((args2, runtimeOptions) => runPublicationCli(options.cliPath || path__namespace.resolve(__dirname, "math-workspace.js"), args2, { ...runtimeOptions, credentialEnv: profile.zenodo.tokenEnv }));
       progress.onProgress?.("Compiling selected chapters with their original formal numbering");
       await invoke(["export-md", ...plan.selected.map((page) => page.path), "--out=../compiled.md", "--read-only"], { cwd: frozen, onProgress: progress.onProgress });
