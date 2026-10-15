@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 "use strict";
-const fs$2 = require("node:fs/promises");
+const fs$5 = require("node:fs/promises");
 const path$1 = require("node:path");
 const crypto$1 = require("node:crypto");
+const publication = require("./index-Cj0jQ_JX.js");
 const oetConverter = require("./oet-converter-BK6U8GSY.js");
 const process$1 = require("node:process");
 function _interopNamespaceDefault(e) {
@@ -21,7 +22,7 @@ function _interopNamespaceDefault(e) {
   n.default = e;
   return Object.freeze(n);
 }
-const fs__namespace = /* @__PURE__ */ _interopNamespaceDefault(fs$2);
+const fs__namespace = /* @__PURE__ */ _interopNamespaceDefault(fs$5);
 const path__namespace = /* @__PURE__ */ _interopNamespaceDefault(path$1);
 const crypto__namespace = /* @__PURE__ */ _interopNamespaceDefault(crypto$1);
 const decodeCache = {};
@@ -4489,7 +4490,7 @@ function compile$1(self) {
   re.link_no_ip_fuzzy = RegExp(untpl(re.tpl_link_no_ip_fuzzy), "i");
   re.link_no_ip_fuzzy_global = RegExp(untpl(re.tpl_link_no_ip_fuzzy), "ig");
   re.host_fuzzy_test = RegExp(untpl(re.tpl_host_fuzzy_test), "i");
-  const aliases2 = [];
+  const aliases = [];
   self.__compiled__ = {};
   function schemaError(name, val) {
     throw new Error(`(LinkifyIt) Invalid schema "${name}": ${val}`);
@@ -4519,12 +4520,12 @@ function compile$1(self) {
       return;
     }
     if (isString(val)) {
-      aliases2.push(name);
+      aliases.push(name);
       return;
     }
     schemaError(name, val);
   });
-  aliases2.forEach(function(alias) {
+  aliases.forEach(function(alias) {
     if (!self.__compiled__[self.__schemas__[alias]]) {
       return;
     }
@@ -5371,3050 +5372,6 @@ function figureMarkdownForPdf(source) {
   for (const change2 of changes.reverse()) lines2.splice(change2.start, change2.end - change2.start, change2.text);
   return lines2.join("\n");
 }
-const FORMAL_KIND_POLICIES = {
-  prop: { aliases: ["命题", "Proposition", "Prop", "Prop."], zh: "命题", en: "Proposition", counter: "theorem", recall: true, dependency: "mainline", lean: true },
-  lemma: { aliases: ["引理", "Lemma", "Lem", "Lem."], zh: "引理", en: "Lemma", counter: "theorem", recall: true, dependency: "mainline", lean: true },
-  theorem: { aliases: ["定理", "Theorem", "Thm", "Thm."], zh: "定理", en: "Theorem", counter: "theorem", recall: true, dependency: "mainline", lean: true },
-  cor: { aliases: ["推论", "Corollary", "Cor", "Cor."], zh: "推论", en: "Corollary", counter: "theorem", recall: true, dependency: "mainline", lean: true },
-  def: { aliases: ["定义", "Definition", "Def", "Def."], zh: "定义", en: "Definition" },
-  remark: { aliases: ["注", "Remark", "Rem", "Rem."], zh: "注", en: "Remark", recall: true, dependency: "supplemental", lean: true },
-  example: { aliases: ["例", "Example", "Ex", "Ex."], zh: "例", en: "Example", counter: "example", recall: true },
-  exercise: { aliases: ["习题", "练习", "Exercise"], zh: "习题", en: "Exercise", counter: "exercise", recall: true, dependency: "pedagogical", lean: true },
-  solution: { aliases: ["解答", "答案", "Solution", "Answer"], zh: "解答", en: "Solution", recall: true, dependency: "pedagogical" },
-  section: { aliases: [], zh: "§", en: "§", counter: "section" },
-  equation: { aliases: ["公式", "方程", "Equation", "Eq", "Eq.", "Formula"], zh: "公式", en: "Equation", counter: "equation" },
-  figure: { aliases: ["图", "图示", "Figure", "Fig", "Fig."], zh: "图", en: "Figure", counter: "figure" },
-  table: { aliases: ["表", "表格", "Table", "Tab", "Tab."], zh: "表", en: "Table", counter: "table" }
-};
-const FORMAL_TYPES = Object.keys(FORMAL_KIND_POLICIES);
-new Set(FORMAL_TYPES.filter((kind) => FORMAL_KIND_POLICIES[kind].counter === "theorem"));
-const DEPENDENCY_NODE_TYPES = new Set(FORMAL_TYPES.filter((kind) => FORMAL_KIND_POLICIES[kind].dependency));
-const RECALL_TYPES = new Set(FORMAL_TYPES.filter((kind) => FORMAL_KIND_POLICIES[kind].recall));
-const DEFAULT_LEAN_COVERAGE_TYPES = FORMAL_TYPES.filter((kind) => FORMAL_KIND_POLICIES[kind].lean);
-const HASH_ID_RE = /^h-[a-f0-9]{16,32}$/;
-const TMP_ID_RE = /^tmp-[A-Za-z0-9_-]+$/;
-const FORMAL_ID_PATTERN = "(?:h-[a-f0-9]{16,32}|tmp-[A-Za-z0-9_-]+)";
-const aliases = new Map(FORMAL_TYPES.flatMap((kind) => FORMAL_KIND_POLICIES[kind].aliases.map((alias) => [alias.toLowerCase(), kind])));
-const FORMAL_TYPE_PATTERN = [...aliases.keys()].sort((a, b) => b.length - a.length).map((alias) => alias.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|");
-function normalizeFormalKind(alias) {
-  return aliases.get(alias.toLowerCase());
-}
-function formalDictionary(language) {
-  return Object.fromEntries(FORMAL_TYPES.map((kind) => [kind, FORMAL_KIND_POLICIES[kind][language]]));
-}
-function isPedagogicalKind(kind) {
-  return FORMAL_KIND_POLICIES[kind]?.dependency === "pedagogical";
-}
-function isMainlineKind(kind) {
-  return FORMAL_KIND_POLICIES[kind]?.dependency === "mainline";
-}
-function stripSolutionAssociation(text2) {
-  return text2.replace(
-    new RegExp(`\\s*[（(](?:对应|for)\\s+@${FORMAL_ID_PATTERN}(?:\\s*[；;]\\s*([^）)]*))?[）)]`, "i"),
-    (_match, title2) => title2 ? `（${title2.trim()}）` : ""
-  );
-}
-function exerciseSupportKind(line) {
-  const text2 = line.trim().replace(/^>\s*/, "").replace(/^(?:\*\*|__)(.*?)(?:\*\*|__)/, "$1").trim();
-  if (/^(?:提示|Hint)\s*(?:[：:.]|$)/i.test(text2)) return "hint";
-  if (/^(?:解答|答案|Solution|Answer)\s*(?:[：:.]|$)/i.test(text2)) return "solution";
-  return void 0;
-}
-function solutionTarget(title2) {
-  const match2 = title2.match(new RegExp(`^(?:对应|for)\\s+@(${FORMAL_ID_PATTERN})(?:\\s*[；;]\\s*(.*))?$`, "i"));
-  return match2 ? { id: match2[1], title: (match2[2] || "").trim() } : void 0;
-}
-function collectExerciseContent(lines2, startLine, marker, parseMarker) {
-  let end = startLine;
-  let inFence = false;
-  for (let i = startLine + 1; i < lines2.length; i++) {
-    if (/^\s*(```|~~~)/.test(lines2[i])) {
-      inFence = !inFence;
-      end = i;
-      continue;
-    }
-    if (!inFence && (/^#{1,6}\s+/.test(lines2[i]) || parseMarker(lines2[i]) || /^ {0,3}(?:(?:-[ \t]*){3,}|(?:\*[ \t]*){3,}|(?:_[ \t]*){3,})$/.test(lines2[i]))) break;
-    end = i;
-  }
-  while (end > startLine && !lines2[end].trim()) end--;
-  const support = [];
-  inFence = false;
-  if (marker.type === "exercise") for (let i = startLine + 1; i <= end; i++) {
-    if (/^\s*(```|~~~)/.test(lines2[i])) {
-      inFence = !inFence;
-      continue;
-    }
-    const kind = !inFence && exerciseSupportKind(lines2[i]);
-    if (!kind) continue;
-    if (support.length) support[support.length - 1].endLine = i - 1;
-    support.push({ kind, startLine: i, endLine: end });
-  }
-  let promptEnd = support.length ? support[0].startLine - 1 : end;
-  while (promptEnd > startLine && !lines2[promptEnd].trim()) promptEnd--;
-  const contentLines = lines2.slice(startLine, promptEnd + 1);
-  contentLines[0] = contentLines[0].replace(marker.markerText, marker.markerText.replace(/\s+#[A-Za-z0-9_-]+\b$/, ""));
-  return { contentLines, endLine: promptEnd, support, bodyEndLine: end };
-}
-function connectExerciseSolutions(definitions2, labels) {
-  const issues = [];
-  for (const definition of definitions2) {
-    if (definition.type !== "solution" || !definition.id) continue;
-    const targetId = definition.label.solutionOf;
-    const target = targetId && labels[targetId];
-    if (!target || target.type !== "exercise") {
-      issues.push({
-        severity: "error",
-        code: "solution-target-invalid",
-        file: definition.file,
-        line: definition.line,
-        message: targetId ? `Solution target @${targetId} must resolve to an exercise.` : "A solution needs an explicit target: 解答 #tmp-s（对应 @tmp-e） / Solution #tmp-s (for @tmp-e)."
-      });
-      continue;
-    }
-    if (target.bookKey !== definition.label.bookKey) {
-      issues.push({
-        severity: "error",
-        code: "solution-target-cross-book",
-        file: definition.file,
-        line: definition.line,
-        message: "An exercise and its solution must belong to the same book."
-      });
-      continue;
-    }
-    definition.label.number = target.number;
-    definition.label.solutionExerciseNumber = target.unitLabel && target.number !== void 0 ? `${target.unitLabel}.${target.number}` : "";
-    definition.label.solutionExerciseTitle = target.title;
-    (target.solutions ||= []).push(definition.id);
-  }
-  for (const label of Object.values(labels)) if (label.solutions) label.solutions.sort();
-  return issues;
-}
-function associatedProofContent(label, labels) {
-  return JSON.stringify({
-    question: label.solutionOf ? { id: label.solutionOf, content: labels[label.solutionOf]?.content || "" } : void 0,
-    local: label.proofContent || "",
-    support: label.supportContent || "",
-    solutions: (label.solutions || []).map((id2) => ({ id: id2, content: labels[id2]?.proofContent || "", target: labels[id2]?.solutionOf || "" }))
-  });
-}
-const CONCEPT_NAME_RE = /(?:concepts?|glossary|terminology|definitions?|concept-index|概念|术语|定义)/i;
-const NOTATION_NAME_RE = /(?:symbols?|notation|conventions?|符号|记号|约定)/i;
-const SUMMARY_NAME_RE = /(?:^|[-_])summary(?:$|[-_])|总结|小结/i;
-const GENERIC_HEADING_RE = /^(?:附录\s*[A-Z0-9]*\s*[:：-]?\s*)?(?:概念|术语|定义|符号|记号|约定|目录|索引|说明|范围|总览|概览|引言|导言|参考文献|references?|introduction|overview|scope|notes?)$/i;
-function normalizePath(value) {
-  return String(value || "").replace(/\\/g, "/").replace(/^\/+/, "");
-}
-function fileStem(filePath) {
-  const basename = normalizePath(filePath).split("/").pop() || "";
-  return basename.replace(/\.md$/i, "");
-}
-function normalizeTerm(value) {
-  return String(value || "").replace(/#[-A-Za-z0-9_]+\b/g, "").replace(/\{#[^}]+\}/g, "").replace(/[`*_~]/g, "").replace(/^\s*(?:\d+(?:\.\d+)*|[A-Z])\s*[.、:：-]\s*/, "").replace(/^\s*(?:定义|Definition)\s*[（(]([^）)]+)[）)]\s*[:：]?\s*$/i, "$1").replace(/\s+/g, " ").trim();
-}
-function parseHeadings(content) {
-  const headings = [];
-  let inFence = false;
-  String(content || "").split(/\r?\n/).forEach((line, index) => {
-    if (/^\s*(```|~~~)/.test(line)) {
-      inFence = !inFence;
-      return;
-    }
-    if (inFence) return;
-    const match2 = line.match(/^\s{0,3}(#{1,6})\s+(.+?)\s*$/);
-    if (!match2) return;
-    const title2 = normalizeTerm(match2[2].replace(/\s+#+\s*$/, ""));
-    if (title2) headings.push({ level: match2[1].length, line: index + 1, title: title2 });
-  });
-  return headings;
-}
-function sourceKind(document, headings) {
-  const stem = fileStem(document.filePath);
-  const topTitle = headings.length > 0 ? headings.filter((heading2) => heading2.level === Math.min(...headings.map((item2) => item2.level)))[0]?.title || "" : "";
-  const appendix = /^appendix[-_\s]?/i.test(stem) || /(?:^|\/)附录/.test(normalizePath(document.filePath));
-  const concept = CONCEPT_NAME_RE.test(stem) || CONCEPT_NAME_RE.test(topTitle);
-  const notation = NOTATION_NAME_RE.test(stem) || NOTATION_NAME_RE.test(topTitle);
-  const summary = SUMMARY_NAME_RE.test(stem) || SUMMARY_NAME_RE.test(topTitle);
-  if (appendix && concept) {
-    return { kind: /glossary|术语/i.test(`${stem} ${topTitle}`) ? "glossary" : "concept-appendix", filePath: normalizePath(document.filePath), title: topTitle || stem, confidence: "high" };
-  }
-  if (concept && /(?:glossary|terminology|术语|概念表|核心概念)/i.test(`${stem} ${topTitle}`)) {
-    return { kind: "glossary", filePath: normalizePath(document.filePath), title: topTitle || stem, confidence: "medium" };
-  }
-  if (appendix && notation) {
-    return { kind: "notation-appendix", filePath: normalizePath(document.filePath), title: topTitle || stem, confidence: "high" };
-  }
-  if (summary) {
-    return { kind: "summary-page", filePath: normalizePath(document.filePath), title: topTitle || stem, confidence: "medium" };
-  }
-  return void 0;
-}
-function tableCells(line) {
-  const trimmed = line.trim();
-  if (!trimmed.includes("|")) return [];
-  const body = trimmed.replace(/^\|/, "").replace(/\|$/, "");
-  const cells = [];
-  let current = "";
-  let escaped = false;
-  for (const char of body) {
-    if (escaped) {
-      current += char;
-      escaped = false;
-    } else if (char === "\\") {
-      current += char;
-      escaped = true;
-    } else if (char === "|") {
-      cells.push(current.trim());
-      current = "";
-    } else {
-      current += char;
-    }
-  }
-  cells.push(current.trim());
-  return cells;
-}
-function isTableDivider(cells) {
-  return cells.length > 0 && cells.every((cell) => /^:?-{3,}:?$/.test(cell.replace(/\s+/g, "")));
-}
-function isTermColumn(value) {
-  return /^(?:术语|概念|名称|名词|term|concept|name)$/i.test(normalizeTerm(value));
-}
-function isDefinitionColumn(value) {
-  return /^(?:定义|说明|释义|描述|definition|meaning|description|note)$/i.test(normalizeTerm(value));
-}
-function candidateContent(lines2, heading2, nextHeading) {
-  const end = nextHeading ? nextHeading.line - 1 : lines2.length;
-  const content = lines2.slice(heading2.line, end).filter((line) => !/^\s{0,3}#{1,6}\s+/.test(line)).join("\n").trim();
-  return content;
-}
-function headingDefinitions(document, source) {
-  const lines2 = String(document.content || "").split(/\r?\n/);
-  const headings = parseHeadings(document.content);
-  if (headings.length < 2) return [];
-  const pageLevel = Math.min(...headings.map((heading2) => heading2.level));
-  const itemLevel = Math.max(...headings.filter((heading2) => heading2.level > pageLevel).map((heading2) => heading2.level));
-  if (!Number.isFinite(itemLevel)) return [];
-  return headings.filter((heading2) => heading2.level === itemLevel).flatMap((heading2) => {
-    const title2 = normalizeTerm(heading2.title);
-    if (!title2 || GENERIC_HEADING_RE.test(title2)) return [];
-    const nextHeading = headings.find((candidate) => candidate.line > heading2.line && candidate.level <= heading2.level);
-    const content = candidateContent(lines2, heading2, nextHeading);
-    if (content.replace(/\s+/g, "").length < 16) return [];
-    return [{
-      title: title2,
-      filePath: source.filePath,
-      line: heading2.line,
-      content,
-      origin: source.kind === "glossary" ? "glossary" : "concept-appendix"
-    }];
-  });
-}
-function tableDefinitions(document, source) {
-  const lines2 = String(document.content || "").split(/\r?\n/);
-  const definitions2 = [];
-  for (let index = 0; index < lines2.length - 2; index++) {
-    const headers = tableCells(lines2[index]);
-    const divider = tableCells(lines2[index + 1]);
-    if (!headers.length || headers.length !== divider.length || !isTableDivider(divider)) continue;
-    const termIndex = headers.findIndex(isTermColumn);
-    const definitionIndex = headers.findIndex(isDefinitionColumn);
-    if (termIndex < 0 || definitionIndex < 0 || termIndex === definitionIndex) continue;
-    for (let row = index + 2; row < lines2.length; row++) {
-      const cells = tableCells(lines2[row]);
-      if (cells.length !== headers.length) break;
-      const title2 = normalizeTerm(cells[termIndex]);
-      const content = cells[definitionIndex]?.trim() || "";
-      if (!title2 || !content || isTableDivider(cells)) continue;
-      definitions2.push({
-        title: title2,
-        filePath: source.filePath,
-        line: row + 1,
-        content,
-        origin: source.kind === "glossary" ? "glossary" : "concept-appendix"
-      });
-    }
-    index++;
-  }
-  return definitions2;
-}
-function definitionKey(definition) {
-  return `${normalizePath(definition.filePath)}:${normalizeTerm(definition.title).toLocaleLowerCase()}`;
-}
-function uniqueDefinitions(definitions2, existing = []) {
-  const existingKeys = new Set(existing.map((definition) => definitionKey({ filePath: definition.file || "", title: definition.title || "" })));
-  const seen = /* @__PURE__ */ new Set();
-  return definitions2.filter((definition) => {
-    const key = definitionKey(definition);
-    if (!definition.title || existingKeys.has(key) || seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
-}
-function analyzeProjectKnowledge(documents, existingDefinitions = []) {
-  const sourceDocuments = documents.map((document) => ({ document, headings: parseHeadings(document.content) })).map(({ document, headings }) => ({ document, source: sourceKind(document, headings) })).filter((item2) => !!item2.source).sort((left, right) => left.source.filePath.localeCompare(right.source.filePath));
-  const rawDefinitions = sourceDocuments.flatMap(({ document, source }) => {
-    const completed = { ...source };
-    if (completed.kind !== "concept-appendix" && completed.kind !== "glossary") return [];
-    return [...tableDefinitions(document, completed), ...headingDefinitions(document, completed)];
-  });
-  const definitions2 = uniqueDefinitions(rawDefinitions, existingDefinitions);
-  const definitionCountBySource = /* @__PURE__ */ new Map();
-  definitions2.forEach((definition) => definitionCountBySource.set(definition.filePath, (definitionCountBySource.get(definition.filePath) || 0) + 1));
-  const sources = sourceDocuments.map(({ source }) => ({
-    ...source,
-    extractedDefinitions: definitionCountBySource.get(source.filePath) || 0
-  }));
-  const summary = {
-    conceptSources: sources.filter((source) => source.kind === "concept-appendix" || source.kind === "glossary").length,
-    notationSources: sources.filter((source) => source.kind === "notation-appendix").length,
-    summaryPages: sources.filter((source) => source.kind === "summary-page").length,
-    extractedDefinitions: definitions2.length
-  };
-  return {
-    project: { schemaVersion: 1, generatedBy: "math-workspace", sources, summary },
-    definitions: definitions2
-  };
-}
-const PAGE_LABEL_TYPES = /* @__PURE__ */ new Set(["chapter", "intro", "summary", "appendix"]);
-const SYMBOL_PLACEHOLDER_RE = /\$\{([A-Za-z][A-Za-z0-9_]*)\}/g;
-const SYMBOL_SAMPLE_VALUES = {
-  operator: "T",
-  ellipticOperator: "D",
-  parameter: "\\lambda",
-  param: "\\lambda",
-  time: "t",
-  index: "i",
-  base: "U",
-  object: "E",
-  space: "X",
-  radius: "R",
-  mesh: "h",
-  left: "x",
-  right: "y"
-};
-const STRUCTURED_NUMBERED_TYPES = /* @__PURE__ */ new Set(["equation", "figure", "table"]);
-const DEFAULT_CONFIG = {
-  language: "zh",
-  dictionary: {
-    zh: formalDictionary("zh"),
-    en: formalDictionary("en")
-  },
-  ui: {
-    zh: {
-      back: "返回",
-      toc: "目录",
-      emptyToc: "暂无目录数据",
-      units: "章节",
-      chapter: "第 {number} 章",
-      appendix: "附录 {label}",
-      intro: "导读",
-      summary: "小结",
-      introBadge: "导",
-      summaryBadge: "结",
-      unvolumed: "未分卷",
-      volume: "第 {number} 卷",
-      book: "第 {number} 本",
-      workspace: "工作区"
-    },
-    en: {
-      back: "Back",
-      toc: "Contents",
-      emptyToc: "No outline",
-      units: "Sections",
-      chapter: "Chapter {number}",
-      appendix: "Appendix {label}",
-      intro: "Intro",
-      summary: "Summary",
-      introBadge: "I",
-      summaryBadge: "S",
-      unvolumed: "Unvolumed",
-      volume: "Volume {number}",
-      book: "Book {number}",
-      workspace: "Workspace"
-    }
-  },
-  scan: {
-    exclude: [
-      ".git/**",
-      ".math-workspace/**",
-      "node_modules/**",
-      "out/**",
-      "dist/**"
-    ]
-  },
-  lookup: {
-    bookDependencies: {}
-  },
-  lean: {
-    projects: [],
-    coverageTypes: DEFAULT_LEAN_COVERAGE_TYPES
-  },
-  render: {
-    pageHeadingStyle: "label-title"
-  },
-  pdf: {
-    pdfEngine: "xelatex",
-    paper: "a4",
-    margin: "2.5cm",
-    toc: true,
-    tocDepth: 2,
-    lang: "",
-    tocTitle: "",
-    title: "",
-    subtitle: "",
-    author: "",
-    authorNative: "",
-    authorAliases: [],
-    orcid: "",
-    repository: "",
-    license: "",
-    licenseUrl: "",
-    preferredCitation: "",
-    date: "",
-    releaseVersion: "",
-    releaseTag: "",
-    releaseCommit: "",
-    doi: "",
-    showVersionOnCover: false,
-    metadataPage: false,
-    documentClass: "",
-    titlePage: false,
-    coverStyle: "simple",
-    titleSize: "32pt",
-    subtitleSize: "18pt",
-    authorSize: "12pt",
-    dateSize: "12pt",
-    tocPageBreak: true,
-    frontMatter: [],
-    variables: []
-  },
-  debug: {
-    markerTraceIds: []
-  }
-};
-function toPosix(filePath) {
-  return filePath.split(path__namespace.sep).join("/");
-}
-function escapeRegExp(value) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-function unique$1(values) {
-  return [...new Set(values.filter(Boolean))];
-}
-function normalizePdfFrontMatter(value) {
-  if (!Array.isArray(value)) return [];
-  return value.filter((item2) => item2 && typeof item2 === "object").map((item2) => ({
-    title: typeof item2.title === "string" ? item2.title : "",
-    source: typeof item2.source === "string" ? item2.source : "",
-    content: typeof item2.content === "string" ? item2.content : "",
-    toc: item2.toc === true,
-    pageBreakAfter: item2.pageBreakAfter === false ? false : true
-  })).filter((item2) => item2.title || item2.source || item2.content);
-}
-function mergeConfig(config2) {
-  const existing = config2 && typeof config2 === "object" ? config2 : {};
-  const { preview: _legacyPreview, debug: rawDebug, ...baseConfig } = existing;
-  const { previewLog: _legacyPreviewLog, ...debugConfig } = rawDebug && typeof rawDebug === "object" ? rawDebug : {};
-  return {
-    ...baseConfig,
-    language: existing.language === "en" ? "en" : "zh",
-    dictionary: {
-      zh: { ...DEFAULT_CONFIG.dictionary.zh, ...existing.dictionary?.zh || {} },
-      en: { ...DEFAULT_CONFIG.dictionary.en, ...existing.dictionary?.en || {} }
-    },
-    ui: {
-      zh: { ...DEFAULT_CONFIG.ui.zh, ...existing.ui?.zh || {} },
-      en: { ...DEFAULT_CONFIG.ui.en, ...existing.ui?.en || {} }
-    },
-    scan: {
-      ...DEFAULT_CONFIG.scan,
-      ...existing.scan || {},
-      exclude: unique$1([
-        ...DEFAULT_CONFIG.scan.exclude,
-        ...Array.isArray(existing.scan?.exclude) ? existing.scan.exclude.filter((item2) => typeof item2 === "string") : []
-      ])
-    },
-    lookup: {
-      ...DEFAULT_CONFIG.lookup,
-      ...existing.lookup || {},
-      bookDependencies: existing.lookup?.bookDependencies && typeof existing.lookup.bookDependencies === "object" ? existing.lookup.bookDependencies : {}
-    },
-    lean: {
-      ...DEFAULT_CONFIG.lean,
-      ...existing.lean || {},
-      projects: (Array.isArray(existing.lean?.projects) ? existing.lean.projects : []).filter((project) => project && typeof project === "object").map((project) => ({
-        ...project,
-        key: typeof project.key === "string" ? project.key : "",
-        root: typeof project.root === "string" ? project.root : "",
-        sourceRoots: unique$1((Array.isArray(project.sourceRoots) ? project.sourceRoots : ["."]).filter((item2) => typeof item2 === "string")),
-        target: typeof project.target === "string" ? project.target : "",
-        anchorPrefix: typeof project.anchorPrefix === "string" && project.anchorPrefix.trim() ? project.anchorPrefix.trim() : "Math Workspace anchor:"
-      })),
-      coverageTypes: unique$1((Array.isArray(existing.lean?.coverageTypes) ? existing.lean.coverageTypes : DEFAULT_CONFIG.lean.coverageTypes).filter((item2) => typeof item2 === "string"))
-    },
-    render: {
-      ...DEFAULT_CONFIG.render,
-      ...existing.render || {},
-      pageHeadingStyle: ["title", "number-title", "label-title"].includes(existing.render?.pageHeadingStyle) ? existing.render.pageHeadingStyle : DEFAULT_CONFIG.render.pageHeadingStyle
-    },
-    pdf: {
-      ...DEFAULT_CONFIG.pdf,
-      ...existing.pdf || {},
-      pdfEngine: typeof existing.pdf?.pdfEngine === "string" && existing.pdf.pdfEngine ? existing.pdf.pdfEngine : DEFAULT_CONFIG.pdf.pdfEngine,
-      paper: typeof existing.pdf?.paper === "string" && existing.pdf.paper ? existing.pdf.paper : DEFAULT_CONFIG.pdf.paper,
-      margin: typeof existing.pdf?.margin === "string" && existing.pdf.margin ? existing.pdf.margin : DEFAULT_CONFIG.pdf.margin,
-      toc: existing.pdf?.toc === false ? false : DEFAULT_CONFIG.pdf.toc,
-      tocDepth: Number.isFinite(Number(existing.pdf?.tocDepth)) && Number(existing.pdf.tocDepth) >= 1 ? Math.floor(Number(existing.pdf.tocDepth)) : DEFAULT_CONFIG.pdf.tocDepth,
-      lang: typeof existing.pdf?.lang === "string" ? existing.pdf.lang : DEFAULT_CONFIG.pdf.lang,
-      tocTitle: typeof existing.pdf?.tocTitle === "string" ? existing.pdf.tocTitle : DEFAULT_CONFIG.pdf.tocTitle,
-      title: typeof existing.pdf?.title === "string" ? existing.pdf.title : DEFAULT_CONFIG.pdf.title,
-      subtitle: typeof existing.pdf?.subtitle === "string" ? existing.pdf.subtitle : DEFAULT_CONFIG.pdf.subtitle,
-      author: typeof existing.pdf?.author === "string" ? existing.pdf.author : DEFAULT_CONFIG.pdf.author,
-      authorNative: typeof existing.pdf?.authorNative === "string" ? existing.pdf.authorNative : DEFAULT_CONFIG.pdf.authorNative,
-      authorAliases: unique$1(Array.isArray(existing.pdf?.authorAliases) ? existing.pdf.authorAliases.filter((item2) => typeof item2 === "string") : []),
-      orcid: typeof existing.pdf?.orcid === "string" ? existing.pdf.orcid : DEFAULT_CONFIG.pdf.orcid,
-      repository: typeof existing.pdf?.repository === "string" ? existing.pdf.repository : DEFAULT_CONFIG.pdf.repository,
-      license: typeof existing.pdf?.license === "string" ? existing.pdf.license : DEFAULT_CONFIG.pdf.license,
-      licenseUrl: typeof existing.pdf?.licenseUrl === "string" ? existing.pdf.licenseUrl : DEFAULT_CONFIG.pdf.licenseUrl,
-      preferredCitation: typeof existing.pdf?.preferredCitation === "string" ? existing.pdf.preferredCitation : DEFAULT_CONFIG.pdf.preferredCitation,
-      date: typeof existing.pdf?.date === "string" ? existing.pdf.date : DEFAULT_CONFIG.pdf.date,
-      releaseVersion: typeof existing.pdf?.releaseVersion === "string" ? existing.pdf.releaseVersion : DEFAULT_CONFIG.pdf.releaseVersion,
-      releaseTag: typeof existing.pdf?.releaseTag === "string" ? existing.pdf.releaseTag : DEFAULT_CONFIG.pdf.releaseTag,
-      releaseCommit: typeof existing.pdf?.releaseCommit === "string" ? existing.pdf.releaseCommit : DEFAULT_CONFIG.pdf.releaseCommit,
-      doi: typeof existing.pdf?.doi === "string" ? existing.pdf.doi : DEFAULT_CONFIG.pdf.doi,
-      showVersionOnCover: existing.pdf?.showVersionOnCover === true,
-      metadataPage: existing.pdf?.metadataPage === true,
-      documentClass: typeof existing.pdf?.documentClass === "string" ? existing.pdf.documentClass : DEFAULT_CONFIG.pdf.documentClass,
-      titlePage: existing.pdf?.titlePage === true,
-      coverStyle: typeof existing.pdf?.coverStyle === "string" && existing.pdf.coverStyle ? existing.pdf.coverStyle : DEFAULT_CONFIG.pdf.coverStyle,
-      titleSize: typeof existing.pdf?.titleSize === "string" && existing.pdf.titleSize ? existing.pdf.titleSize : DEFAULT_CONFIG.pdf.titleSize,
-      subtitleSize: typeof existing.pdf?.subtitleSize === "string" && existing.pdf.subtitleSize ? existing.pdf.subtitleSize : DEFAULT_CONFIG.pdf.subtitleSize,
-      authorSize: typeof existing.pdf?.authorSize === "string" && existing.pdf.authorSize ? existing.pdf.authorSize : DEFAULT_CONFIG.pdf.authorSize,
-      dateSize: typeof existing.pdf?.dateSize === "string" && existing.pdf.dateSize ? existing.pdf.dateSize : DEFAULT_CONFIG.pdf.dateSize,
-      tocPageBreak: existing.pdf?.tocPageBreak === false ? false : DEFAULT_CONFIG.pdf.tocPageBreak,
-      frontMatter: normalizePdfFrontMatter(existing.pdf?.frontMatter),
-      variables: unique$1(Array.isArray(existing.pdf?.variables) ? existing.pdf.variables.filter((item2) => typeof item2 === "string") : [])
-    },
-    debug: {
-      ...DEFAULT_CONFIG.debug,
-      ...debugConfig,
-      markerTraceIds: unique$1(Array.isArray(existing.debug?.markerTraceIds) ? existing.debug.markerTraceIds.filter((item2) => typeof item2 === "string") : [])
-    }
-  };
-}
-function normalizeScanPath(value) {
-  return toPosix(String(value || "")).replace(/^\/+/, "").replace(/\/+$/, "");
-}
-function globPatternToRegExp(pattern2) {
-  let source = "";
-  for (let i = 0; i < pattern2.length; i++) {
-    const char = pattern2[i];
-    if (char === "*") {
-      if (pattern2[i + 1] === "*") {
-        source += ".*";
-        i++;
-      } else {
-        source += "[^/]*";
-      }
-      continue;
-    }
-    if (char === "?") {
-      source += "[^/]";
-      continue;
-    }
-    source += escapeRegExp(char);
-  }
-  return new RegExp(`^${source}$`);
-}
-function scanPatternMatches(filePath, pattern2) {
-  const file = normalizeScanPath(filePath);
-  const normalizedPattern = normalizeScanPath(pattern2);
-  if (!file || !normalizedPattern) return false;
-  if (!/[*?]/.test(normalizedPattern)) {
-    if (!normalizedPattern.includes("/")) {
-      return file.split("/").includes(normalizedPattern);
-    }
-    return file === normalizedPattern || file.startsWith(`${normalizedPattern}/`);
-  }
-  if (normalizedPattern.endsWith("/**")) {
-    const base2 = normalizeScanPath(normalizedPattern.slice(0, -3));
-    if (file === base2 || file.startsWith(`${base2}/`)) return true;
-  }
-  const direct = globPatternToRegExp(normalizedPattern);
-  if (direct.test(file)) return true;
-  if (!normalizedPattern.startsWith("**/") && !normalizedPattern.includes("/")) {
-    return file.split("/").some((segment) => direct.test(segment));
-  }
-  return false;
-}
-function pathPatternMatches(filePath, pattern2) {
-  return scanPatternMatches(filePath, pattern2);
-}
-function scanExcludePatterns(config2) {
-  const merged = mergeConfig(config2);
-  return Array.isArray(merged.scan?.exclude) ? merged.scan.exclude : [];
-}
-function shouldExcludeScanPath(filePath, config2) {
-  return scanExcludePatterns(config2).some((pattern2) => scanPatternMatches(filePath, pattern2));
-}
-function getLanguage(config2) {
-  return config2 && config2.language === "en" ? "en" : "zh";
-}
-function formatTemplate(template, values = {}) {
-  return template.replace(/\{(\w+)\}/g, (_match, key) => values[key] || "");
-}
-function uiText(config2, key, values = {}) {
-  const language = getLanguage(config2);
-  const text2 = config2?.ui?.[language]?.[key] || DEFAULT_CONFIG.ui[language]?.[key] || DEFAULT_CONFIG.ui.zh[key] || "";
-  return formatTemplate(text2, values);
-}
-function typeName(config2, type2) {
-  const language = getLanguage(config2);
-  return config2?.dictionary?.[language]?.[type2] || DEFAULT_CONFIG.dictionary[language]?.[type2] || type2;
-}
-function normalizeFormalPagePath(target, sourceFilePath = "") {
-  let value = toPosix(String(target || "").trim()).replace(/^\/+/, "");
-  if (!value) return "";
-  if (/^\.\.?\//.test(value)) {
-    const baseDir = sourceFilePath ? path__namespace.posix.dirname(toPosix(sourceFilePath)) : "";
-    value = path__namespace.posix.join(baseDir, value);
-  }
-  return path__namespace.posix.normalize(value).replace(/^\.\/+/, "").replace(/^\/+/, "");
-}
-function formatPageReference(page, config2, mode = "default") {
-  const title2 = page.title || page.filePath;
-  let label = title2;
-  if (page.kind === "chapter" && page.chapter !== void 0) {
-    label = uiText(config2, "chapter", { number: String(page.chapter) });
-  } else if (page.kind === "appendix" && page.appendix) {
-    label = uiText(config2, "appendix", { label: page.appendix });
-  } else if (page.kind === "intro") {
-    label = uiText(config2, "intro");
-  } else if (page.kind === "summary") {
-    label = uiText(config2, "summary");
-  }
-  if (mode === "title") return title2;
-  if (mode === "full") {
-    if (!title2 || title2 === label) return label;
-    const colon = getLanguage(config2) === "en" ? ": " : "：";
-    return `${label}${colon}${title2}`;
-  }
-  return label;
-}
-function pageHeadingStyle(config2) {
-  const style = config2?.render?.pageHeadingStyle;
-  return style === "title" || style === "number-title" || style === "label-title" ? style : "label-title";
-}
-function pageHeadingLabel(page, config2, style) {
-  if (page.kind === "chapter") {
-    const number2 = page.unitLabel || (page.chapter !== void 0 ? String(page.chapter) : "");
-    if (!number2) return "";
-    return style === "number-title" ? number2 : uiText(config2, "chapter", { number: number2 });
-  }
-  if (page.kind === "appendix") {
-    const label = page.unitLabel || page.appendix || "";
-    if (!label) return "";
-    return style === "number-title" ? label : uiText(config2, "appendix", { label });
-  }
-  return "";
-}
-function startsWithPageHeadingLabel(title2, label) {
-  const normalizedTitle = title2.replace(/\s+/g, " ").trim();
-  const normalizedLabel = label.replace(/\s+/g, " ").trim();
-  if (!normalizedTitle || !normalizedLabel) return false;
-  if (normalizedTitle === normalizedLabel) return true;
-  if (normalizedTitle.startsWith(normalizedLabel)) {
-    const next2 = normalizedTitle.slice(normalizedLabel.length, normalizedLabel.length + 1);
-    if (!next2 || /[\s:：,，.．、\-]/.test(next2)) return true;
-  }
-  const compactTitle = normalizedTitle.replace(/\s+/g, "");
-  const compactLabel = normalizedLabel.replace(/\s+/g, "");
-  if (!compactTitle || !compactLabel || !compactTitle.startsWith(compactLabel)) return false;
-  const next = compactTitle.slice(compactLabel.length, compactLabel.length + 1);
-  return !next || !/[A-Za-z0-9]/.test(next);
-}
-function formatPageHeadingPrefix(page, config2) {
-  const style = pageHeadingStyle(config2);
-  if (style === "title") return "";
-  const label = pageHeadingLabel(page, config2, style);
-  if (!label) return "";
-  const title2 = page.title || "";
-  if (startsWithPageHeadingLabel(title2, label)) return "";
-  return label;
-}
-function formatPageHeading(page, config2) {
-  const title2 = page.title || page.filePath;
-  const prefix = formatPageHeadingPrefix(page, config2);
-  return prefix ? `${prefix} ${title2}` : title2;
-}
-function normalizeLatexSymbol(value) {
-  return String(value || "").trim().replace(/^\$+|\$+$/g, "").replace(/\\left\s*/g, "").replace(/\\right\s*/g, "").replace(/\\operatorname\s*\{([^{}]+)\}/g, "\\$1").replace(/\\([A-Za-z]+)\s+\{([^{}]+)\}/g, "\\$1{$2}").replace(/\s+/g, "").replace(/([_^])([A-Za-z0-9\\])(?![A-Za-z0-9{])/g, "$1{$2}");
-}
-function escapeRegex$1(value) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-function compileSymbolPattern(pattern2) {
-  const normalizedPattern = normalizeLatexSymbol(pattern2);
-  const captures = [];
-  let regex2 = "^";
-  let cursor = 0;
-  let match2;
-  SYMBOL_PLACEHOLDER_RE.lastIndex = 0;
-  while (match2 = SYMBOL_PLACEHOLDER_RE.exec(normalizedPattern)) {
-    regex2 += escapeRegex$1(normalizedPattern.slice(cursor, match2.index));
-    captures.push(match2[1]);
-    regex2 += "(.+?)";
-    cursor = match2.index + match2[0].length;
-  }
-  regex2 += escapeRegex$1(normalizedPattern.slice(cursor));
-  regex2 += "$";
-  return { normalizedPattern, regex: regex2, captures };
-}
-function isEscapedMarkdownCharacter(value, index) {
-  let slashes = 0;
-  for (let cursor = index - 1; cursor >= 0 && value[cursor] === "\\"; cursor--) slashes++;
-  return slashes % 2 === 1;
-}
-function findInlineDollarEnd(value, start) {
-  for (let cursor = start; cursor < value.length; cursor++) {
-    if (value[cursor] === "$" && value[cursor + 1] !== "$" && !isEscapedMarkdownCharacter(value, cursor)) return cursor;
-  }
-  return -1;
-}
-function collectInlineLatex(value, formulas) {
-  for (let cursor = 0; cursor < value.length; cursor++) {
-    if (value[cursor] === "\\" && value[cursor + 1] === "(" && !isEscapedMarkdownCharacter(value, cursor)) {
-      const end2 = value.indexOf("\\)", cursor + 2);
-      if (end2 >= 0) {
-        formulas.push({ latex: value.slice(cursor + 2, end2).trim(), display: false });
-        cursor = end2 + 1;
-      }
-      continue;
-    }
-    if (value[cursor] !== "$" || value[cursor + 1] === "$" || isEscapedMarkdownCharacter(value, cursor)) continue;
-    const end = findInlineDollarEnd(value, cursor + 1);
-    if (end >= 0) {
-      formulas.push({ latex: value.slice(cursor + 1, end).trim(), display: false });
-      cursor = end;
-    }
-  }
-}
-function extractLatexFormulas(content) {
-  const formulas = [];
-  let inFence = false;
-  let blockDelimiter = "";
-  let blockBuffer = [];
-  for (const line of String(content || "").split(/\r?\n/)) {
-    if (/^\s*(```|~~~)/.test(line)) {
-      inFence = !inFence;
-      continue;
-    }
-    if (inFence) continue;
-    if (blockDelimiter) {
-      const close2 = line.indexOf(blockDelimiter);
-      if (close2 < 0) {
-        blockBuffer.push(line);
-        continue;
-      }
-      const delimiter22 = blockDelimiter;
-      blockBuffer.push(line.slice(0, close2));
-      formulas.push({ latex: blockBuffer.join("\n").trim(), display: true });
-      blockDelimiter = "";
-      blockBuffer = [];
-      collectInlineLatex(line.slice(close2 + delimiter22.length), formulas);
-      continue;
-    }
-    const blockStart = line.search(/(?:\$\$|\\\[)/);
-    if (blockStart < 0) {
-      collectInlineLatex(line, formulas);
-      continue;
-    }
-    const delimiter2 = line.slice(blockStart, blockStart + 2);
-    const closeDelimiter = delimiter2 === "$$" ? "$$" : "\\]";
-    const close = line.indexOf(closeDelimiter, blockStart + 2);
-    collectInlineLatex(line.slice(0, blockStart), formulas);
-    if (close >= 0) {
-      formulas.push({ latex: line.slice(blockStart + 2, close).trim(), display: true });
-      collectInlineLatex(line.slice(close + 2), formulas);
-      continue;
-    }
-    blockDelimiter = closeDelimiter;
-    blockBuffer = [line.slice(blockStart + 2)];
-  }
-  return formulas.filter((formula) => formula.latex);
-}
-function makeUnanchoredSymbolRegex(symbol) {
-  const source = String(symbol.regex || "").replace(/^\^/, "").replace(/\$$/, "");
-  if (!source || source === "(.+?)") return void 0;
-  try {
-    return new RegExp(source);
-  } catch (_err) {
-    return void 0;
-  }
-}
-function symbolMatchesLatex(symbol, latex2) {
-  const normalized = normalizeLatexSymbol(latex2);
-  if (!normalized) return false;
-  const regex2 = makeUnanchoredSymbolRegex(symbol);
-  if (regex2?.test(normalized)) return true;
-  const pattern2 = normalizeLatexSymbol(symbol.pattern);
-  if (pattern2 && !pattern2.includes("${") && normalized.includes(pattern2)) return true;
-  const display2 = normalizeLatexSymbol(symbol.display);
-  return Boolean(display2 && normalized.includes(display2));
-}
-function findSymbolsInMarkdown(content, symbols) {
-  const formulas = extractLatexFormulas(content);
-  const matches = symbols.map((symbol, index) => ({
-    index,
-    symbol,
-    formulaIndex: formulas.findIndex((formula) => symbolMatchesLatex(symbol, formula.latex))
-  })).filter((match2) => match2.formulaIndex >= 0);
-  return matches.sort((left, right) => left.formulaIndex - right.formulaIndex || `${left.symbol.sourceFilePath || ""}:${left.symbol.sourceLine || 0}`.localeCompare(`${right.symbol.sourceFilePath || ""}:${right.symbol.sourceLine || 0}`) || left.symbol.pattern.localeCompare(right.symbol.pattern));
-}
-function hasBalancedSymbolDelimiters(value) {
-  const pairs = { ")": "(", "]": "[" };
-  const stack = [];
-  for (const char of value) {
-    if (char === "(" || char === "[") {
-      stack.push(char);
-      continue;
-    }
-    if (char === ")" || char === "]") {
-      if (stack.pop() !== pairs[char]) return false;
-    }
-  }
-  return stack.length === 0;
-}
-function parseSourceLocation(source) {
-  if (!source) return {};
-  const match2 = String(source).match(/^(.+?)(?::(\d+))?$/);
-  if (!match2) return {};
-  return {
-    sourceFilePath: toPosix(match2[1]).replace(/^\/+/, ""),
-    sourceLine: match2[2] ? Number(match2[2]) : void 0
-  };
-}
-function symbolSampleValue(name) {
-  return SYMBOL_SAMPLE_VALUES[name] || "x";
-}
-function makeSymbolDisplay(pattern2) {
-  return `$${pattern2.replace(/\$\{([A-Za-z][A-Za-z0-9_]*)\}/g, (_match, name) => symbolSampleValue(name))}$`;
-}
-function normalizeSymbolDocuments(documents) {
-  return documents.map(
-    (document) => typeof document === "string" ? { filePath: document, content: "" } : document
-  );
-}
-function parseFormalSymbols(input, documents = []) {
-  const issues = [];
-  const rawSymbols = Array.isArray(input) ? input : input && typeof input === "object" && Array.isArray(input.symbols) ? input.symbols : [];
-  if (input !== void 0 && input !== null && !Array.isArray(input) && !(typeof input === "object" && Array.isArray(input.symbols))) {
-    issues.push({
-      severity: "error",
-      code: "invalid-symbols-file",
-      file: ".math-workspace/symbols.json",
-      message: ".math-workspace/symbols.json must be an array, or an object with a symbols array."
-    });
-    return { symbols: [], issues };
-  }
-  const normalizedDocuments = normalizeSymbolDocuments(documents);
-  const fileSet = new Set(normalizedDocuments.map((document) => toPosix(document.filePath).replace(/^\/+/, "")));
-  const lineCounts = new Map(normalizedDocuments.map((document) => [
-    toPosix(document.filePath).replace(/^\/+/, ""),
-    document.content ? document.content.split(/\r\n|\r|\n/).length : 0
-  ]));
-  const seen = /* @__PURE__ */ new Map();
-  const symbols = [];
-  rawSymbols.forEach((item2, index) => {
-    if (!item2 || typeof item2 !== "object") {
-      issues.push({
-        severity: "error",
-        code: "invalid-symbol-entry",
-        file: ".math-workspace/symbols.json",
-        line: index + 1,
-        message: "Symbol entry must be an object."
-      });
-      return;
-    }
-    const pattern2 = typeof item2.pattern === "string" ? item2.pattern.trim() : "";
-    const meaning = typeof item2.meaning === "string" ? item2.meaning.trim() : "";
-    const source = typeof item2.source === "string" && item2.source.trim() ? item2.source.trim() : "";
-    if (!pattern2 || !meaning || !source) {
-      issues.push({
-        severity: "error",
-        code: "invalid-symbol-entry",
-        file: ".math-workspace/symbols.json",
-        line: index + 1,
-        message: "Symbol entry requires non-empty source, pattern, and meaning."
-      });
-      return;
-    }
-    const compiled = compileSymbolPattern(pattern2);
-    const display2 = typeof item2.display === "string" && item2.display.trim() ? item2.display.trim() : makeSymbolDisplay(pattern2);
-    const scope2 = typeof item2.scope === "string" && item2.scope.trim() ? item2.scope.trim() : "book";
-    const parsedSource = parseSourceLocation(source);
-    if (!parsedSource.sourceFilePath || parsedSource.sourceLine === void 0) {
-      issues.push({
-        severity: "error",
-        code: "symbol-source-invalid",
-        file: ".math-workspace/symbols.json",
-        line: index + 1,
-        message: `Symbol source ${source} must use path.md:line format.`
-      });
-      return;
-    }
-    if (fileSet.size > 0 && !fileSet.has(parsedSource.sourceFilePath)) {
-      issues.push({
-        severity: "error",
-        code: "symbol-source-missing",
-        file: ".math-workspace/symbols.json",
-        line: index + 1,
-        message: `Symbol source ${source} does not point to a known Markdown file.`
-      });
-      return;
-    }
-    const lineCount = lineCounts.get(parsedSource.sourceFilePath) || 0;
-    if (lineCount > 0 && (parsedSource.sourceLine < 1 || parsedSource.sourceLine > lineCount)) {
-      issues.push({
-        severity: "error",
-        code: "symbol-source-line-missing",
-        file: ".math-workspace/symbols.json",
-        line: index + 1,
-        message: `Symbol source ${source} points outside the source file.`
-      });
-      return;
-    }
-    if (!new RegExp(compiled.regex).test(normalizeLatexSymbol(display2))) {
-      issues.push({
-        severity: "warn",
-        code: "symbol-display-mismatch",
-        file: ".math-workspace/symbols.json",
-        line: index + 1,
-        message: `Symbol display ${display2} does not match pattern ${pattern2}.`
-      });
-    }
-    if (/^\$\{[A-Za-z][A-Za-z0-9_]*\}$/.test(compiled.normalizedPattern)) {
-      issues.push({
-        severity: "warn",
-        code: "symbol-pattern-too-broad",
-        file: ".math-workspace/symbols.json",
-        line: index + 1,
-        message: `Symbol pattern ${pattern2} is only a placeholder and may match unrelated formulas.`
-      });
-    }
-    if (!hasBalancedSymbolDelimiters(compiled.normalizedPattern)) {
-      issues.push({
-        severity: "warn",
-        code: "symbol-pattern-unbalanced-delimiter",
-        file: ".math-workspace/symbols.json",
-        line: index + 1,
-        message: `Symbol pattern ${pattern2} has unbalanced parentheses or brackets and may match a surrounding formula instead of the notation itself.`
-      });
-    }
-    const duplicateKey = `${scope2}:${compiled.normalizedPattern}:${parsedSource.sourceFilePath}`;
-    const previousIndex = seen.get(duplicateKey);
-    if (previousIndex !== void 0) {
-      issues.push({
-        severity: "warn",
-        code: "duplicate-symbol-pattern",
-        file: ".math-workspace/symbols.json",
-        line: index + 1,
-        message: `Symbol pattern duplicates entry ${previousIndex + 1} in the same scope and source file.`
-      });
-    }
-    seen.set(duplicateKey, index);
-    symbols.push({
-      pattern: pattern2,
-      normalizedPattern: compiled.normalizedPattern,
-      regex: compiled.regex,
-      captures: compiled.captures,
-      display: display2,
-      meaning,
-      scope: scope2,
-      source,
-      ...parsedSource
-    });
-  });
-  return { symbols, issues };
-}
-function normalizeDefinitionAliases(value) {
-  if (!Array.isArray(value)) return [];
-  return unique$1(value.filter((alias) => typeof alias === "string").map((alias) => alias.trim()).filter(Boolean));
-}
-function normalizeDefinitionContentForMatch(value) {
-  return value.normalize("NFKC").replace(/\s+/g, " ").trim();
-}
-function parseFormalDefinitions(input, documents = [], configInput = DEFAULT_CONFIG) {
-  const issues = [];
-  const rawDefinitions = Array.isArray(input) ? input : input && typeof input === "object" && Array.isArray(input.definitions) ? input.definitions : [];
-  if (input !== void 0 && input !== null && !Array.isArray(input) && !(typeof input === "object" && Array.isArray(input.definitions))) {
-    issues.push({
-      severity: "error",
-      code: "invalid-definitions-file",
-      file: ".math-workspace/definitions.json",
-      message: ".math-workspace/definitions.json must be an array, or an object with a definitions array."
-    });
-    return { definitions: [], issues };
-  }
-  const config2 = mergeConfig(configInput);
-  const normalizedDocuments = normalizeSymbolDocuments(documents);
-  const documentMap = new Map(normalizedDocuments.map((document) => [
-    toPosix(document.filePath).replace(/^\/+/, ""),
-    document.content || ""
-  ]));
-  const seen = /* @__PURE__ */ new Map();
-  const definitions2 = [];
-  rawDefinitions.forEach((item2, index) => {
-    if (!item2 || typeof item2 !== "object") {
-      issues.push({
-        severity: "error",
-        code: "invalid-definition-entry",
-        file: ".math-workspace/definitions.json",
-        line: index + 1,
-        message: "Definition entry must be an object."
-      });
-      return;
-    }
-    const title2 = typeof item2.term === "string" && item2.term.trim() ? item2.term.trim() : typeof item2.title === "string" && item2.title.trim() ? item2.title.trim() : "";
-    const source = typeof item2.source === "string" && item2.source.trim() ? item2.source.trim() : "";
-    const aliases2 = normalizeDefinitionAliases(item2.aliases).filter((alias) => alias !== title2);
-    if (!title2 || !source) {
-      issues.push({
-        severity: "error",
-        code: "invalid-definition-entry",
-        file: ".math-workspace/definitions.json",
-        line: index + 1,
-        message: "Definition entry requires non-empty term/title and source."
-      });
-      return;
-    }
-    const parsedSource = parseSourceLocation(source);
-    if (!parsedSource.sourceFilePath || parsedSource.sourceLine === void 0) {
-      issues.push({
-        severity: "error",
-        code: "definition-source-invalid",
-        file: ".math-workspace/definitions.json",
-        line: index + 1,
-        message: `Definition source ${source} must use path.md:line format.`
-      });
-      return;
-    }
-    const documentContent = documentMap.get(parsedSource.sourceFilePath);
-    if (documentContent === void 0) {
-      issues.push({
-        severity: "error",
-        code: "definition-source-missing",
-        file: ".math-workspace/definitions.json",
-        line: index + 1,
-        message: `Definition source ${source} does not point to a known Markdown file.`
-      });
-      return;
-    }
-    const lines2 = documentContent.split(/\r\n|\r|\n/);
-    if (parsedSource.sourceLine < 1 || parsedSource.sourceLine > lines2.length) {
-      issues.push({
-        severity: "error",
-        code: "definition-source-line-missing",
-        file: ".math-workspace/definitions.json",
-        line: index + 1,
-        message: `Definition source ${source} points outside the source file.`
-      });
-      return;
-    }
-    const extracted = sourceLineRangeContent(lines2, parsedSource.sourceLine);
-    const explicitContent = typeof item2.content === "string" && item2.content.trim() ? item2.content.trim() : "";
-    if (!explicitContent) {
-      issues.push({
-        severity: "warn",
-        code: "definition-content-missing",
-        file: ".math-workspace/definitions.json",
-        line: index + 1,
-        message: `Definition entry ${title2} should include AI-maintained content; falling back to source extraction.`
-      });
-    } else if (!normalizeDefinitionContentForMatch(documentContent).includes(normalizeDefinitionContentForMatch(explicitContent))) {
-      issues.push({
-        severity: "warn",
-        code: "definition-content-stale",
-        file: ".math-workspace/definitions.json",
-        line: index + 1,
-        message: `Definition entry ${title2} content is not found in its source file near ${source}; update content after editing the source.`
-      });
-    }
-    const content = explicitContent || extracted.content;
-    const duplicateKey = `${title2}:${parsedSource.sourceFilePath}:${parsedSource.sourceLine}`;
-    const previousIndex = seen.get(duplicateKey);
-    if (previousIndex !== void 0) {
-      issues.push({
-        severity: "warn",
-        code: "duplicate-definition-entry",
-        file: ".math-workspace/definitions.json",
-        line: index + 1,
-        message: `Definition entry duplicates entry ${previousIndex + 1}.`
-      });
-    }
-    seen.set(duplicateKey, index);
-    const book = inferBookInfo(parsedSource.sourceFilePath, config2);
-    const volume = inferVolumeInfo(parsedSource.sourceFilePath, config2);
-    const label = {
-      type: "def",
-      title: title2,
-      filePath: parsedSource.sourceFilePath,
-      bookKey: book.key,
-      bookTitle: book.title,
-      bookOrder: book.order,
-      content,
-      startLine: extracted.startLine,
-      endLine: extracted.endLine
-    };
-    if (volume) {
-      label.volumeKey = volume.key;
-      label.volumeTitle = volume.title;
-      label.volumeOrder = volume.order;
-    }
-    definitions2.push({
-      type: "def",
-      title: title2,
-      aliases: aliases2,
-      file: parsedSource.sourceFilePath,
-      line: parsedSource.sourceLine,
-      label
-    });
-  });
-  return { definitions: definitions2, issues };
-}
-function stripIgnoredMarkdown(content) {
-  return content.replace(/<!--[\s\S]*?-->/g, "").replace(/```[\s\S]*?```/g, "").replace(/~~~[\s\S]*?~~~/g, "").replace(/`[^`\n]*`/g, "");
-}
-function cleanMarkerTitle(title2) {
-  const trimmed = title2.trim();
-  const strong = trimmed.match(/^(\*\*|__)\s*([\s\S]+?)\s*\1$/);
-  return strong ? strong[2].trim() : trimmed;
-}
-function unwrapLeadingStrong(text2) {
-  const strong = text2.match(/^(\*\*|__)\s*([\s\S]+?)\s*\1([\s\S]*)$/);
-  if (!strong) return void 0;
-  return `${strong[2].trim()}${strong[3] || ""}`.trim();
-}
-function parseParenMarkerTitle(text2, requireSeparator) {
-  const paren = text2.match(/^[（(]([^）)]+)[）)]\s*([：:]?)/);
-  if (!paren) return "";
-  if (requireSeparator && !paren[2]) return "";
-  return cleanMarkerTitle(paren[1]);
-}
-function extractMarkerTitle(type2, rest) {
-  const trimmed = rest.trim();
-  if (!trimmed) return "";
-  const strongPrefix = unwrapLeadingStrong(trimmed);
-  if (strongPrefix) {
-    const strongTitle = parseParenMarkerTitle(strongPrefix, true);
-    if (strongTitle) return strongTitle;
-  }
-  const parenTitle = parseParenMarkerTitle(trimmed, false);
-  if (parenTitle) return parenTitle;
-  if (type2 === "def") {
-    const term = trimmed.match(/^([^：:\n，,。.;；]+)[：:]/);
-    if (term) return term[1].trim();
-  }
-  return "";
-}
-function normalizeLeadingMarkerEmphasis(text2) {
-  const trimmed = text2.trim().replace(/^(?:>\s*)+/, "").trim();
-  return unwrapLeadingStrong(trimmed) || trimmed;
-}
-function parseFormalMarkerLine(line) {
-  const heading2 = line.match(/^(#{1,6})\s+#([A-Za-z0-9_-]+)\s+(.+?)\s*$/);
-  if (heading2) {
-    return {
-      type: "section",
-      id: heading2[2],
-      title: heading2[3].trim(),
-      markerText: `#${heading2[2]}`,
-      rest: heading2[3].trim(),
-      level: heading2[1].length
-    };
-  }
-  const text2 = normalizeLeadingMarkerEmphasis(line);
-  const typePattern = FORMAL_TYPE_PATTERN;
-  const typed = text2.match(new RegExp(`^(${typePattern})\\s*([\\s\\S]*)$`, "i"));
-  if (!typed) return void 0;
-  const type2 = normalizeFormalKind(typed[1]);
-  if (!type2) return void 0;
-  if (type2 === "def") {
-    const rest2 = typed[2] || "";
-    if (!/^\s*[（(]/.test(rest2)) return void 0;
-    const title2 = extractMarkerTitle(type2, rest2);
-    if (!title2) return void 0;
-    return {
-      type: type2,
-      title: title2,
-      markerText: typed[1],
-      rest: rest2
-    };
-  }
-  const match2 = text2.match(new RegExp(`^(${typePattern})\\s+#([A-Za-z0-9_-]+)\\b\\s*([\\s\\S]*)$`, "i"));
-  if (!match2) return void 0;
-  const rest = match2[3] || "";
-  const parsedTitle = extractMarkerTitle(type2, rest);
-  const solution = type2 === "solution" ? solutionTarget(parsedTitle) : void 0;
-  return {
-    type: type2,
-    id: match2[2],
-    title: solution ? solution.title : parsedTitle,
-    solutionOf: solution?.id,
-    markerText: `${match2[1]} #${match2[2]}`,
-    rest
-  };
-}
-function parseVolumeOrder(value) {
-  if (/^\d+$/.test(value)) return parseInt(value, 10);
-  const roman = value.toUpperCase();
-  if (!/^[IVXLCDM]+$/.test(roman)) return Number.MAX_SAFE_INTEGER;
-  const values = { I: 1, V: 5, X: 10, L: 50, C: 100, D: 500, M: 1e3 };
-  let total = 0;
-  let previous = 0;
-  for (let i = roman.length - 1; i >= 0; i--) {
-    const current = values[roman[i]] || 0;
-    total += current < previous ? -current : current;
-    previous = Math.max(previous, current);
-  }
-  return total || Number.MAX_SAFE_INTEGER;
-}
-function inferBookInfo(filePath, config2) {
-  const segment = filePath.split("/").find((part) => /^book[-_\s]?(?:\d+|[a-z0-9]+)(?:[-_\s].*)?$/i.test(part));
-  if (!segment) {
-    return { key: "__workspace__", title: uiText(config2, "workspace"), order: 0 };
-  }
-  const match2 = segment.match(/^book[-_\s]?(\d+|[ivxlcdm]+)?(?:[-_\s].*)?$/i);
-  const order = match2 && match2[1] ? parseVolumeOrder(match2[1]) : Number.MAX_SAFE_INTEGER;
-  const title2 = order === Number.MAX_SAFE_INTEGER ? segment.replace(/[-_]+/g, " ") : uiText(config2, "book", { number: String(order) });
-  return { key: segment.toLowerCase(), title: title2, order };
-}
-function inferVolumeInfo(filePath, config2) {
-  const segment = filePath.split("/").find((part) => /^(?:vol|volume)[-_\s]?(?:\d+|[ivxlcdm]+)(?:[-_\s].*)?$/i.test(part));
-  if (!segment) return void 0;
-  const match2 = segment.match(/^(?:vol|volume)[-_\s]?(\d+|[ivxlcdm]+)(?:[-_\s].*)?$/i);
-  const order = match2 ? parseVolumeOrder(match2[1]) : Number.MAX_SAFE_INTEGER;
-  const title2 = order === Number.MAX_SAFE_INTEGER ? segment.replace(/[-_]+/g, " ") : uiText(config2, "volume", { number: String(order) });
-  return { key: segment.toLowerCase(), title: title2, order };
-}
-function getAlphaOrder(value) {
-  return value.toUpperCase().split("").reduce((total, char) => total * 26 + char.charCodeAt(0) - 64, 0);
-}
-function parseNumberingUnit(basename) {
-  const chapterMatch = basename.match(/^(\d+)-.*\.md$/i);
-  if (chapterMatch) {
-    const chapter = parseInt(chapterMatch[1], 10);
-    if (chapter === 0) return void 0;
-    return {
-      kind: "chapter",
-      key: `chapter-${chapter}`,
-      label: String(chapter),
-      order: chapter,
-      chapter
-    };
-  }
-  const appendixMatch = basename.match(/^appendix[-_\s]?([a-z]+|\d+)(?:[-_\s].*)?\.md$/i);
-  if (!appendixMatch) return void 0;
-  const raw = appendixMatch[1];
-  const label = /^\d+$/.test(raw) ? raw : raw.toUpperCase();
-  const appendixOrder = /^\d+$/.test(raw) ? parseInt(raw, 10) : getAlphaOrder(raw);
-  return {
-    kind: "appendix",
-    key: `appendix-${label.toLowerCase()}`,
-    label,
-    order: 1e5 + appendixOrder,
-    appendix: label
-  };
-}
-function parseSpecialPageKind(basename) {
-  if (/^00[-_\s]?(?:intro|introduction)\.md$/i.test(basename)) return "intro";
-  if (/^intro\.md$/i.test(basename)) return "intro";
-  if (/^introduction\.md$/i.test(basename)) return "intro";
-  if (/^summary\.md$/i.test(basename)) return "summary";
-  return void 0;
-}
-function parseMarkdownHeadingLine(line) {
-  const match2 = line.match(/^[ \t]{0,3}(#{1,6})[ \t]+(.+?)\s*$/);
-  if (!match2) return void 0;
-  let title2 = match2[2].replace(/[ \t]+#+[ \t]*$/, "").trim();
-  if (!title2) return void 0;
-  const idMatch = title2.match(/^#([A-Za-z0-9_-]+)\b\s*(.*)$/);
-  if (idMatch) {
-    title2 = idMatch[2].trim();
-    if (!title2) return void 0;
-    return {
-      level: match2[1].length,
-      id: idMatch[1],
-      title: title2
-    };
-  }
-  return {
-    level: match2[1].length,
-    title: title2
-  };
-}
-function getPageTitleHeading(content, fallback) {
-  const headings = [];
-  let inFence = false;
-  let lineNumber = 0;
-  for (const line of String(content || "").split(/\r?\n/)) {
-    lineNumber++;
-    if (/^\s*(```|~~~)/.test(line)) {
-      inFence = !inFence;
-      continue;
-    }
-    if (inFence) continue;
-    const heading2 = parseMarkdownHeadingLine(line);
-    if (!heading2) continue;
-    headings.push({ ...heading2, line: lineNumber });
-  }
-  if (headings.length === 0) {
-    return { title: fallback, line: 1, level: 1 };
-  }
-  const topLevel = Math.min(...headings.map((heading2) => heading2.level));
-  const topHeadings = headings.filter((heading2) => heading2.level === topLevel);
-  if (topHeadings.length !== 1) {
-    return { title: fallback, line: 1, level: topLevel };
-  }
-  return topHeadings[0];
-}
-function fallbackPageTitle(filePath) {
-  return path__namespace.posix.basename(filePath, ".md").replace(/^\d+-/, "").replace(/^appendix[-_\s]?[a-z0-9]+[-_\s]?/i, "").replace(/[-_]+/g, " ");
-}
-function getPageOrder(kind, unit) {
-  if (kind === "intro") return -1e5;
-  if (kind === "summary") return 2e5;
-  return unit ? unit.order : 0;
-}
-function markerLineContent(line, marker) {
-  if (marker.type === "section") return marker.title;
-  return line.trim().replace(marker.markerText, sourceMarkerLabel(marker)).trim();
-}
-function sourceMarkerLabel(marker) {
-  return marker.markerText.replace(/\s+#[A-Za-z0-9_-]+\b$/, "").trim();
-}
-function normalizeProofBoundaryLine(line) {
-  return line.trim().replace(/^>\s*/, "").replace(/^\s*[-+*]\s+/, "").replace(/^\*\*(.+?)\*\*/, "$1").replace(/^__(.+?)__/, "$1").replace(/^\*(.+?)\*/, "$1").replace(/^_(.+?)_/, "$1").trim();
-}
-function isProofBoundaryLine(line) {
-  const text2 = normalizeProofBoundaryLine(line);
-  return /^(?:证明(?:概要|草图|思路|如下|在此略去)?|Proof(?:\s+sketch)?|Sketch of proof)\s*(?:[：:。.．.]|$|\s)/i.test(text2);
-}
-function isProofTerminatorLine(line) {
-  const text2 = normalizeProofBoundaryLine(line);
-  return /(?:证毕|Q\.?E\.?D\.?|∎|□)\s*[。.．.]?\s*$/i.test(text2) || /\$\s*\\square\s*\$\s*[。.．.]?\s*$/.test(text2) || /\\\[\s*\\square\s*\\\]\s*[。.．.]?\s*$/.test(text2);
-}
-function isMarkerBoundaryLine(line) {
-  return /^#{1,6}\s+/.test(line) || !!parseFormalMarkerLine(line);
-}
-function isDisplayMathLine(line) {
-  const text2 = line.trim();
-  return text2.startsWith("$$") || text2.startsWith("\\[") || text2.startsWith("\\]") || /^\\(?:begin|end)\{(?:equation|align|alignat|gather|multline|flalign|split|aligned|cases|matrix|pmatrix|bmatrix|vmatrix|Vmatrix)\*?\}/.test(text2);
-}
-function isStructuredDefinitionContinuation(line) {
-  const text2 = line.trim();
-  return isDisplayMathLine(line) || /^>\s*/.test(text2) || /^\|.*\|$/.test(text2) || /^[-+*]\s+/.test(text2) || /^\d+[.)]\s+/.test(text2) || /^(\*\*|__)?\s*[（(]?(?:[ivxlcdm]+|[a-z]|\d+)[）).、]\s*/i.test(text2);
-}
-function isDisplayMathStartLine(line) {
-  const text2 = line.trim();
-  return text2.startsWith("$$") || text2.startsWith("\\[") || /^\\begin\{(?:equation|align|alignat|gather|multline|flalign|split|aligned|cases|matrix|pmatrix|bmatrix|vmatrix|Vmatrix)\*?\}/.test(text2);
-}
-function updateDisplayMathState(line, inDisplayMath) {
-  const text2 = line.trim();
-  const dollarCount = (text2.match(/\$\$/g) || []).length;
-  if (dollarCount % 2 === 1) return !inDisplayMath;
-  if (text2.startsWith("\\[")) return true;
-  if (text2.startsWith("\\]")) return false;
-  if (/^\\begin\{(?:equation|align|alignat|gather|multline|flalign|split|aligned|cases|matrix|pmatrix|bmatrix|vmatrix|Vmatrix)\*?\}/.test(text2)) return true;
-  if (/^\\end\{(?:equation|align|alignat|gather|multline|flalign|split|aligned|cases|matrix|pmatrix|bmatrix|vmatrix|Vmatrix)\*?\}/.test(text2)) return false;
-  return inDisplayMath;
-}
-function trimTrailingBlankLines(lines2) {
-  const trimmed = [...lines2];
-  while (trimmed.length > 0 && !trimmed[trimmed.length - 1].trim()) trimmed.pop();
-  return trimmed;
-}
-function collectRecallMarkerContent(lines2, startLine, marker) {
-  const contentLines = [markerLineContent(lines2[startLine], marker)];
-  let endLine = startLine;
-  let proofLine = -1;
-  for (let i = startLine + 1; i < lines2.length; i++) {
-    const line = lines2[i];
-    if (isMarkerBoundaryLine(line)) break;
-    if (isProofBoundaryLine(line)) {
-      proofLine = i;
-      break;
-    }
-  }
-  if (proofLine >= 0) {
-    for (let i = startLine + 1; i < proofLine; i++) {
-      contentLines.push(lines2[i]);
-      endLine = i;
-    }
-    return { contentLines: trimTrailingBlankLines(contentLines), endLine };
-  }
-  for (let i = startLine + 1; i < lines2.length; i++) {
-    const line = lines2[i];
-    if (!line.trim()) break;
-    if (isMarkerBoundaryLine(line)) break;
-    contentLines.push(line);
-    endLine = i;
-  }
-  return { contentLines: trimTrailingBlankLines(contentLines), endLine };
-}
-function nextNonBlankLineIndex(lines2, startIndex) {
-  for (let i = startIndex; i < lines2.length; i++) {
-    if (lines2[i].trim()) return i;
-  }
-  return -1;
-}
-function collectDefinitionContent(lines2, startLine, marker) {
-  const contentLines = [marker ? markerLineContent(lines2[startLine], marker) : lines2[startLine].trim()];
-  let endLine = startLine;
-  let inDisplayMath = updateDisplayMathState(lines2[startLine], false);
-  let previousNonBlankWasDisplayMath = isDisplayMathLine(lines2[startLine]);
-  for (let i = startLine + 1; i < lines2.length; i++) {
-    const line = lines2[i];
-    if (isMarkerBoundaryLine(line)) break;
-    if (!line.trim()) {
-      const nextNonBlank = nextNonBlankLineIndex(lines2, i + 1);
-      if (nextNonBlank < 0 || isMarkerBoundaryLine(lines2[nextNonBlank])) break;
-      if (!inDisplayMath && !previousNonBlankWasDisplayMath && !isStructuredDefinitionContinuation(lines2[nextNonBlank])) break;
-      contentLines.push(line);
-      endLine = i;
-      previousNonBlankWasDisplayMath = false;
-      continue;
-    }
-    const lineWasDisplayMath = inDisplayMath || isDisplayMathLine(line);
-    contentLines.push(line);
-    endLine = i;
-    inDisplayMath = updateDisplayMathState(line, inDisplayMath);
-    previousNonBlankWasDisplayMath = lineWasDisplayMath;
-  }
-  return { contentLines: trimTrailingBlankLines(contentLines), endLine };
-}
-function collectMarkerContent(lines2, startLine, marker) {
-  if (RECALL_TYPES.has(marker.type)) {
-    return collectRecallMarkerContent(lines2, startLine, marker);
-  }
-  if (marker.type === "def") {
-    return collectDefinitionContent(lines2, startLine, marker);
-  }
-  const contentLines = [markerLineContent(lines2[startLine], marker)];
-  let endLine = startLine;
-  for (let i = startLine + 1; i < lines2.length; i++) {
-    const line = lines2[i];
-    if (!line.trim()) break;
-    if (isMarkerBoundaryLine(line)) break;
-    contentLines.push(line);
-    endLine = i;
-  }
-  return { contentLines: trimTrailingBlankLines(contentLines), endLine };
-}
-function sourceLineRangeContent(lines2, sourceLine) {
-  const sourceIndex = Math.max(0, Math.min(lines2.length - 1, sourceLine - 1));
-  const marker = parseFormalMarkerLine(lines2[sourceIndex]);
-  if (marker) {
-    const collected2 = collectMarkerContent(lines2, sourceIndex, marker);
-    return {
-      content: collected2.contentLines.join("\n"),
-      startLine: sourceIndex,
-      endLine: collected2.endLine
-    };
-  }
-  const isBoundary = (line) => !line.trim() || /^#{1,6}\s+/.test(line) || !!parseFormalMarkerLine(line);
-  let startLine = sourceIndex;
-  while (startLine > 0 && !isBoundary(lines2[startLine - 1])) startLine--;
-  const collected = collectDefinitionContent(lines2, startLine);
-  return {
-    content: collected.contentLines.join("\n").trim(),
-    startLine,
-    endLine: collected.endLine
-  };
-}
-function makeLabelData(marker, unitFile, startLine, contentLines, markerNumber, endLine) {
-  const content = RECALL_TYPES.has(marker.type) ? contentLines.join("\n") : void 0;
-  const label = {
-    type: marker.type,
-    title: marker.title,
-    filePath: unitFile.filePath,
-    bookKey: unitFile.book.key,
-    bookTitle: unitFile.book.title,
-    bookOrder: unitFile.book.order,
-    unitKind: unitFile.unit.kind,
-    unitKey: unitFile.unit.key,
-    unitLabel: unitFile.unit.label,
-    unitOrder: unitFile.unit.order,
-    startLine,
-    endLine
-  };
-  if (content) label.content = content;
-  if (unitFile.unit.chapter !== void 0) label.chapter = unitFile.unit.chapter;
-  if (unitFile.unit.appendix !== void 0) label.appendix = unitFile.unit.appendix;
-  if (markerNumber !== void 0) label.number = markerNumber;
-  if (unitFile.volume) {
-    label.volumeKey = unitFile.volume.key;
-    label.volumeTitle = unitFile.volume.title;
-    label.volumeOrder = unitFile.volume.order;
-  }
-  return label;
-}
-function makeDefinitionLabelData(marker, document, book, volume, startLine, contentLines, endLine) {
-  const content = contentLines.join("\n");
-  const label = {
-    type: marker.type,
-    title: marker.title,
-    filePath: document.filePath,
-    bookKey: book.key,
-    bookTitle: book.title,
-    bookOrder: book.order,
-    content,
-    startLine,
-    endLine
-  };
-  if (volume) {
-    label.volumeKey = volume.key;
-    label.volumeTitle = volume.title;
-    label.volumeOrder = volume.order;
-  }
-  return label;
-}
-function makePageLabelData(page) {
-  const label = {
-    type: page.kind,
-    title: page.title,
-    filePath: page.filePath,
-    bookKey: page.bookKey,
-    bookTitle: page.bookTitle,
-    bookOrder: page.bookOrder,
-    volumeKey: page.volumeKey,
-    volumeTitle: page.volumeTitle,
-    volumeOrder: page.volumeOrder,
-    unitKind: page.unitKind,
-    unitKey: page.unitKey,
-    unitLabel: page.unitLabel,
-    unitOrder: page.unitOrder,
-    chapter: page.chapter,
-    appendix: page.appendix,
-    startLine: page.line !== void 0 ? page.line - 1 : void 0,
-    endLine: page.line !== void 0 ? page.line - 1 : void 0
-  };
-  return label;
-}
-function previousNonBlankLineIndex(lines2, startIndex) {
-  for (let i = startIndex; i >= 0; i--) {
-    if (lines2[i].trim()) return i;
-  }
-  return -1;
-}
-function isMarkdownImageLine(line) {
-  return /!\[[^\]\n]*\]\([^)]+\)/.test(line.trim());
-}
-function isMarkdownTableRow(line) {
-  const text2 = line.trim();
-  return text2.includes("|") && text2.split("|").filter((part) => part.trim()).length >= 2;
-}
-function isMarkdownTableDelimiter(line) {
-  const text2 = line.trim();
-  if (!text2.includes("|")) return false;
-  const cells = text2.replace(/^\|/, "").replace(/\|$/, "").split("|").map((cell) => cell.trim());
-  return cells.length >= 2 && cells.every((cell) => /^:?-{3,}:?$/.test(cell));
-}
-function isMarkdownTableStart(lines2, lineIndex) {
-  return lineIndex >= 0 && lineIndex + 1 < lines2.length && isMarkdownTableRow(lines2[lineIndex]) && isMarkdownTableDelimiter(lines2[lineIndex + 1]);
-}
-function lintStructuredNumberedMarker(marker, lines2, lineIndex, filePath) {
-  if (!STRUCTURED_NUMBERED_TYPES.has(marker.type)) return [];
-  const issues = [];
-  const next = nextNonBlankLineIndex(lines2, lineIndex + 1);
-  const previous = previousNonBlankLineIndex(lines2, lineIndex - 1);
-  if (marker.type === "equation") {
-    if (next < 0 || !isDisplayMathStartLine(lines2[next])) {
-      issues.push({
-        severity: "error",
-        code: "equation-target-missing",
-        file: filePath,
-        line: lineIndex + 1,
-        message: "Equation marker must be followed by a display math block."
-      });
-    }
-    return issues;
-  }
-  if (!marker.title) {
-    issues.push({
-      severity: "warn",
-      code: `${marker.type}-caption-missing`,
-      file: filePath,
-      line: lineIndex + 1,
-      message: `${marker.type === "figure" ? "Figure" : "Table"} marker should include a caption title.`
-    });
-  }
-  if (marker.type === "figure") {
-    const hasNearbyImage = previous >= 0 && isMarkdownImageLine(lines2[previous]) || next >= 0 && isMarkdownImageLine(lines2[next]);
-    if (!hasNearbyImage) {
-      issues.push({
-        severity: "error",
-        code: "figure-target-missing",
-        file: filePath,
-        line: lineIndex + 1,
-        message: "Figure marker should be adjacent to a Markdown image."
-      });
-    }
-    return issues;
-  }
-  if (marker.type === "table" && (next < 0 || !isMarkdownTableStart(lines2, next))) {
-    issues.push({
-      severity: "error",
-      code: "table-target-missing",
-      file: filePath,
-      line: lineIndex + 1,
-      message: "Table marker must be followed by a Markdown table."
-    });
-  }
-  return issues;
-}
-function scanFormalDocuments(documents, configInput, symbolsInput, definitionsInput) {
-  const config2 = mergeConfig(configInput);
-  const files = [...documents].sort((a, b) => a.filePath.localeCompare(b.filePath));
-  const labels = {};
-  const definitions2 = [];
-  const references = [];
-  const pageReferences = [];
-  const pages = [];
-  const issues = [];
-  const unitFiles = /* @__PURE__ */ new Map();
-  const anchorsByFile = /* @__PURE__ */ new Map();
-  for (const document of files) {
-    const filePath = toPosix(document.filePath);
-    const basename = path__namespace.posix.basename(filePath);
-    const content = document.content;
-    const book = inferBookInfo(filePath, config2);
-    const volume = inferVolumeInfo(filePath, config2);
-    const unit = parseNumberingUnit(basename);
-    const specialKind = parseSpecialPageKind(basename);
-    const pageAnchor = unit || specialKind ? getPageTitleHeading(content, fallbackPageTitle(filePath)) : void 0;
-    if (unit || specialKind) {
-      const kind = unit ? unit.kind : specialKind;
-      const page = {
-        id: pageAnchor?.id,
-        kind,
-        filePath,
-        title: pageAnchor?.title || fallbackPageTitle(filePath),
-        order: getPageOrder(kind, unit),
-        bookKey: book.key,
-        bookTitle: book.title,
-        bookOrder: book.order,
-        line: pageAnchor?.line,
-        level: pageAnchor?.level
-      };
-      if (volume) {
-        page.volumeKey = volume.key;
-        page.volumeTitle = volume.title;
-        page.volumeOrder = volume.order;
-      }
-      if (unit) {
-        page.unitKind = unit.kind;
-        page.unitKey = unit.key;
-        page.unitLabel = unit.label;
-        page.unitOrder = unit.order;
-        if (unit.chapter !== void 0) page.chapter = unit.chapter;
-        if (unit.appendix !== void 0) page.appendix = unit.appendix;
-      }
-      pages.push(page);
-      if (page.id) {
-        const label = makePageLabelData(page);
-        labels[page.id] = label;
-        definitions2.push({
-          id: page.id,
-          type: page.kind,
-          title: page.title,
-          file: filePath,
-          line: page.line || 1,
-          label
-        });
-      }
-    }
-    collectReferences(content, filePath, references, pageReferences);
-    const allMarkerStarts = collectMarkerStarts(content, filePath);
-    anchorsByFile.set(filePath, {
-      stable: allMarkerStarts.filter((marker) => typeof marker.id === "string" && marker.id.startsWith("h-")).length,
-      temporary: allMarkerStarts.filter((marker) => typeof marker.id === "string" && marker.id.startsWith("tmp-")).length
-    });
-    const markerStarts = allMarkerStarts.filter((marker) => !isPageAnchorMarker(marker, pageAnchor));
-    if (markerStarts.some((marker) => marker.type !== "def") && !unit) {
-      issues.push({
-        severity: "warn",
-        code: "formal-marker-outside-numbered-file",
-        file: filePath,
-        message: "Numbered markers are only numbered in NN-title.md or appendix-a-title.md files."
-      });
-    }
-    const lines2 = content.split(/\r?\n/);
-    let inFence = false;
-    for (let lineIndex = 0; lineIndex < lines2.length; lineIndex++) {
-      const line = lines2[lineIndex];
-      if (/^\s*(```|~~~)/.test(line)) {
-        inFence = !inFence;
-        continue;
-      }
-      if (inFence) continue;
-      const marker = parseFormalMarkerLine(line);
-      if (!marker || marker.type !== "def") continue;
-      const collected = collectMarkerContent(lines2, lineIndex, marker);
-      const label = makeDefinitionLabelData(marker, { filePath }, book, volume, lineIndex, collected.contentLines, collected.endLine);
-      definitions2.push({
-        type: marker.type,
-        title: marker.title,
-        file: filePath,
-        line: lineIndex + 1,
-        label
-      });
-    }
-    if (!unit) continue;
-    const volumeKey = volume?.key || "__root__";
-    const scopeKey = unit.kind === "appendix" ? `${book.key}:${volumeKey}:${unit.key}` : `${book.key}:${unit.key}`;
-    if (!unitFiles.has(scopeKey)) unitFiles.set(scopeKey, []);
-    unitFiles.get(scopeKey).push({ filePath, content, book, volume, unit, pageAnchor });
-  }
-  for (const groupFiles of unitFiles.values()) {
-    groupFiles.sort((a, b) => a.filePath.localeCompare(b.filePath));
-    const counters = {};
-    for (const unitFile of groupFiles) {
-      const lines2 = unitFile.content.split(/\r?\n/);
-      let inFence = false;
-      for (let lineIndex = 0; lineIndex < lines2.length; lineIndex++) {
-        const line = lines2[lineIndex];
-        if (/^\s*(```|~~~)/.test(line)) {
-          inFence = !inFence;
-          continue;
-        }
-        if (inFence) continue;
-        const marker = parseFormalMarkerLine(line);
-        if (!marker) continue;
-        if (isPageAnchorMarker({ ...marker, line: lineIndex + 1 }, unitFile.pageAnchor)) continue;
-        if (marker.type === "def") continue;
-        issues.push(...lintStructuredNumberedMarker(marker, lines2, lineIndex, unitFile.filePath));
-        const counter = FORMAL_KIND_POLICIES[marker.type]?.counter;
-        const markerNumber = counter ? counters[counter] = (counters[counter] || 0) + 1 : void 0;
-        const exerciseContent = isPedagogicalKind(marker.type) ? collectExerciseContent(lines2, lineIndex, marker, parseFormalMarkerLine) : void 0;
-        const content = exerciseContent || collectMarkerContent(lines2, lineIndex, marker);
-        const label = makeLabelData(marker, unitFile, lineIndex, content.contentLines, markerNumber, content.endLine);
-        if (exerciseContent) {
-          label.bodyEndLine = exerciseContent.bodyEndLine;
-          label.supportRanges = exerciseContent.support;
-          label.supportContent = exerciseContent.support.map((range) => lines2.slice(range.startLine, range.endLine + 1).join("\n")).join("\n");
-          label.solutionOf = marker.solutionOf;
-          if (marker.type === "solution") label.proofContent = lines2.slice(lineIndex, exerciseContent.bodyEndLine + 1).join("\n");
-          else label.proofContent = exerciseContent.support.filter((range) => range.kind === "solution").map((range) => lines2.slice(range.startLine, range.endLine + 1).join("\n")).join("\n");
-        } else {
-          const proof = findProofRange(lines2, lineIndex + 1, content.endLine + 1);
-          if (proof.proofStartLine !== void 0 && proof.proofEndLine !== void 0) {
-            label.proofContent = lines2.slice(proof.proofStartLine - 1, proof.proofEndLine).join("\n");
-          }
-        }
-        labels[marker.id] = label;
-        definitions2.push({
-          id: marker.id,
-          type: marker.type,
-          title: marker.title,
-          file: unitFile.filePath,
-          line: lineIndex + 1,
-          label
-        });
-      }
-    }
-  }
-  issues.push(...connectExerciseSolutions(definitions2, labels));
-  const customDefinitionResult = parseFormalDefinitions(definitionsInput, files, config2);
-  for (const customDefinition of customDefinitionResult.definitions) {
-    customDefinition.origin = "manual";
-    customDefinition.label.definitionOrigin = "manual";
-    const existing = definitions2.find((def) => def.type === "def" && def.file === customDefinition.file && def.line === customDefinition.line && def.title === customDefinition.title);
-    if (existing) {
-      existing.aliases = unique$1([...existing.aliases || [], ...customDefinition.aliases || []]);
-      continue;
-    }
-    definitions2.push(customDefinition);
-  }
-  issues.push(...customDefinitionResult.issues);
-  const projectKnowledge = analyzeProjectKnowledge(files, definitions2);
-  const knowledgeOrigins = new Map(projectKnowledge.project.sources.filter((source) => source.kind === "concept-appendix" || source.kind === "glossary").map((source) => [source.filePath, source.kind]));
-  for (const definition of definitions2) {
-    if (definition.type !== "def" || definition.origin) continue;
-    const origin = knowledgeOrigins.get(definition.file);
-    definition.origin = origin || "standard";
-    definition.label.definitionOrigin = definition.origin;
-  }
-  for (const candidate of projectKnowledge.definitions) {
-    const book = inferBookInfo(candidate.filePath, config2);
-    const volume = inferVolumeInfo(candidate.filePath, config2);
-    const label = {
-      type: "def",
-      title: candidate.title,
-      filePath: candidate.filePath,
-      bookKey: book.key,
-      bookTitle: book.title,
-      bookOrder: book.order,
-      content: candidate.content,
-      startLine: candidate.line - 1,
-      endLine: candidate.line - 1,
-      definitionOrigin: candidate.origin
-    };
-    if (volume) {
-      label.volumeKey = volume.key;
-      label.volumeTitle = volume.title;
-      label.volumeOrder = volume.order;
-    }
-    definitions2.push({
-      type: "def",
-      title: candidate.title,
-      file: candidate.filePath,
-      line: candidate.line,
-      label,
-      origin: candidate.origin
-    });
-  }
-  const symbolResult = parseFormalSymbols(symbolsInput, files);
-  issues.push(...symbolResult.issues);
-  issues.push(...lintDefinitions(definitions2));
-  issues.push(...lintReferences(references, labels, definitions2, config2));
-  issues.push(...lintPageReferences(pageReferences, pages, config2));
-  issues.push(...lintPages(pages));
-  for (const page of pages) {
-    const anchors = anchorsByFile.get(page.filePath) || { stable: 0, temporary: 0 };
-    const issueCount = issues.filter((issue2) => issue2.file === page.filePath).length;
-    const hasStablePageAnchor = typeof page.id === "string" && page.id.startsWith("h-");
-    page.integration = {
-      status: anchors.temporary > 0 || issueCount > 0 ? "attention" : hasStablePageAnchor ? "managed" : anchors.stable > 0 ? "segmented" : "unmanaged",
-      stableAnchorCount: anchors.stable,
-      temporaryAnchorCount: anchors.temporary,
-      issueCount
-    };
-  }
-  definitions2.sort(compareDefinitionRecords);
-  pages.sort(comparePages);
-  const dependencyGraph = buildDependencyGraph({ config: config2, labels, definitions: definitions2, references }, files);
-  return { config: config2, files: files.map((file) => file.filePath), labels, pages, definitions: definitions2, references, pageReferences, symbols: symbolResult.symbols, issues, dependencyGraph, projectAnalysis: projectKnowledge.project };
-}
-function collectMarkerStarts(content, filePath) {
-  const starts = [];
-  const lines2 = content.split(/\r?\n/);
-  let inFence = false;
-  for (let i = 0; i < lines2.length; i++) {
-    const line = lines2[i];
-    if (/^\s*(```|~~~)/.test(line)) {
-      inFence = !inFence;
-      continue;
-    }
-    if (inFence) continue;
-    const marker = parseFormalMarkerLine(line);
-    if (marker) starts.push({ ...marker, file: filePath, line: i + 1 });
-  }
-  return starts;
-}
-function isPageAnchorMarker(marker, pageAnchor) {
-  return Boolean(
-    pageAnchor?.id && marker?.id === pageAnchor.id && marker?.line === pageAnchor.line && marker?.type === "section"
-  );
-}
-function collectReferences(content, filePath, references, pageReferences) {
-  const stripped = stripIgnoredMarkdown(content);
-  const lineStarts = [0];
-  for (let i = 0; i < stripped.length; i++) {
-    if (stripped[i] === "\n") lineStarts.push(i + 1);
-  }
-  const pageRefRe = /(^|[^A-Za-z0-9_])@(chapter|page):([^\s<>"'`，。；;！？]+?\.md)(?:\.(title|full))?(?=$|[\s,，。；;:：.!！?？)\]}])/g;
-  let pageMatch;
-  while (pageMatch = pageRefRe.exec(stripped)) {
-    const offset = pageMatch.index + pageMatch[1].length;
-    const line = findLineForOffset(lineStarts, offset);
-    pageReferences.push({
-      kind: pageMatch[2],
-      rawTarget: pageMatch[3],
-      target: normalizeFormalPagePath(pageMatch[3], filePath),
-      mode: pageMatch[4],
-      file: filePath,
-      line
-    });
-  }
-  const refRe = /(^|[^A-Za-z0-9_])@([A-Za-z0-9_-]+)(?:\.(?:title|full))?\b(?!:)/g;
-  let match2;
-  while (match2 = refRe.exec(stripped)) {
-    const offset = match2.index + match2[1].length;
-    const line = findLineForOffset(lineStarts, offset);
-    references.push({ id: match2[2], file: filePath, line });
-  }
-}
-function findLineForOffset(lineStarts, offset) {
-  let low = 0;
-  let high = lineStarts.length - 1;
-  while (low <= high) {
-    const mid = Math.floor((low + high) / 2);
-    if (lineStarts[mid] <= offset) low = mid + 1;
-    else high = mid - 1;
-  }
-  return high + 1;
-}
-function lintDefinitions(definitions2) {
-  const issues = [];
-  const byId = /* @__PURE__ */ new Map();
-  for (const def of definitions2) {
-    if (!def.id) continue;
-    if (!byId.has(def.id)) byId.set(def.id, []);
-    byId.get(def.id).push(def);
-    if (TMP_ID_RE.test(def.id)) {
-      issues.push({
-        severity: "error",
-        code: "tmp-id-left",
-        file: def.file,
-        line: def.line,
-        message: `Temporary marker #${def.id} remains. Run npm run workspace -- finish <file>.`
-      });
-    } else if (!HASH_ID_RE.test(def.id)) {
-      issues.push({
-        severity: "warn",
-        code: "non-hash-id",
-        file: def.file,
-        line: def.line,
-        message: `Marker id #${def.id} is not a pure hash id.`
-      });
-    }
-  }
-  for (const [id2, defs] of byId) {
-    if (defs.length <= 1) continue;
-    defs.forEach((def) => {
-      issues.push({
-        severity: "error",
-        code: "duplicate-id",
-        file: def.file,
-        line: def.line,
-        message: `Duplicate marker id #${id2}.`
-      });
-    });
-  }
-  return issues;
-}
-function normalizeBookDependencyKey(value) {
-  return String(value || "").trim().toLowerCase();
-}
-function directBookDependencies(config2, sourceBookKey) {
-  const dependencies2 = config2?.lookup?.bookDependencies;
-  if (!dependencies2 || typeof dependencies2 !== "object") return [];
-  const source = normalizeBookDependencyKey(sourceBookKey);
-  for (const [key, value] of Object.entries(dependencies2)) {
-    if (normalizeBookDependencyKey(key) !== source) continue;
-    return Array.isArray(value) ? value.filter((item2) => typeof item2 === "string").map(normalizeBookDependencyKey).filter(Boolean) : [];
-  }
-  return [];
-}
-function canReferenceBook(sourceBookKey, targetBookKey, config2, seen = /* @__PURE__ */ new Set()) {
-  const source = normalizeBookDependencyKey(sourceBookKey);
-  const target = normalizeBookDependencyKey(targetBookKey);
-  if (!source || !target || source === target) return true;
-  if (seen.has(source)) return false;
-  seen.add(source);
-  const dependencies2 = directBookDependencies(config2, source);
-  if (dependencies2.includes(target)) return true;
-  return dependencies2.some((dependency) => canReferenceBook(dependency, target, config2, seen));
-}
-function lintReferences(references, labels, definitions2, config2) {
-  const issues = [];
-  const definedIds = new Set(Object.keys(labels));
-  const tmpDefs = new Set(definitions2.filter((def) => def.id && TMP_ID_RE.test(def.id)).map((def) => def.id));
-  for (const ref2 of references) {
-    if (TMP_ID_RE.test(ref2.id)) {
-      issues.push({
-        severity: tmpDefs.has(ref2.id) ? "error" : "error",
-        code: "tmp-ref-left",
-        file: ref2.file,
-        line: ref2.line,
-        message: `Temporary reference @${ref2.id} remains. Run finish before committing.`
-      });
-      continue;
-    }
-    if (!definedIds.has(ref2.id)) {
-      issues.push({
-        severity: "error",
-        code: "missing-ref",
-        file: ref2.file,
-        line: ref2.line,
-        message: `Reference @${ref2.id} has no matching marker.`
-      });
-      continue;
-    }
-    const target = labels[ref2.id];
-    const sourceBook = inferBookInfo(ref2.file, config2);
-    const targetBookKey = target.bookKey || inferBookInfo(target.filePath || "", config2).key;
-    if (!canReferenceBook(sourceBook.key, targetBookKey, config2)) {
-      issues.push({
-        severity: "error",
-        code: "cross-book-ref-disallowed",
-        file: ref2.file,
-        line: ref2.line,
-        message: `Reference @${ref2.id} crosses from ${sourceBook.title} to ${target.bookTitle || targetBookKey}; add lookup.bookDependencies if this dependency is intentional.`
-      });
-    }
-  }
-  return issues;
-}
-function lintPageReferences(pageReferences, pages, config2) {
-  const issues = [];
-  const pageByPath = new Map(pages.map((page) => [page.filePath, page]));
-  for (const ref2 of pageReferences) {
-    const target = pageByPath.get(ref2.target);
-    if (!target) {
-      issues.push({
-        severity: "error",
-        code: "missing-page-ref",
-        file: ref2.file,
-        line: ref2.line,
-        message: `Page reference @${ref2.kind}:${ref2.rawTarget} resolves to ${ref2.target || "(empty)"}, but no scanned page matches that path.`
-      });
-      continue;
-    }
-    if (ref2.kind === "chapter" && target.kind !== "chapter") {
-      issues.push({
-        severity: "error",
-        code: "page-ref-kind-mismatch",
-        file: ref2.file,
-        line: ref2.line,
-        message: `@chapter:${ref2.rawTarget} points to a ${target.kind} page. Use @page:${target.filePath} for non-chapter pages.`
-      });
-    }
-    const sourceBook = inferBookInfo(ref2.file, config2);
-    const targetBookKey = target.bookKey || inferBookInfo(target.filePath || "", config2).key;
-    if (!canReferenceBook(sourceBook.key, targetBookKey, config2)) {
-      issues.push({
-        severity: "error",
-        code: "cross-book-page-ref-disallowed",
-        file: ref2.file,
-        line: ref2.line,
-        message: `Page reference @${ref2.kind}:${ref2.rawTarget} crosses from ${sourceBook.title} to ${target.bookTitle || targetBookKey}; add lookup.bookDependencies if this dependency is intentional.`
-      });
-    }
-  }
-  return issues;
-}
-function lintPages(pages) {
-  const issues = [];
-  const chaptersByBook = /* @__PURE__ */ new Map();
-  const specialByScope = /* @__PURE__ */ new Map();
-  for (const page of pages) {
-    if (page.kind === "chapter" && typeof page.chapter === "number") {
-      if (!chaptersByBook.has(page.bookKey || "")) chaptersByBook.set(page.bookKey || "", []);
-      chaptersByBook.get(page.bookKey || "").push(page);
-    }
-    if (page.kind === "intro" || page.kind === "summary") {
-      const key = `${page.bookKey}:${page.volumeKey || "__root__"}:${page.kind}`;
-      if (!specialByScope.has(key)) specialByScope.set(key, []);
-      specialByScope.get(key).push(page);
-    }
-  }
-  for (const chapterPages of chaptersByBook.values()) {
-    const sorted2 = [...chapterPages].sort((a, b) => (a.chapter || 0) - (b.chapter || 0));
-    for (let i = 1; i < sorted2.length; i++) {
-      if (sorted2[i].chapter === sorted2[i - 1].chapter) {
-        issues.push({
-          severity: "error",
-          code: "duplicate-chapter",
-          file: sorted2[i].filePath,
-          message: `Chapter ${sorted2[i].chapter} is duplicated in ${sorted2[i].bookTitle}.`
-        });
-      }
-      if ((sorted2[i].chapter || 0) !== (sorted2[i - 1].chapter || 0) + 1) {
-        issues.push({
-          severity: "warn",
-          code: "chapter-gap",
-          file: sorted2[i].filePath,
-          message: `${sorted2[i].bookTitle} jumps from chapter ${sorted2[i - 1].chapter} to ${sorted2[i].chapter}.`
-        });
-      }
-    }
-  }
-  for (const entries of specialByScope.values()) {
-    if (entries.length <= 1) continue;
-    entries.slice(1).forEach((page) => {
-      issues.push({
-        severity: "warn",
-        code: "duplicate-special-page",
-        file: page.filePath,
-        message: `Duplicate ${page.kind}.md in the same book/volume scope.`
-      });
-    });
-  }
-  return issues;
-}
-function comparePages(a, b) {
-  if ((a.bookOrder || 0) !== (b.bookOrder || 0)) return (a.bookOrder || 0) - (b.bookOrder || 0);
-  if ((a.volumeOrder || 0) !== (b.volumeOrder || 0)) return (a.volumeOrder || 0) - (b.volumeOrder || 0);
-  if (a.order !== b.order) return a.order - b.order;
-  return a.filePath.localeCompare(b.filePath);
-}
-function compareDefinitionRecords(a, b) {
-  const la = a.label;
-  const lb = b.label;
-  if ((la.bookOrder || 0) !== (lb.bookOrder || 0)) return (la.bookOrder || 0) - (lb.bookOrder || 0);
-  if ((la.volumeOrder || 0) !== (lb.volumeOrder || 0)) return (la.volumeOrder || 0) - (lb.volumeOrder || 0);
-  if ((la.unitOrder || 0) !== (lb.unitOrder || 0)) return (la.unitOrder || 0) - (lb.unitOrder || 0);
-  return a.file.localeCompare(b.file) || a.line - b.line;
-}
-function formatLabelNumber(label) {
-  if (label.type === "solution") return label.solutionExerciseNumber || "";
-  if (label.type === "remark" || PAGE_LABEL_TYPES.has(label.type)) return "";
-  const prefix = label.unitLabel || (label.chapter !== void 0 ? String(label.chapter) : label.appendix || "");
-  return prefix && label.number !== void 0 ? `${prefix}.${label.number}` : "";
-}
-function formatDisplayNumber(label) {
-  const number2 = formatLabelNumber(label);
-  return label.type === "equation" && number2 ? `(${number2})` : number2;
-}
-function displayLabel$1(def, config2) {
-  const name = typeName(config2, def.type);
-  if (def.type === "solution") {
-    const number22 = formatLabelNumber(def.label);
-    return getLanguage(config2) === "en" ? `Solution to Exercise ${number22}`.trim() : `习题 ${number22} 的解答`;
-  }
-  if (def.type === "section") {
-    const number22 = formatLabelNumber(def.label);
-    return number22 ? `${name} ${number22}` : name;
-  }
-  const number2 = formatDisplayNumber(def.label);
-  return number2 ? `${name} ${number2}` : name;
-}
-function displayNumber(def) {
-  return formatLabelNumber(def.label);
-}
-function renderReferenceMap(definitions2, config2, pages = []) {
-  const lines2 = [
-    "# Reference Map",
-    "",
-    "Generated by `npm run workspace -- prepare`. Read this file to map human display numbers and unnumbered anchors to stable hash IDs.",
-    ""
-  ];
-  if (pages.length > 0) {
-    lines2.push("## Pages", "");
-    lines2.push("| Display | Ref | Path Ref | Title | Location |");
-    lines2.push("| --- | --- | --- | --- | --- |");
-    for (const page of [...pages].sort(comparePages)) {
-      const prefix = page.kind === "chapter" ? "chapter" : "page";
-      const pathRef = `@${prefix}:${page.filePath}`;
-      const ref2 = page.id ? `@${page.id}` : pathRef;
-      lines2.push(`| ${escapeTable(formatPageReference(page, config2))} | \`${ref2}\` | \`${pathRef}\` | ${escapeTable(page.title || "")} | \`${page.filePath}\` |`);
-    }
-    lines2.push("");
-  }
-  const numberedDefinitions = definitions2.filter((def) => def.id && displayNumber(def));
-  let currentBook = "";
-  for (const def of numberedDefinitions) {
-    const book = def.label.bookTitle || "Workspace";
-    if (book !== currentBook) {
-      currentBook = book;
-      lines2.push(`## ${book}`, "");
-      lines2.push("| Display | ID | Title | Location |");
-      lines2.push("| --- | --- | --- | --- |");
-    }
-    const title2 = def.title || "";
-    lines2.push(`| ${displayLabel$1(def, config2)} | \`${def.id}\` | ${escapeTable(title2)} | \`${def.file}:${def.line}\` |`);
-  }
-  const unnumberedAnchors = definitions2.filter((def) => def.id && !displayNumber(def) && def.type === "remark");
-  if (unnumberedAnchors.length > 0) {
-    lines2.push("", "## Unnumbered Anchors", "");
-    lines2.push("| Display | ID | Title | Location |");
-    lines2.push("| --- | --- | --- | --- |");
-    for (const def of unnumberedAnchors) {
-      const title2 = def.title || "";
-      lines2.push(`| ${displayLabel$1(def, config2)} | \`${def.id}\` | ${escapeTable(title2)} | \`${def.file}:${def.line}\` |`);
-    }
-  }
-  lines2.push("");
-  return `${lines2.join("\n")}
-`;
-}
-function buildRuntimeDefinitions(definitions2) {
-  return definitions2.filter((def) => def.type === "def").map((def) => ({
-    title: def.title,
-    aliases: def.aliases && def.aliases.length > 0 ? def.aliases : void 0,
-    filePath: def.file,
-    line: def.line,
-    content: def.label.content || "",
-    bookKey: def.label.bookKey,
-    bookTitle: def.label.bookTitle,
-    bookOrder: def.label.bookOrder,
-    volumeKey: def.label.volumeKey,
-    volumeTitle: def.label.volumeTitle,
-    volumeOrder: def.label.volumeOrder,
-    origin: def.origin || def.label.definitionOrigin || "standard"
-  }));
-}
-function buildReaderIndex(state) {
-  return {
-    entries: state.labels,
-    pages: state.pages,
-    definitions: buildRuntimeDefinitions(state.definitions || []),
-    symbols: state.symbols || [],
-    projectAnalysis: state.projectAnalysis || void 0
-  };
-}
-function renderProjectAnalysis(analysis) {
-  const project = analysis || {
-    sources: [],
-    summary: { conceptSources: 0, notationSources: 0, summaryPages: 0, extractedDefinitions: 0 }
-  };
-  const lines2 = [
-    "# Project Knowledge Analysis",
-    "",
-    "Generated from file names, page structure, concept tables, and concept-entry headings. It is a derived reading aid, not source content.",
-    "",
-    `- Concept or glossary sources: ${project.summary.conceptSources}`,
-    `- Notation appendix sources: ${project.summary.notationSources}`,
-    `- Summary pages: ${project.summary.summaryPages}`,
-    `- Supplemental definitions extracted from concept sources: ${project.summary.extractedDefinitions}`,
-    ""
-  ];
-  if (project.sources.length === 0) {
-    lines2.push("No dedicated knowledge pages were detected. Standard definition markers remain indexed automatically.", "");
-    return `${lines2.join("\n")}
-`;
-  }
-  lines2.push("## Detected Sources", "");
-  lines2.push("| Kind | File | Title | Confidence | Derived definitions |");
-  lines2.push("| --- | --- | --- | --- | ---: |");
-  project.sources.forEach((source) => lines2.push(`| ${source.kind} | \`${source.filePath}\` | ${escapeTable(source.title)} | ${source.confidence} | ${source.extractedDefinitions} |`));
-  lines2.push("", "## Maintenance Boundary", "");
-  lines2.push("- The scanner and Reader refresh this analysis when Markdown or the optional definition/symbol source tables change.", "- Do not copy ordinary definitions into `.math-workspace/definitions.json` just to keep this index fresh.", "- Use `.math-workspace/definitions.json` only for deliberate lookup overrides: nonstandard wording, aliases, bilingual lookup, or a boundary the deterministic extractor cannot represent.", "- Detected notation appendices are supplied as project context; symbol patterns and meanings still require an explicit reviewed source entry.", "");
-  return `${lines2.join("\n")}
-`;
-}
-function buildDocumentMap(documents) {
-  return new Map(documents.map((document) => [toPosix(document.filePath), document.content || ""]));
-}
-function findProofRange(lines2, startLine, statementEndLine) {
-  const startIndex = Math.max(0, startLine - 1);
-  const statementEndIndex = Math.max(startIndex, statementEndLine - 1);
-  let proofStartIndex = -1;
-  for (let i = statementEndIndex + 1; i < lines2.length; i++) {
-    if (isMarkerBoundaryLine(lines2[i])) break;
-    if (isProofBoundaryLine(lines2[i])) {
-      proofStartIndex = i;
-      break;
-    }
-  }
-  if (proofStartIndex < 0) {
-    return { endLine: statementEndLine };
-  }
-  let proofEndIndex = proofStartIndex;
-  for (let i = proofStartIndex; i < lines2.length; i++) {
-    if (isMarkerBoundaryLine(lines2[i])) break;
-    proofEndIndex = i;
-    if (isProofTerminatorLine(lines2[i])) break;
-  }
-  return {
-    proofStartLine: proofStartIndex + 1,
-    proofEndLine: proofEndIndex + 1,
-    endLine: proofEndIndex + 1
-  };
-}
-function dependencySourceBlocks(definitions2, documents) {
-  const documentMap = buildDocumentMap(documents);
-  const blocksByFile = /* @__PURE__ */ new Map();
-  for (const def of definitions2) {
-    if (!def.id || !DEPENDENCY_NODE_TYPES.has(def.type)) continue;
-    const content = documentMap.get(def.file);
-    if (content === void 0) continue;
-    const lines2 = content.split(/\r?\n/);
-    const startLine = def.line;
-    const labelEndLine = typeof def.label.endLine === "number" ? def.label.endLine + 1 : startLine;
-    const statementEndLine = Math.max(startLine, labelEndLine);
-    const pedagogical = isPedagogicalKind(def.type);
-    const bodyEndLine = (def.label.bodyEndLine ?? def.label.endLine ?? startLine - 1) + 1;
-    const proofRange = pedagogical ? {
-      proofStartLine: def.type === "solution" ? startLine : statementEndLine + 1,
-      proofEndLine: bodyEndLine,
-      endLine: bodyEndLine
-    } : findProofRange(lines2, startLine, statementEndLine);
-    const block2 = {
-      id: def.id,
-      file: def.file,
-      startLine,
-      statementEndLine: def.type === "solution" ? startLine - 1 : statementEndLine,
-      proofStartLine: proofRange.proofStartLine,
-      proofEndLine: proofRange.proofEndLine,
-      endLine: Math.max(statementEndLine, proofRange.endLine)
-    };
-    if (!blocksByFile.has(def.file)) blocksByFile.set(def.file, []);
-    blocksByFile.get(def.file).push(block2);
-  }
-  for (const blocks of blocksByFile.values()) {
-    blocks.sort((a, b) => a.startLine - b.startLine);
-  }
-  return blocksByFile;
-}
-function findDependencySourceBlock(blocks, line) {
-  if (!blocks) return void 0;
-  return blocks.find((block2) => block2.startLine <= line && line <= block2.endLine);
-}
-function dependencyEdgeWhere(block2, line) {
-  if (line <= block2.statementEndLine) return "statement";
-  if (block2.proofStartLine !== void 0 && block2.proofEndLine !== void 0 && block2.proofStartLine <= line && line <= block2.proofEndLine) {
-    return "proof";
-  }
-  return "body";
-}
-function dependencyEdgeRelation(line, id2) {
-  const reference2 = `@${escapeRegExp(id2)}(?:\\.(?:title|full))?`;
-  const explanatoryLead = "(?:见|参见|详见|参阅|请参见|另见|see(?:\\s+also)?|cf\\.?)";
-  return new RegExp(`${explanatoryLead}\\s*${reference2}`, "i").test(line) ? "explanatory" : "strict";
-}
-function dependencyGraphNode(def, config2) {
-  const label = def.label;
-  const node = {
-    id: def.id,
-    kind: def.type,
-    display: displayLabel$1(def, config2),
-    title: def.title || "",
-    path: def.file,
-    line: def.line,
-    endLine: typeof label.endLine === "number" ? label.endLine + 1 : void 0,
-    bookKey: label.bookKey,
-    bookTitle: label.bookTitle,
-    bookOrder: label.bookOrder,
-    volumeKey: label.volumeKey,
-    volumeTitle: label.volumeTitle,
-    volumeOrder: label.volumeOrder,
-    unitKind: label.unitKind,
-    unitKey: label.unitKey,
-    unitLabel: label.unitLabel,
-    unitOrder: label.unitOrder,
-    chapter: label.chapter,
-    appendix: label.appendix,
-    number: label.number
-  };
-  Object.keys(node).forEach((key) => {
-    if (node[key] === void 0) delete node[key];
-  });
-  return node;
-}
-function dependencyGraphCycles(nodes, edges) {
-  const nodeIds = new Set(nodes.map((node) => node.id));
-  const nodeById = new Map(nodes.map((node) => [node.id, node]));
-  const adjacency = /* @__PURE__ */ new Map();
-  for (const node of nodes) adjacency.set(node.id, /* @__PURE__ */ new Set());
-  for (const edge of edges) {
-    if (nodeIds.has(edge.from) && nodeIds.has(edge.to)) {
-      adjacency.get(edge.from).add(edge.to);
-    }
-  }
-  let index = 0;
-  const indexes = /* @__PURE__ */ new Map();
-  const lowlinks = /* @__PURE__ */ new Map();
-  const stack = [];
-  const onStack = /* @__PURE__ */ new Set();
-  const cycles = [];
-  const strongConnect = (id2) => {
-    indexes.set(id2, index);
-    lowlinks.set(id2, index);
-    index++;
-    stack.push(id2);
-    onStack.add(id2);
-    for (const next of adjacency.get(id2) || []) {
-      if (!indexes.has(next)) {
-        strongConnect(next);
-        lowlinks.set(id2, Math.min(lowlinks.get(id2) || 0, lowlinks.get(next) || 0));
-      } else if (onStack.has(next)) {
-        lowlinks.set(id2, Math.min(lowlinks.get(id2) || 0, indexes.get(next) || 0));
-      }
-    }
-    if (lowlinks.get(id2) !== indexes.get(id2)) return;
-    const component = [];
-    while (stack.length > 0) {
-      const item2 = stack.pop();
-      onStack.delete(item2);
-      component.push(item2);
-      if (item2 === id2) break;
-    }
-    const hasSelfLoop = component.length === 1 && (adjacency.get(component[0]) || /* @__PURE__ */ new Set()).has(component[0]);
-    if (component.length > 1 || hasSelfLoop) {
-      const ids = component.sort((a, b) => (nodeById.get(a)?.display || a).localeCompare(nodeById.get(b)?.display || b));
-      cycles.push({
-        ids,
-        displays: ids.map((item2) => nodeById.get(item2)?.display || item2)
-      });
-    }
-  };
-  for (const node of nodes) {
-    if (!indexes.has(node.id)) strongConnect(node.id);
-  }
-  return cycles.sort((a, b) => a.displays.join(" -> ").localeCompare(b.displays.join(" -> ")));
-}
-function buildDependencyGraph(state, documents) {
-  const config2 = state.config || mergeConfig(DEFAULT_CONFIG);
-  const definitions2 = state.definitions || [];
-  const references = state.references || [];
-  const dependencyDefinitions = definitions2.filter((def) => def.id && DEPENDENCY_NODE_TYPES.has(def.type)).sort(compareDefinitionRecords);
-  const nodeById = new Map(dependencyDefinitions.map((def) => [def.id, dependencyGraphNode(def, config2)]));
-  const blocksByFile = dependencySourceBlocks(dependencyDefinitions, documents);
-  const linesByFile = new Map(documents.map((document) => [toPosix(document.filePath), (document.content || "").split(/\r?\n/)]));
-  const sourceReferences = /* @__PURE__ */ new Map();
-  const edges = [];
-  const ambientReferences = [];
-  const diagnostics = [];
-  const pedagogicalLinks = dependencyDefinitions.filter((def) => def.type === "solution" && state.labels?.[def.label.solutionOf || ""]?.type === "exercise").map((def) => ({ solution: def.id, exercise: def.label.solutionOf }));
-  for (const ref2 of references) {
-    const sourceBlock = findDependencySourceBlock(blocksByFile.get(ref2.file), ref2.line);
-    if (sourceBlock && ref2.line === sourceBlock.startLine && pedagogicalLinks.some((link2) => link2.solution === sourceBlock.id && link2.exercise === ref2.id)) continue;
-    if (sourceBlock) {
-      const targets = sourceReferences.get(sourceBlock.id) || /* @__PURE__ */ new Set();
-      targets.add(ref2.id);
-      sourceReferences.set(sourceBlock.id, targets);
-    }
-    const target = nodeById.get(ref2.id);
-    if (!target) continue;
-    if (!sourceBlock) {
-      ambientReferences.push({ to: ref2.id, path: ref2.file, line: ref2.line });
-      diagnostics.push({
-        severity: "info",
-        code: "ambient-dependency-ref",
-        file: ref2.file,
-        line: ref2.line,
-        message: `Reference @${ref2.id} targets a dependency node but is outside a dependency statement/proof block.`
-      });
-      continue;
-    }
-    const sourceNode = nodeById.get(sourceBlock.id);
-    const pedagogical = isPedagogicalKind(sourceNode?.kind || "") || isPedagogicalKind(target.kind);
-    if (isMainlineKind(sourceNode?.kind || "") && isPedagogicalKind(target.kind)) {
-      diagnostics.push({
-        severity: "warn",
-        code: "mainline-references-exercise",
-        file: ref2.file,
-        line: ref2.line,
-        message: "A mainline result references an exercise or solution. Keep any required claim and proof in the main text."
-      });
-    }
-    const where = dependencyEdgeWhere(sourceBlock, ref2.line);
-    const sourceLine = linesByFile.get(ref2.file)?.[ref2.line - 1] || "";
-    edges.push({
-      from: sourceBlock.id,
-      to: ref2.id,
-      kind: "explicit_ref",
-      layer: pedagogical ? "pedagogical" : "mathematical",
-      where,
-      relation: where === "body" ? "explanatory" : dependencyEdgeRelation(sourceLine, ref2.id),
-      path: ref2.file,
-      line: ref2.line
-    });
-  }
-  for (const [id2, targets] of sourceReferences) {
-    const node = nodeById.get(id2);
-    if (node) node.sourceReferenceCount = targets.size;
-  }
-  const nodes = [...nodeById.values()].sort((a, b) => (a.bookOrder || 0) - (b.bookOrder || 0) || (a.volumeOrder || 0) - (b.volumeOrder || 0) || (a.unitOrder || 0) - (b.unitOrder || 0) || a.path.localeCompare(b.path) || a.line - b.line);
-  const incoming = new Map(nodes.map((node) => [node.id, 0]));
-  const outgoing = new Map(nodes.map((node) => [node.id, 0]));
-  for (const edge of edges) {
-    incoming.set(edge.to, (incoming.get(edge.to) || 0) + 1);
-    outgoing.set(edge.from, (outgoing.get(edge.from) || 0) + 1);
-  }
-  const cycles = dependencyGraphCycles(nodes, edges);
-  const isCrossBook = (edge) => (nodeById.get(edge.from)?.bookKey || "") !== (nodeById.get(edge.to)?.bookKey || "");
-  const isCrossVolume = (edge) => (nodeById.get(edge.from)?.volumeKey || "") !== (nodeById.get(edge.to)?.volumeKey || "");
-  const isCrossChapter = (edge) => (nodeById.get(edge.from)?.unitKey || "") !== (nodeById.get(edge.to)?.unitKey || "");
-  const isTheoremLikeEdge = (edge) => isMainlineKind(nodeById.get(edge.from)?.kind || "") && isMainlineKind(nodeById.get(edge.to)?.kind || "");
-  return {
-    schemaVersion: 1,
-    generatedBy: "math-workspace",
-    nodes,
-    edges,
-    pedagogicalLinks,
-    ambientReferences,
-    cycles,
-    diagnostics,
-    summary: {
-      nodes: nodes.length,
-      theoremLikeNodes: nodes.filter((node) => isMainlineKind(node.kind)).length,
-      pedagogicalNodes: nodes.filter((node) => isPedagogicalKind(node.kind)).length,
-      pedagogicalEdges: edges.filter((edge) => edge.layer === "pedagogical").length,
-      supplementalRemarkNodes: nodes.filter((node) => node.kind === "remark").length,
-      edges: edges.length,
-      theoremLikeEdges: edges.filter(isTheoremLikeEdge).length,
-      supplementalRemarkEdges: edges.filter((edge) => edge.layer !== "pedagogical" && !isTheoremLikeEdge(edge)).length,
-      isolated: nodes.filter((node) => (incoming.get(node.id) || 0) === 0 && (outgoing.get(node.id) || 0) === 0).length,
-      cycles: cycles.length,
-      crossBookEdges: edges.filter(isCrossBook).length,
-      crossVolumeEdges: edges.filter(isCrossVolume).length,
-      crossChapterEdges: edges.filter(isCrossChapter).length,
-      statementEdges: edges.filter((edge) => edge.where === "statement").length,
-      proofEdges: edges.filter((edge) => edge.where === "proof").length,
-      bodyEdges: edges.filter((edge) => edge.where === "body").length
-    }
-  };
-}
-function dependencyNodeById(graph2) {
-  return new Map(graph2.nodes.map((node) => [node.id, node]));
-}
-function dependencyDegreeRows(graph2, direction, edges = graph2.edges) {
-  const nodeById = dependencyNodeById(graph2);
-  const counts = new Map(graph2.nodes.map((node) => [node.id, 0]));
-  for (const edge of edges) {
-    const id2 = direction === "incoming" ? edge.to : edge.from;
-    counts.set(id2, (counts.get(id2) || 0) + 1);
-  }
-  return [...counts.entries()].map(([id2, count]) => ({ node: nodeById.get(id2), count })).filter((row) => row.node && row.count > 0).sort((a, b) => b.count - a.count || a.node.display.localeCompare(b.node.display));
-}
-function dependencyNodeLocation(node) {
-  return `${node.path}:${node.line}`;
-}
-function dependencyNodeTitle(node) {
-  return `${node.display}${node.title ? ` ${node.title}` : ""}`;
-}
-function isSupplementalRemarkNode(node) {
-  return node?.kind === "remark";
-}
-function dependencyNodeKindLabel(node) {
-  return isPedagogicalKind(node.kind) ? node.kind === "exercise" ? "Exercise" : "Solution" : isSupplementalRemarkNode(node) ? "Supplemental remark" : "Theorem-like";
-}
-function pushLimitedRows(lines2, rows, limit2, render, moreRow) {
-  rows.slice(0, limit2).forEach((row) => lines2.push(render(row)));
-  if (rows.length > limit2) {
-    const remaining = rows.length - limit2;
-    lines2.push(moreRow ? moreRow(remaining) : `| ... | ... | ${remaining} more |`);
-  }
-}
-function renderDependencyReport(graph2) {
-  const nodeById = dependencyNodeById(graph2);
-  const lines2 = [
-    "# Dependency Graph Report",
-    "",
-    "Generated by `npm run workspace -- prepare`. The canonical data is `.math-workspace/dependency-graph.json`.",
-    "",
-    "## Summary",
-    "",
-    `- Nodes: ${graph2.summary.nodes}`,
-    `- Theorem-like nodes: ${graph2.summary.theoremLikeNodes}`,
-    `- Supplemental fact remarks: ${graph2.summary.supplementalRemarkNodes}`,
-    `- Exercises and solutions: ${graph2.summary.pedagogicalNodes || 0}`,
-    `- Pedagogical reference edges: ${graph2.summary.pedagogicalEdges || 0}`,
-    `- Solution associations (excluded from proof cycles): ${graph2.pedagogicalLinks?.length || 0}`,
-    `- Explicit edges: ${graph2.summary.edges}`,
-    `- Mainline theorem-like edges: ${graph2.summary.theoremLikeEdges}`,
-    `- Edges involving supplemental remarks: ${graph2.summary.supplementalRemarkEdges}`,
-    `- Statement edges: ${graph2.summary.statementEdges}`,
-    `- Proof edges: ${graph2.summary.proofEdges}`,
-    `- Body edges: ${graph2.summary.bodyEdges}`,
-    `- Cross-chapter edges: ${graph2.summary.crossChapterEdges}`,
-    `- Cross-volume edges: ${graph2.summary.crossVolumeEdges}`,
-    `- Cross-book edges: ${graph2.summary.crossBookEdges}`,
-    `- Isolated nodes: ${graph2.summary.isolated}`,
-    `- Cycles: ${graph2.summary.cycles}`,
-    ""
-  ];
-  const mathematicalEdges = graph2.edges.filter((edge) => edge.layer !== "pedagogical");
-  const outgoing = dependencyDegreeRows(graph2, "outgoing", mathematicalEdges);
-  lines2.push("## High Outgoing Dependencies", "");
-  if (outgoing.length === 0) {
-    lines2.push("No outgoing dependencies.", "");
-  } else {
-    lines2.push("| Count | Kind | Node | Location |");
-    lines2.push("| ---: | --- | --- | --- |");
-    pushLimitedRows(lines2, outgoing, 20, (row) => `| ${row.count} | ${dependencyNodeKindLabel(row.node)} | ${escapeTable(row.node.display)} ${escapeTable(row.node.title || "")} | \`${dependencyNodeLocation(row.node)}\` |`);
-    lines2.push("");
-  }
-  const incoming = dependencyDegreeRows(graph2, "incoming", mathematicalEdges);
-  lines2.push("## High Incoming Dependencies", "");
-  if (incoming.length === 0) {
-    lines2.push("No incoming dependencies.", "");
-  } else {
-    lines2.push("| Count | Kind | Node | Location |");
-    lines2.push("| ---: | --- | --- | --- |");
-    pushLimitedRows(lines2, incoming, 20, (row) => `| ${row.count} | ${dependencyNodeKindLabel(row.node)} | ${escapeTable(row.node.display)} ${escapeTable(row.node.title || "")} | \`${dependencyNodeLocation(row.node)}\` |`);
-    lines2.push("");
-  }
-  const crossScopeEdges = graph2.edges.filter((edge) => {
-    const from = nodeById.get(edge.from);
-    const to = nodeById.get(edge.to);
-    return from && to && ((from.bookKey || "") !== (to.bookKey || "") || (from.volumeKey || "") !== (to.volumeKey || "") || (from.unitKey || "") !== (to.unitKey || ""));
-  });
-  lines2.push("## Cross-Scope Edges", "");
-  if (crossScopeEdges.length === 0) {
-    lines2.push("No cross-scope dependency edges.", "");
-  } else {
-    lines2.push("| Where | From | To | Reference |");
-    lines2.push("| --- | --- | --- | --- |");
-    pushLimitedRows(lines2, crossScopeEdges, 50, (edge) => {
-      const from = nodeById.get(edge.from);
-      const to = nodeById.get(edge.to);
-      return `| ${edge.where} | ${escapeTable(from?.display || edge.from)} ${escapeTable(from?.title || "")} | ${escapeTable(to?.display || edge.to)} ${escapeTable(to?.title || "")} | \`${edge.path}:${edge.line}\` |`;
-    });
-    lines2.push("");
-  }
-  lines2.push("## Cycles", "");
-  if (graph2.cycles.length === 0) {
-    lines2.push("No dependency cycles found.", "");
-  } else {
-    lines2.push("| Cycle |");
-    lines2.push("| --- |");
-    pushLimitedRows(lines2, graph2.cycles, 50, (cycle) => `| ${escapeTable(cycle.displays.join(" -> "))} |`, (remaining) => `| ... ${remaining} more |`);
-    lines2.push("");
-  }
-  const incomingCounts = new Map(graph2.nodes.map((node) => [node.id, 0]));
-  const outgoingCounts = new Map(graph2.nodes.map((node) => [node.id, 0]));
-  for (const edge of graph2.edges) {
-    incomingCounts.set(edge.to, (incomingCounts.get(edge.to) || 0) + 1);
-    outgoingCounts.set(edge.from, (outgoingCounts.get(edge.from) || 0) + 1);
-  }
-  const isolated = graph2.nodes.filter((node) => (incomingCounts.get(node.id) || 0) === 0 && (outgoingCounts.get(node.id) || 0) === 0);
-  const isolatedTheoremLike = isolated.filter((node) => isMainlineKind(node.kind));
-  const isolatedRemarks = isolated.filter(isSupplementalRemarkNode);
-  lines2.push("## Isolated Nodes", "");
-  lines2.push(`- Mainline theorem-like: ${isolatedTheoremLike.length}`);
-  lines2.push(`- Supplemental remarks: ${isolatedRemarks.length}`, "");
-  if (isolated.length === 0) {
-    lines2.push("No isolated dependency nodes.", "");
-  } else {
-    lines2.push("| Kind | Node | Location |");
-    lines2.push("| --- | --- | --- |");
-    pushLimitedRows(lines2, isolated, 100, (node) => `| ${dependencyNodeKindLabel(node)} | ${escapeTable(node.display)} ${escapeTable(node.title || "")} | \`${dependencyNodeLocation(node)}\` |`);
-    lines2.push("");
-  }
-  if (graph2.diagnostics.length > 0) {
-    lines2.push("## Diagnostics", "");
-    lines2.push("| Code | Location | Message |");
-    lines2.push("| --- | --- | --- |");
-    pushLimitedRows(lines2, graph2.diagnostics, 100, (diagnostic) => {
-      const location = diagnostic.file ? `${diagnostic.file}${diagnostic.line ? `:${diagnostic.line}` : ""}` : "workspace";
-      return `| ${diagnostic.code} | \`${location}\` | ${escapeTable(diagnostic.message)} |`;
-    });
-    lines2.push("");
-  }
-  return `${lines2.join("\n")}
-`;
-}
-function dependencyWhereMatches(edge, where = "all") {
-  return where === "all" || edge.where === where;
-}
-function filteredDependencyEdges(graph2, where = "all") {
-  return graph2.edges.filter((edge) => dependencyWhereMatches(edge, where));
-}
-function dependencyWhereSuffix(where = "all") {
-  return where === "all" ? "" : ` (${where} edges only)`;
-}
-function dependencyFilteredSummary(graph2, where = "all") {
-  const edges = filteredDependencyEdges(graph2, where);
-  const incoming = new Map(graph2.nodes.map((node) => [node.id, 0]));
-  const outgoing = new Map(graph2.nodes.map((node) => [node.id, 0]));
-  const nodeById = dependencyNodeById(graph2);
-  for (const edge of edges) {
-    incoming.set(edge.to, (incoming.get(edge.to) || 0) + 1);
-    outgoing.set(edge.from, (outgoing.get(edge.from) || 0) + 1);
-  }
-  const isCrossBook = (edge) => (nodeById.get(edge.from)?.bookKey || "") !== (nodeById.get(edge.to)?.bookKey || "");
-  const isCrossVolume = (edge) => (nodeById.get(edge.from)?.volumeKey || "") !== (nodeById.get(edge.to)?.volumeKey || "");
-  const isCrossChapter = (edge) => (nodeById.get(edge.from)?.unitKey || "") !== (nodeById.get(edge.to)?.unitKey || "");
-  const isTheoremLikeEdge = (edge) => isMainlineKind(nodeById.get(edge.from)?.kind || "") && isMainlineKind(nodeById.get(edge.to)?.kind || "");
-  const cycles = dependencyGraphCycles(graph2.nodes, edges);
-  return {
-    edges,
-    incoming,
-    outgoing,
-    cycles,
-    isolated: graph2.nodes.filter((node) => (incoming.get(node.id) || 0) === 0 && (outgoing.get(node.id) || 0) === 0),
-    theoremLikeEdges: edges.filter(isTheoremLikeEdge).length,
-    supplementalRemarkEdges: edges.filter((edge) => edge.layer !== "pedagogical" && !isTheoremLikeEdge(edge)).length,
-    crossBookEdges: edges.filter(isCrossBook).length,
-    crossVolumeEdges: edges.filter(isCrossVolume).length,
-    crossChapterEdges: edges.filter(isCrossChapter).length,
-    statementEdges: edges.filter((edge) => edge.where === "statement").length,
-    proofEdges: edges.filter((edge) => edge.where === "proof").length,
-    bodyEdges: edges.filter((edge) => edge.where === "body").length
-  };
-}
-function pushDependencyEdgeTable(lines2, graph2, edges, limit2 = 100) {
-  const nodeById = dependencyNodeById(graph2);
-  if (edges.length === 0) {
-    lines2.push("No dependency edges.", "");
-    return;
-  }
-  lines2.push("| Where | From | To | Reference |");
-  lines2.push("| --- | --- | --- | --- |");
-  const sorted2 = [...edges].sort((a, b) => a.path.localeCompare(b.path) || a.line - b.line || (nodeById.get(a.from)?.display || a.from).localeCompare(nodeById.get(b.from)?.display || b.from) || (nodeById.get(a.to)?.display || a.to).localeCompare(nodeById.get(b.to)?.display || b.to));
-  pushLimitedRows(lines2, sorted2, limit2, (edge) => {
-    const from = nodeById.get(edge.from);
-    const to = nodeById.get(edge.to);
-    return `| ${edge.where} | ${escapeTable(from ? dependencyNodeTitle(from) : edge.from)} | ${escapeTable(to ? dependencyNodeTitle(to) : edge.to)} | \`${edge.path}:${edge.line}\` |`;
-  });
-  lines2.push("");
-}
-function renderDependencyGraphSummary(graph2, where = "all") {
-  const summary = dependencyFilteredSummary(graph2, where);
-  const lines2 = [
-    `# Dependency Graph Summary${dependencyWhereSuffix(where)}`,
-    "",
-    `- Nodes: ${graph2.nodes.length}`,
-    `- Theorem-like nodes: ${graph2.summary.theoremLikeNodes}`,
-    `- Supplemental fact remarks: ${graph2.summary.supplementalRemarkNodes}`,
-    `- Exercises and solutions: ${graph2.summary.pedagogicalNodes || 0}`,
-    `- Pedagogical reference edges: ${graph2.summary.pedagogicalEdges || 0}`,
-    `- Solution associations (excluded from proof cycles): ${graph2.pedagogicalLinks?.length || 0}`,
-    `- Explicit edges: ${summary.edges.length}`,
-    `- Mainline theorem-like edges: ${summary.theoremLikeEdges}`,
-    `- Edges involving supplemental remarks: ${summary.supplementalRemarkEdges}`,
-    `- Statement edges: ${summary.statementEdges}`,
-    `- Proof edges: ${summary.proofEdges}`,
-    `- Body edges: ${summary.bodyEdges}`,
-    `- Cross-chapter edges: ${summary.crossChapterEdges}`,
-    `- Cross-volume edges: ${summary.crossVolumeEdges}`,
-    `- Cross-book edges: ${summary.crossBookEdges}`,
-    `- Isolated nodes: ${summary.isolated.length}`,
-    `- Cycles: ${summary.cycles.length}`,
-    ""
-  ];
-  const outgoing = dependencyDegreeRows(graph2, "outgoing", summary.edges);
-  lines2.push("## Top Outgoing", "");
-  if (outgoing.length === 0) {
-    lines2.push("No outgoing dependencies.", "");
-  } else {
-    lines2.push("| Count | Kind | Node | Location |");
-    lines2.push("| ---: | --- | --- | --- |");
-    pushLimitedRows(
-      lines2,
-      outgoing,
-      10,
-      (row) => `| ${row.count} | ${dependencyNodeKindLabel(row.node)} | ${escapeTable(dependencyNodeTitle(row.node))} | \`${dependencyNodeLocation(row.node)}\` |`,
-      (remaining) => `| ... | ... | ... | ${remaining} more |`
-    );
-    lines2.push("");
-  }
-  const incoming = dependencyDegreeRows(graph2, "incoming", summary.edges);
-  lines2.push("## Top Incoming", "");
-  if (incoming.length === 0) {
-    lines2.push("No incoming dependencies.", "");
-  } else {
-    lines2.push("| Count | Kind | Node | Location |");
-    lines2.push("| ---: | --- | --- | --- |");
-    pushLimitedRows(
-      lines2,
-      incoming,
-      10,
-      (row) => `| ${row.count} | ${dependencyNodeKindLabel(row.node)} | ${escapeTable(dependencyNodeTitle(row.node))} | \`${dependencyNodeLocation(row.node)}\` |`,
-      (remaining) => `| ... | ... | ... | ${remaining} more |`
-    );
-    lines2.push("");
-  }
-  return `${lines2.join("\n")}
-`;
-}
-function dependencyReachable(graph2, rootId, direction, where = "all", maxDepth = Number.POSITIVE_INFINITY) {
-  const nodeById = dependencyNodeById(graph2);
-  if (!nodeById.has(rootId)) return [];
-  const adjacency = /* @__PURE__ */ new Map();
-  for (const node of graph2.nodes) adjacency.set(node.id, /* @__PURE__ */ new Set());
-  for (const edge of filteredDependencyEdges(graph2, where)) {
-    if (direction === "upstream") {
-      adjacency.get(edge.from)?.add(edge.to);
-    } else {
-      adjacency.get(edge.to)?.add(edge.from);
-    }
-  }
-  if (direction === "impact") for (const link2 of graph2.pedagogicalLinks || []) {
-    adjacency.get(link2.exercise)?.add(link2.solution);
-    adjacency.get(link2.solution)?.add(link2.exercise);
-  }
-  const visited = /* @__PURE__ */ new Map([[rootId, 0]]);
-  const queue = [rootId];
-  for (let index = 0; index < queue.length; index++) {
-    const current = queue[index];
-    const currentDepth = visited.get(current) || 0;
-    if (currentDepth >= maxDepth) continue;
-    for (const next of adjacency.get(current) || []) {
-      if (visited.has(next)) continue;
-      visited.set(next, currentDepth + 1);
-      queue.push(next);
-    }
-  }
-  return [...visited.entries()].filter(([id2]) => id2 !== rootId).map(([id2, depth]) => ({ node: nodeById.get(id2), depth })).filter((row) => row.node).sort((a, b) => a.depth - b.depth || dependencyNodeLocation(a.node).localeCompare(dependencyNodeLocation(b.node)));
-}
-function renderDependencyNodeHeader(title2, graph2, id2, where) {
-  const node = dependencyNodeById(graph2).get(id2);
-  const lines2 = [`# ${title2}${dependencyWhereSuffix(where)}`, ""];
-  if (!node) {
-    lines2.push(`Node \`${id2}\` was not found in dependency graph.`, "");
-    return lines2;
-  }
-  lines2.push(`- Node: ${dependencyNodeTitle(node)}`);
-  lines2.push(`- ID: \`${node.id}\``);
-  lines2.push(`- Location: \`${dependencyNodeLocation(node)}\``);
-  lines2.push("");
-  return lines2;
-}
-function pushDependencyNodeRows(lines2, rows) {
-  if (rows.length === 0) {
-    lines2.push("No nodes.", "");
-    return;
-  }
-  lines2.push("| Depth | Node | Location |");
-  lines2.push("| ---: | --- | --- |");
-  pushLimitedRows(lines2, rows, 200, (row) => `| ${row.depth} | ${escapeTable(dependencyNodeTitle(row.node))} | \`${dependencyNodeLocation(row.node)}\` |`);
-  lines2.push("");
-}
-function renderDependencyGraphImpact(graph2, id2, where = "all") {
-  const lines2 = renderDependencyNodeHeader("Dependency Impact Closure", graph2, id2, where);
-  if (!dependencyNodeById(graph2).has(id2)) return `${lines2.join("\n")}
-`;
-  const rows = dependencyReachable(graph2, id2, "impact", where);
-  lines2.push(`Downstream impacted nodes: ${rows.length}`, "");
-  pushDependencyNodeRows(lines2, rows);
-  return `${lines2.join("\n")}
-`;
-}
-function renderDependencyGraphUpstream(graph2, id2, where = "all") {
-  const lines2 = renderDependencyNodeHeader("Dependency Upstream Closure", graph2, id2, where);
-  if (!dependencyNodeById(graph2).has(id2)) return `${lines2.join("\n")}
-`;
-  const rows = dependencyReachable(graph2, id2, "upstream", where);
-  lines2.push(`Upstream dependency nodes: ${rows.length}`, "");
-  pushDependencyNodeRows(lines2, rows);
-  return `${lines2.join("\n")}
-`;
-}
-function renderDependencyGraphFocus(graph2, id2, depth = 2, where = "all") {
-  const safeDepth = Math.max(1, Math.floor(depth || 2));
-  const lines2 = renderDependencyNodeHeader(`Dependency Focus Depth ${safeDepth}`, graph2, id2, where);
-  if (!dependencyNodeById(graph2).has(id2)) return `${lines2.join("\n")}
-`;
-  const upstream = dependencyReachable(graph2, id2, "upstream", where, safeDepth);
-  const impact = dependencyReachable(graph2, id2, "impact", where, safeDepth);
-  lines2.push("## Upstream", "");
-  pushDependencyNodeRows(lines2, upstream);
-  lines2.push("## Downstream Impact", "");
-  pushDependencyNodeRows(lines2, impact);
-  const focusIds = /* @__PURE__ */ new Set([id2, ...upstream.map((row) => row.node.id), ...impact.map((row) => row.node.id)]);
-  const focusEdges = filteredDependencyEdges(graph2, where).filter((edge) => focusIds.has(edge.from) && focusIds.has(edge.to));
-  lines2.push("## Local Edges", "");
-  pushDependencyEdgeTable(lines2, graph2, focusEdges, 200);
-  return `${lines2.join("\n")}
-`;
-}
-function renderDependencyGraphIsolated(graph2, where = "all") {
-  const summary = dependencyFilteredSummary(graph2, where);
-  const theoremLike = summary.isolated.filter((node) => isMainlineKind(node.kind));
-  const remarks = summary.isolated.filter(isSupplementalRemarkNode);
-  const lines2 = [
-    `# Isolated Dependency Nodes${dependencyWhereSuffix(where)}`,
-    "",
-    `Isolated nodes: ${summary.isolated.length}`,
-    `- Mainline theorem-like: ${theoremLike.length}`,
-    `- Supplemental remarks: ${remarks.length}`,
-    ""
-  ];
-  if (summary.isolated.length === 0) {
-    lines2.push("No isolated dependency nodes.", "");
-    return `${lines2.join("\n")}
-`;
-  }
-  lines2.push("| Kind | Node | Location |");
-  lines2.push("| --- | --- | --- |");
-  pushLimitedRows(lines2, summary.isolated, 500, (node) => `| ${dependencyNodeKindLabel(node)} | ${escapeTable(dependencyNodeTitle(node))} | \`${dependencyNodeLocation(node)}\` |`);
-  lines2.push("");
-  return `${lines2.join("\n")}
-`;
-}
-function renderDependencyGraphCycles(graph2, where = "all") {
-  const cycles = dependencyGraphCycles(graph2.nodes, filteredDependencyEdges(graph2, where));
-  const lines2 = [`# Dependency Cycles${dependencyWhereSuffix(where)}`, "", `Cycles: ${cycles.length}`, ""];
-  if (cycles.length === 0) {
-    lines2.push("No dependency cycles found.", "");
-    return `${lines2.join("\n")}
-`;
-  }
-  lines2.push("| Cycle | IDs |");
-  lines2.push("| --- | --- |");
-  pushLimitedRows(lines2, cycles, 200, (cycle) => `| ${escapeTable(cycle.displays.join(" -> "))} | \`${cycle.ids.join(" -> ")}\` |`);
-  lines2.push("");
-  return `${lines2.join("\n")}
-`;
-}
-function dependencyScopeLabel(node, scope2) {
-  const book = node.bookTitle || node.bookKey || "Workspace";
-  if (scope2 === "book") return book;
-  const volume = node.volumeTitle || node.volumeKey || "No volume";
-  if (scope2 === "volume") return `${book} / ${volume}`;
-  const unit = node.unitKind === "appendix" ? `Appendix ${node.unitLabel || node.appendix || "?"}` : node.unitLabel ? `Chapter ${node.unitLabel}` : node.unitKey || node.path;
-  return `${book} / ${volume} / ${unit}`;
-}
-function renderDependencyGraphMatrix(graph2, scope2, where = "all") {
-  const nodeById = dependencyNodeById(graph2);
-  const edges = filteredDependencyEdges(graph2, where);
-  const rowTotals = /* @__PURE__ */ new Map();
-  const columnTotals = /* @__PURE__ */ new Map();
-  const counts = /* @__PURE__ */ new Map();
-  for (const edge of edges) {
-    const from = nodeById.get(edge.from);
-    const to = nodeById.get(edge.to);
-    if (!from || !to) continue;
-    const row = dependencyScopeLabel(from, scope2);
-    const column = dependencyScopeLabel(to, scope2);
-    rowTotals.set(row, (rowTotals.get(row) || 0) + 1);
-    columnTotals.set(column, (columnTotals.get(column) || 0) + 1);
-    counts.set(`${row}	${column}`, (counts.get(`${row}	${column}`) || 0) + 1);
-  }
-  const rows = [...rowTotals.keys()].sort((a, b) => a.localeCompare(b));
-  const columns = [...columnTotals.keys()].sort((a, b) => a.localeCompare(b));
-  const lines2 = [`# Dependency Matrix By ${scope2}${dependencyWhereSuffix(where)}`, "", `Edges: ${edges.length}`, ""];
-  if (rows.length === 0 || columns.length === 0) {
-    lines2.push("No dependency edges.", "");
-    return `${lines2.join("\n")}
-`;
-  }
-  lines2.push(`| From → To | ${columns.map(escapeTable).join(" | ")} | Total |`);
-  lines2.push(`| --- | ${columns.map(() => "---:").join(" | ")} | ---: |`);
-  for (const row of rows) {
-    const values = columns.map((column) => counts.get(`${row}	${column}`) || 0);
-    const total = values.reduce((sum, value) => sum + value, 0);
-    lines2.push(`| ${escapeTable(row)} | ${values.join(" | ")} | ${total} |`);
-  }
-  lines2.push(`| Total | ${columns.map((column) => columnTotals.get(column) || 0).join(" | ")} | ${edges.length} |`);
-  lines2.push("");
-  return `${lines2.join("\n")}
-`;
-}
-function renderDependencyGraphBridges(graph2, where = "all") {
-  const edges = filteredDependencyEdges(graph2, where).filter((edge) => edge.layer !== "pedagogical");
-  const nodeById = dependencyNodeById(graph2);
-  const incoming = new Map(graph2.nodes.map((node) => [node.id, 0]));
-  const outgoing = new Map(graph2.nodes.map((node) => [node.id, 0]));
-  const crossScope = new Map(graph2.nodes.map((node) => [node.id, 0]));
-  for (const edge of edges) {
-    const from = nodeById.get(edge.from);
-    const to = nodeById.get(edge.to);
-    incoming.set(edge.to, (incoming.get(edge.to) || 0) + 1);
-    outgoing.set(edge.from, (outgoing.get(edge.from) || 0) + 1);
-    if (from && to && ((from.bookKey || "") !== (to.bookKey || "") || (from.volumeKey || "") !== (to.volumeKey || "") || (from.unitKey || "") !== (to.unitKey || ""))) {
-      crossScope.set(edge.from, (crossScope.get(edge.from) || 0) + 1);
-      crossScope.set(edge.to, (crossScope.get(edge.to) || 0) + 1);
-    }
-  }
-  const rows = graph2.nodes.map((node) => ({
-    node,
-    incoming: incoming.get(node.id) || 0,
-    outgoing: outgoing.get(node.id) || 0,
-    crossScope: crossScope.get(node.id) || 0
-  })).filter((row) => row.incoming > 0 && row.outgoing > 0).sort((a, b) => b.crossScope - a.crossScope || b.incoming + b.outgoing - (a.incoming + a.outgoing) || dependencyNodeTitle(a.node).localeCompare(dependencyNodeTitle(b.node)));
-  const theoremLikeRows = rows.filter((row) => isMainlineKind(row.node.kind));
-  const remarkRows = rows.filter((row) => isSupplementalRemarkNode(row.node));
-  const lines2 = [
-    `# Bridge Candidates${dependencyWhereSuffix(where)}`,
-    "",
-    "A bridge candidate has both incoming and outgoing explicit dependencies. This is structural only, not a domain judgment.",
-    "",
-    `Candidates: ${rows.length}`,
-    `- Mainline theorem-like: ${theoremLikeRows.length}`,
-    `- Supplemental remarks: ${remarkRows.length}`,
-    ""
-  ];
-  if (rows.length === 0) {
-    lines2.push("No bridge candidates.", "");
-    return `${lines2.join("\n")}
-`;
-  }
-  lines2.push("| Cross-scope | Incoming | Outgoing | Kind | Node | Location |");
-  lines2.push("| ---: | ---: | ---: | --- | --- | --- |");
-  pushLimitedRows(lines2, rows, 200, (row) => `| ${row.crossScope} | ${row.incoming} | ${row.outgoing} | ${dependencyNodeKindLabel(row.node)} | ${escapeTable(dependencyNodeTitle(row.node))} | \`${dependencyNodeLocation(row.node)}\` |`);
-  lines2.push("");
-  return `${lines2.join("\n")}
-`;
-}
-function renderAgentGuide(state) {
-  const errors2 = state.issues.filter((issue2) => issue2.severity === "error").length;
-  const warnings = state.issues.filter((issue2) => issue2.severity !== "error").length;
-  const lines2 = [
-    "# Agent Guide",
-    "",
-    "Generated by `npm run workspace -- prepare`. This is the compact workflow card for AI agents.",
-    "",
-    `Current index: ${Object.keys(state.labels).length} formal entries, ${state.pages.length} pages, ${(state.symbols || []).length} symbols, ${errors2} errors, ${warnings} warnings.`,
-    "",
-    "## Working Loop",
-    "",
-    "1. Read the target Markdown source. For an existing target outside current context, retrieve only its matching row from `.math-workspace/reference-map.md`.",
-    "2. Declare new numbered objects with `#tmp-*`; reference existing objects and pages with `@h-...`, `@h-....title`, or `@h-....full`. Definitions never receive hashes or refs.",
-    "3. Preserve Markdown and LaTeX. Do not write display numbers as references or hand-edit generated artifacts.",
-    "4. Run `npm run workspace -- finish <file-or-dir>` after editing. It finalizes temporary IDs and verifies the workspace. Use a separate `verify` only after direct `finalize`, migration, or as an explicit release gate.",
-    "5. Read `project-analysis.md` only for terminology, concept appendices, or notation work. It is derived context, not a source to maintain.",
-    "",
-    "## Extended Reference",
-    "",
-    "- Sections: `## #h-... Title` renders as the current section number plus title, and links jump to the section without hover recall.",
-    "- Numbered objects: `命题 #h-...（Title）：...`, `引理 #h-...`, `定理 #h-...`, `推论 #h-...` share the theorem counter per chapter or appendix.",
-    "- Equations, figures, and tables: `公式 #h-...：` binds the next display formula as a numbered equation, `图 #h-...（Title）：...` captions a nearby image, and `表 #h-...（Title）：` captions the following table. They have separate counters per chapter or appendix; equations render as `(1.1)`, appendices as `(A.1)`.",
-    "- Chapter/page anchors: put `#h-...` / `#tmp-*` on the file's unique highest-level heading when the page needs stable refs. The hash is hidden in preview and does not create a section number. Use `@h-...`, `@h-....title`, or `@h-....full` from `reference-map.md` to reference the page.",
-    "- Compatibility chapter/page refs: `@chapter:book1/02-main.md`, `@chapter:book1/02-main.md.title`, or `@chapter:book1/02-main.md.full` still work; paths are relative to the formal root that owns `.math-workspace/`. `@page:path.md` is for intro, summary, and appendix pages. Prefer page hashes when available. `finish` normalizes `./` and `../` input sugar to root-relative paths.",
-    "- Theorem-like recall captures the statement before `证明` / `Proof`; keep proofs after an explicit proof marker.",
-    "- Dependency graph: `.math-workspace/dependency-graph.json` is the canonical explicit reference graph. It uses only `@h-...` references between mainline claims, proof-backed hash remarks, exercises and solutions; pedagogical references carry `layer: pedagogical`, while `pedagogicalLinks` keeps solution ownership separate from proof cycles, and marks edges as `statement`, `proof`, or `body`. Edges introduced as explanatory navigation (`见 @h-...`, `参见 @h-...`, or `see @h-...`) are preserved with relation `explanatory`; the Reader relation map excludes them, body references, and self-references from its strict dependency view. `.math-workspace/dependency-report.md` separates mainline theorem-like and supplemental remark statistics. Use `npm run workspace -- graph summary`, `graph impact <h-id>`, `graph upstream <h-id>`, `graph focus <h-id> --depth 2`, `graph bridges`, `graph isolated`, `graph cycles`, or `graph matrix chapter|volume|book` for Markdown analysis. Add `--where statement|proof|body` to filter edge placement. These are structural graph tools, not domain interpretation.",
-    "- Definitions and project knowledge: lookup is a tool-first, AI-exception workflow. The tool scans standard `定义（Term）：...` / `Definition (Term): ...` definitions and deliberately named concept/glossary appendices; `.math-workspace/project-analysis.md` records detected concept, notation, and summary pages. Do not refresh `.math-workspace/definitions.json` after ordinary edits. Use it only for nonstandard phrases, aliases/bilingual lookup, stable multi-paragraph previews, or a boundary the deterministic extractor cannot represent; include Markdown `content` for those entries. Reader task context carries detected sources from the current book. Full rendered lookup previews are only guaranteed for definitions in the currently previewed file; cross-file search is primarily for locating and jumping.",
-    "- Exercises use `习题 #tmp-e（Title）：...` / `Exercise #tmp-e (Title): ...`, with an independent chapter counter. Solutions use a separate ID and `解答 #tmp-s（对应 @tmp-e）：...` / `Solution #tmp-s (for @tmp-e): ...`; they may live in the same book’s final appendix and retain the original exercise number. Separate hint/answer paragraphs from the prompt with a blank line. Prompt recall excludes hints and answers; exports include them. Keep stable IDs and Lean declarations when converting existing results; required mainline claims and proofs stay in the main text.",
-    "- Explanatory remarks stay plain: `注（Title）：...` / `Remark (Title): ...`, without hash. Non-mainline fact remarks that need a proof or later citation use `注 #tmp-*（Title）：...`; `> 注 #tmp-*（Title）：...` is also recognized inside standard blockquotes. A hash remark is an unnumbered supplemental dependency node and supports recall; a plain remark never enters the dependency graph or Reader dependency markers. Examples stay plain by default; only explicitly cited examples use `例 #tmp-*` / `Example #tmp-*` and remain numbered.",
-    "- Symbols: maintain only project-specific `source`, `pattern`, and `meaning` entries in `.math-workspace/symbols.json` when explicit notation semantics change; patterns describe the notation itself with balanced delimiters, not whole equations or open-ended formula fragments. Detected notation appendices are context only and do not infer symbol meanings. The navigation symbol table lists symbols matched in the current preview file. Symbols are not inline formula refs and are not searched through the definition search box.",
-    "- Appendices use the appendix file prefix, so markers in `appendix-a-*.md` render as `A.1`, `A.2`, etc. `00-introduction.md`, `intro.md`, and `introduction.md` are intro pages, not chapter 0.",
-    "- Export: do not compile formal source Markdown directly. Use `npm run workspace -- export-md <file-or-dir> --out dist/book.md` to produce one portable Markdown file, `npm run workspace -- export-md-split <file-or-dir> --out dist/public` to produce compiled Markdown files while preserving the source tree, `npm run workspace -- export-pdf <file-or-dir> --out dist/book.pdf` to call local pandoc after Markdown export, or `npm run workspace -- render-pdf dist/book.md --out dist/book.pdf` when a project release flow has already postprocessed the compiled Markdown. PDF rendering reads `.math-workspace/config.json` `pdf` defaults when present: A4, 2.5cm margins, TOC depth 2, language-aware TOC title, separate TOC page, optional title page metadata, optional publication metadata page, and optional front matter pages. `author` is the cover/PDF metadata author; fuller identity fields are `authorNative`, `authorAliases`, `orcid`, `repository`, `license`, `licenseUrl`, `preferredCitation`, `releaseTag`, `releaseCommit`, and `doi`. When `metadataPage` is true, the generated metadata page is unnumbered, unlisted, and placed after the title page but before the table of contents. Longer AI, license, citation, or provenance statements belong in `frontMatter`, placed after metadata and before the TOC; front matter entries use `source` or `content`, default to `toc: false`, and default to page breaks. Override with `--title`, `--subtitle`, `--author`, `--author-native`, `--author-alias`, `--orcid`, `--repository`, `--license`, `--license-url`, `--preferred-citation`, `--date`, `--release-version`, `--release-tag`, `--release-commit`, `--doi`, `--metadata-page`, `--front-matter`, `--front-matter-title`, `--front-matter-toc`, `--documentclass`, `--title-page`, `--margin`, `--no-toc`, `--toc-depth`, `--paper`, or Pandoc `-V key:value`. No PDF engine is bundled.",
-    "",
-    "## Generated Files",
-    "",
-    "- `.math-workspace/reference-map.md`: compact display-number, page-anchor, and unnumbered-anchor to hash-ID table.",
-    "- `.math-workspace/workspace-index.json`: machine-readable formal entry, page, definition, and symbol snapshot for local reader tooling.",
-    "- `.math-workspace/dependency-graph.json`: canonical graph for theorem-like objects and proof-backed hash remarks, from explicit `@h-...` references.",
-    "- `.math-workspace/dependency-report.md`: human/AI dependency graph review report.",
-    "- `.math-workspace/project-analysis.json` / `.math-workspace/project-analysis.md`: generated detection of concept/glossary, notation, and summary pages, plus supplemental concept entries. This is derived context, not a hand-maintained source table.",
-    "- `.math-workspace/report.md`: lint/verify details.",
-    "- `.math-workspace/audit.md`: advisory AI cleanup list generated by `audit`.",
-    "- `.math-workspace/text-ref-migration.md`: generated only after text-reference migration.",
-    "- `.math-workspace/definitions.json` / `.math-workspace/symbols.json`: optional reviewed source tables for definition lookup overrides and project-specific notation.",
-    "- `.math-workspace/config.json`: explicit formal-project configuration. Use `scan.exclude` when project-root scans must ignore build, draft, context, or generated Markdown directories; use `lookup.bookDependencies` to permit intentional cross-book lookups and refs. The Reader scans project content in memory and remains opt-in through this config.",
-    "",
-    "## Migration",
-    "",
-    "- Use `npm run workspace -- migrate-text-refs <file-or-dir>` before applying old numbered prose migration; migration commands are dry-run by default.",
-    "- `migrate-text-refs` rewrites typed old references such as `定理 2.1`, `命题2.2`, `Theorem 2.1`, `公式 (2.1)`, `Figure 2.1`, `表 2.1`, `§2.1`, or `第 2.1 节`. It intentionally does not rewrite bare `2.1`, bare `(2.1)`, or handwritten chapter refs such as `第 2 章`; decide those by reading context and convert chapter refs to page hashes `@h-...` when available, otherwise to compatibility `@chapter:path.md`. Matching is bounded so `2.1` is not replaced inside `2.12`, `2.1.3`, or `22.1`.",
-    "- Scoped migrations update target files plus incoming references by default. Use `--target-only` only when intentionally restricting rewrites to the target files.",
-    ""
-  ];
-  return `${lines2.join("\n")}
-`;
-}
-function escapeTable(value) {
-  return String(value).replace(/\|/g, "\\|").replace(/\n/g, " ");
-}
-function renderReport(state) {
-  const errors2 = state.issues.filter((issue2) => issue2.severity === "error");
-  const warnings = state.issues.filter((issue2) => issue2.severity !== "error");
-  const lines2 = [
-    "# math-workspace Report",
-    "",
-    `Labels: ${Object.keys(state.labels).length}`,
-    `Pages: ${state.pages.length}`,
-    `Symbols: ${(state.symbols || []).length}`,
-    `Errors: ${errors2.length}`,
-    `Warnings: ${warnings.length}`,
-    ""
-  ];
-  if (errors2.length > 0) {
-    lines2.push("## Errors", "");
-    errors2.forEach((issue2) => lines2.push(formatIssue(issue2)));
-    lines2.push("");
-  }
-  if (warnings.length > 0) {
-    lines2.push("## Warnings", "");
-    warnings.forEach((issue2) => lines2.push(formatIssue(issue2)));
-    lines2.push("");
-  }
-  if (errors2.length === 0 && warnings.length === 0) {
-    lines2.push("No issues found.", "");
-  }
-  return `${lines2.join("\n")}
-`;
-}
-function formatIssue(issue2) {
-  const location = issue2.line ? `${issue2.file}:${issue2.line}` : issue2.file || "workspace";
-  return `- [${issue2.code}] ${location}: ${issue2.message}`;
-}
 const FIGURE_CSP = [
   "sandbox allow-scripts",
   "default-src 'none'",
@@ -8514,7 +5471,7 @@ function dependencyNeighbor(node) {
     display: node.display || node.title || node.id,
     title: node.title || "",
     filePath: node.path,
-    kind: isPedagogicalKind(node.kind || "") ? "pedagogical" : node.kind === "remark" ? "remark" : "theorem-like"
+    kind: publication.isPedagogicalKind(node.kind || "") ? "pedagogical" : node.kind === "remark" ? "remark" : "theorem-like"
   };
 }
 function dependencyNeighbors(ids, nodeById) {
@@ -8559,7 +5516,7 @@ function projectReaderDependencyMarkers(graph2, filePath, leanIndex) {
       impactCount: reachableCount(dependents, node.id),
       ambientReferenceCount: ambientReferenceCounts.get(node.id) || 0,
       role: directDependents === 0 ? "leaf" : directDependencies > 0 ? "bridge" : "referenced",
-      kind: isPedagogicalKind(node.kind || "") ? "pedagogical" : node.kind === "remark" ? "remark" : "theorem-like",
+      kind: publication.isPedagogicalKind(node.kind || "") ? "pedagogical" : node.kind === "remark" ? "remark" : "theorem-like",
       ...leanDeclarationCount > 0 ? { leanDeclarationCount } : {},
       ...leanDeclarationCount > 0 && leanStatus ? { leanStatus } : {},
       upstream: dependencyNeighbors(dependencies2.get(node.id), nodeById),
@@ -8585,7 +5542,7 @@ function defaultProjectStateFilePath() {
   return mathWorkspaceStatePath("workspace-projects.json");
 }
 require("node:os");
-const nodeFs$9 = require("node:fs");
+const nodeFs$a = require("node:fs");
 const { spawn: spawn$4 } = require("node:child_process");
 const MAX_RECENT_PROJECTS = 12;
 function chooseWith(command, args) {
@@ -8658,7 +5615,7 @@ class ReaderProjectRegistry {
     if (!await this.isFormalProject(resolvedPath)) {
       throw new Error("Selected directory needs .math-workspace/config.json. Run `math-workspace init` in the project first.");
     }
-    const canonicalPath = await nodeFs$9.promises.realpath(resolvedPath);
+    const canonicalPath = await nodeFs$a.promises.realpath(resolvedPath);
     const record2 = {
       rootPath: canonicalPath,
       rootName: path__namespace.basename(canonicalPath),
@@ -8784,7 +5741,7 @@ function queryProjectDependencies(workspaceRoot, project, names2) {
   if (names2.length === 0) return { records: [] };
   const token = crypto__namespace.randomBytes(8).toString("hex");
   const probePath = path__namespace.join(workspaceRoot, ".math-workspace", `lean-dependencies-${token}.lean`);
-  const projectRoot = path__namespace.resolve(workspaceRoot, project.root);
+  const projectRoot2 = path__namespace.resolve(workspaceRoot, project.root);
   const source = generatedDependencyProbe(module, names2);
   const parse2 = (output) => output.split(/\r?\n/).filter((line) => line.includes(RECORD_PREFIX$1)).map((line) => line.slice(line.indexOf(RECORD_PREFIX$1) + RECORD_PREFIX$1.length).split("	")).filter((parts) => parts.length >= 3 && (parts[1] === "type" || parts[1] === "proof")).map(([sourceName, where, targets]) => ({
     source: sourceName,
@@ -8795,7 +5752,7 @@ function queryProjectDependencies(workspaceRoot, project, names2) {
     require("node:fs").mkdirSync(path__namespace.dirname(probePath), { recursive: true });
     require("node:fs").writeFileSync(probePath, source, "utf8");
     const result = spawnSync$2("lake", ["env", "lean", probePath], {
-      cwd: projectRoot,
+      cwd: projectRoot2,
       encoding: "utf8",
       maxBuffer: 8 * 1024 * 1024
     });
@@ -9014,7 +5971,7 @@ function captureLeanContracts(index, labels) {
     if (!label) continue;
     anchors[id2] = {
       formalFingerprint: formalFingerprint(label),
-      proofFingerprint: fingerprint$1(normalizeContractContent(associatedProofContent(label, labels))),
+      proofFingerprint: fingerprint$1(normalizeContractContent(publication.associatedProofContent(label, labels))),
       declarationFingerprint: declarationFingerprint(index, id2)
     };
   }
@@ -9062,7 +6019,7 @@ async function applyLeanWorkspaceStatus(workspaceRoot, index, labels, dependency
     const label = labels[id2];
     const baseline = contracts?.anchors?.[id2];
     const statementChanged = !!baseline && !!label && baseline.formalFingerprint !== formalFingerprint(label);
-    const proofChanged = !!baseline?.proofFingerprint && !!label && baseline.proofFingerprint !== fingerprint$1(normalizeContractContent(associatedProofContent(label, labels)));
+    const proofChanged = !!baseline?.proofFingerprint && !!label && baseline.proofFingerprint !== fingerprint$1(normalizeContractContent(publication.associatedProofContent(label, labels)));
     const markdownChanged = statementChanged || proofChanged;
     const declarationChanged = !!baseline && baseline.declarationFingerprint !== declarationFingerprint(index, id2);
     const contract = !baseline || baseline.proofFingerprint === void 0 ? "untracked" : markdownChanged && declarationChanged ? "drifted" : markdownChanged ? "markdown-drifted" : declarationChanged ? "declaration-drifted" : "current";
@@ -9124,7 +6081,7 @@ async function buildLeanWorkspace(workspaceRoot, index, projectKey) {
 const LEAN_ID_RE = /\bh-[0-9a-f]{16,32}\b/gi;
 const LEAN_DECLARATION_RE = /^\s*(?:@\[[^\]]*\]\s*)*(?:(?:private|protected|noncomputable|unsafe|opaque|partial)\s+)*(def|abbrev|theorem|lemma|structure|class|inductive|instance|axiom)\s+([A-Za-z_][A-Za-z0-9_'.]*)/;
 const DEFAULT_ANCHOR_PREFIX = "Math Workspace anchor:";
-const DEFAULT_COVERAGE_TYPES = DEFAULT_LEAN_COVERAGE_TYPES;
+const DEFAULT_COVERAGE_TYPES = publication.DEFAULT_LEAN_COVERAGE_TYPES;
 function fingerprint(value) {
   return crypto__namespace.createHash("sha256").update(value).digest("hex");
 }
@@ -9132,7 +6089,7 @@ function unique(values) {
   return [...new Set(values.filter(Boolean))];
 }
 function normalizedRelativePath$1(value) {
-  return toPosix(String(value || "").trim()).replace(/^\.\/+/, "").replace(/^\/+/, "").replace(/\/+$/, "");
+  return publication.toPosix(String(value || "").trim()).replace(/^\.\/+/, "").replace(/^\/+/, "").replace(/\/+$/, "");
 }
 function pathInside$1(rootPath, candidatePath) {
   const relative = path__namespace.relative(rootPath, candidatePath);
@@ -9182,12 +6139,12 @@ function isLeanSourcePath(config2, filePath) {
   const normalized = normalizedRelativePath$1(filePath);
   if (!normalized) return false;
   return leanProjects(config2).some((project) => {
-    const projectRoot = project.root === "." ? "" : project.root;
-    if (projectRoot && normalized !== projectRoot && !normalized.startsWith(`${projectRoot}/`)) return false;
-    if (normalized === path__namespace.posix.join(projectRoot, "lakefile.toml") || normalized === path__namespace.posix.join(projectRoot, "lean-toolchain")) return true;
+    const projectRoot2 = project.root === "." ? "" : project.root;
+    if (projectRoot2 && normalized !== projectRoot2 && !normalized.startsWith(`${projectRoot2}/`)) return false;
+    if (normalized === path__namespace.posix.join(projectRoot2, "lakefile.toml") || normalized === path__namespace.posix.join(projectRoot2, "lean-toolchain")) return true;
     if (!normalized.toLowerCase().endsWith(".lean")) return false;
     return project.sourceRoots.some((sourceRoot) => {
-      const base2 = normalizedRelativePath$1(path__namespace.posix.join(projectRoot, sourceRoot));
+      const base2 = normalizedRelativePath$1(path__namespace.posix.join(projectRoot2, sourceRoot));
       if (!base2 || base2 === ".") return true;
       return normalized === base2 || normalized.startsWith(`${base2}/`);
     });
@@ -9204,7 +6161,7 @@ async function collectLeanFiles(directory2, files = []) {
       files.push(absolutePath);
     }
   }
-  return files.sort((left, right) => toPosix(left).localeCompare(toPosix(right)));
+  return files.sort((left, right) => publication.toPosix(left).localeCompare(publication.toPosix(right)));
 }
 function lineAt(source, offset) {
   let line = 1;
@@ -9274,8 +6231,8 @@ async function scanLeanWorkspace(workspaceRoot, config2, labels = {}, dependency
       });
       continue;
     }
-    const projectRoot = path__namespace.resolve(workspaceRoot, project.root);
-    if (!pathInside$1(workspaceRoot, projectRoot)) {
+    const projectRoot2 = path__namespace.resolve(workspaceRoot, project.root);
+    if (!pathInside$1(workspaceRoot, projectRoot2)) {
       diagnostics.push({
         severity: "error",
         code: "lean-project-root-outside-workspace",
@@ -9284,9 +6241,9 @@ async function scanLeanWorkspace(workspaceRoot, config2, labels = {}, dependency
       continue;
     }
     for (const sourceRoot of project.sourceRoots) {
-      const absoluteSourceRoot = path__namespace.resolve(projectRoot, sourceRoot);
-      const sourceDisplay = toPosix(path__namespace.relative(workspaceRoot, absoluteSourceRoot));
-      if (!pathInside$1(projectRoot, absoluteSourceRoot)) {
+      const absoluteSourceRoot = path__namespace.resolve(projectRoot2, sourceRoot);
+      const sourceDisplay = publication.toPosix(path__namespace.relative(workspaceRoot, absoluteSourceRoot));
+      if (!pathInside$1(projectRoot2, absoluteSourceRoot)) {
         diagnostics.push({
           severity: "error",
           code: "lean-source-root-outside-project",
@@ -9308,7 +6265,7 @@ async function scanLeanWorkspace(workspaceRoot, config2, labels = {}, dependency
         continue;
       }
       for (const absoluteFile of files) {
-        const filePath = toPosix(path__namespace.relative(workspaceRoot, absoluteFile));
+        const filePath = publication.toPosix(path__namespace.relative(workspaceRoot, absoluteFile));
         if (scannedFiles.has(filePath)) continue;
         scannedFiles.add(filePath);
         const source = await fs__namespace.readFile(absoluteFile, "utf8");
@@ -9349,7 +6306,7 @@ async function scanLeanWorkspace(workspaceRoot, config2, labels = {}, dependency
     entry.declarations.sort((left, right) => left.filePath.localeCompare(right.filePath) || left.line - right.line || left.name.localeCompare(right.name));
   }
   const coverageTypes = new Set(Array.isArray(config2?.lean?.coverageTypes) ? config2.lean.coverageTypes.filter((value) => typeof value === "string") : DEFAULT_COVERAGE_TYPES);
-  const eligible = projects.length === 0 ? [] : Object.entries(labels).filter(([id2, label]) => HASH_ID_RE.test(id2) && (coverageTypes.has(label.type) || label.type === "exercise" && anchors.has(id2))).map(([id2, label]) => ({
+  const eligible = projects.length === 0 ? [] : Object.entries(labels).filter(([id2, label]) => publication.HASH_ID_RE.test(id2) && (coverageTypes.has(label.type) || label.type === "exercise" && anchors.has(id2))).map(([id2, label]) => ({
     id: id2,
     type: label.type,
     title: label.title,
@@ -9474,7 +6431,7 @@ const HARD_IGNORED_DIRECTORIES = /* @__PURE__ */ new Set([
 ]);
 function normalizedRelativePath(value) {
   if (typeof value !== "string") return "";
-  const normalized = toPosix(value).replace(/^\/+/, "").replace(/\/+$/, "");
+  const normalized = publication.toPosix(value).replace(/^\/+/, "").replace(/\/+$/, "");
   if (!normalized || normalized.startsWith("../") || normalized.includes("/../") || path__namespace.posix.isAbsolute(normalized)) return "";
   return normalized;
 }
@@ -9526,7 +6483,7 @@ function configuredCollections(config2) {
 function documentCollectionForPath(filePath, config2) {
   const normalized = normalizedRelativePath(filePath);
   if (!normalized) return void 0;
-  return configuredCollections(config2).find((collection) => collection.include.some((pattern2) => pathPatternMatches(normalized, pattern2)));
+  return configuredCollections(config2).find((collection) => collection.include.some((pattern2) => publication.pathPatternMatches(normalized, pattern2)));
 }
 function collectionMayContainPath(directoryPath, collection) {
   const directory2 = normalizedRelativePath(directoryPath);
@@ -9628,12 +6585,12 @@ async function updateDocumentState(rootPath, config2, documents, update) {
 `, "utf8");
   return readDocumentState(rootPath, config2, documents);
 }
-const nodeFs$8 = require("node:fs");
+const nodeFs$9 = require("node:fs");
 const REFRESH_DELAY_MS = 160;
 const SOURCE_EVENT_MAX_ENTRIES = 4096;
 const SOURCE_EVENT_MAX_BYTES = 8 * 1024 * 1024;
 function isLeanReviewMetadataPath(filePath) {
-  return /^\.math-workspace\/(?:lean-audits|lean-reviews|lean-review-evidence|lean-assistance)\/h-[0-9a-f]{16,32}\.json$/i.test(toPosix(filePath));
+  return /^\.math-workspace\/(?:lean-audits|lean-reviews|lean-review-evidence|lean-assistance)\/h-[0-9a-f]{16,32}\.json$/i.test(publication.toPosix(filePath));
 }
 function pathExists$2(filePath) {
   return fs__namespace.access(filePath).then(() => true, () => false);
@@ -9643,25 +6600,25 @@ async function readConfig$1(rootPath) {
   if (!await pathExists$2(configPath)) {
     throw new Error("Math Workspace requires .math-workspace/config.json in the project root. Run `math-workspace init` first.");
   }
-  return mergeConfig(JSON.parse(await fs__namespace.readFile(configPath, "utf8")));
+  return publication.mergeConfig(JSON.parse(await fs__namespace.readFile(configPath, "utf8")));
 }
 async function collectMarkdownFiles$1(rootPath, config2, directory2 = rootPath, files = [], budget) {
   const entries = await fs__namespace.readdir(directory2, { withFileTypes: true });
   for (const entry of entries) {
     if (budget && --budget.entries < 0) throw new Error("Source watcher inspection limit reached.");
     const absolutePath = path__namespace.join(directory2, entry.name);
-    const relativePath2 = toPosix(path__namespace.relative(rootPath, absolutePath));
+    const relativePath2 = publication.toPosix(path__namespace.relative(rootPath, absolutePath));
     if (entry.isDirectory()) {
-      if (!shouldExcludeScanPath(relativePath2, config2)) {
+      if (!publication.shouldExcludeScanPath(relativePath2, config2)) {
         await collectMarkdownFiles$1(rootPath, config2, absolutePath, files, budget);
       }
       continue;
     }
-    if (entry.isFile() && entry.name.toLowerCase().endsWith(".md") && !shouldExcludeScanPath(relativePath2, config2)) {
+    if (entry.isFile() && entry.name.toLowerCase().endsWith(".md") && !publication.shouldExcludeScanPath(relativePath2, config2)) {
       files.push(absolutePath);
     }
   }
-  return files.sort((left, right) => toPosix(path__namespace.relative(rootPath, left)).localeCompare(toPosix(path__namespace.relative(rootPath, right))));
+  return files.sort((left, right) => publication.toPosix(path__namespace.relative(rootPath, left)).localeCompare(publication.toPosix(path__namespace.relative(rootPath, right))));
 }
 async function collectDraftMarkdownFiles(rootPath, config2, directory2 = rootPath, files = [], budget) {
   const collections = Array.isArray(config2?.documents?.collections) ? config2.documents.collections : [];
@@ -9671,10 +6628,10 @@ async function collectDraftMarkdownFiles(rootPath, config2, directory2 = rootPat
     if (budget && --budget.entries < 0) throw new Error("Source watcher inspection limit reached.");
     if (entry.isDirectory() && isHardIgnoredDirectory(entry.name)) continue;
     const absolutePath = path__namespace.join(directory2, entry.name);
-    const relativePath2 = toPosix(path__namespace.relative(rootPath, absolutePath));
+    const relativePath2 = publication.toPosix(path__namespace.relative(rootPath, absolutePath));
     if (entry.isDirectory()) {
       const collectionCouldContain = collections.some((collection) => collectionMayContainPath(relativePath2, collection));
-      if (collectionCouldContain || !shouldExcludeScanPath(relativePath2, config2)) {
+      if (collectionCouldContain || !publication.shouldExcludeScanPath(relativePath2, config2)) {
         await collectDraftMarkdownFiles(rootPath, config2, absolutePath, files, budget);
       }
       continue;
@@ -9683,7 +6640,7 @@ async function collectDraftMarkdownFiles(rootPath, config2, directory2 = rootPat
       files.push(absolutePath);
     }
   }
-  return files.sort((left, right) => toPosix(path__namespace.relative(rootPath, left)).localeCompare(toPosix(path__namespace.relative(rootPath, right))));
+  return files.sort((left, right) => publication.toPosix(path__namespace.relative(rootPath, left)).localeCompare(publication.toPosix(path__namespace.relative(rootPath, right))));
 }
 function draftTitle(content, filePath) {
   const heading2 = content.split(/\r?\n/).find((line) => /^\s{0,3}#\s+/.test(line));
@@ -9706,11 +6663,11 @@ async function loadWorkspaceSnapshot(rootPath, revision2 = 1) {
     collectDraftMarkdownFiles(resolvedRoot, config2)
   ]);
   const formalDocuments = await Promise.all(formalFiles.map(async (absolutePath) => ({
-    filePath: toPosix(path__namespace.relative(resolvedRoot, absolutePath)),
+    filePath: publication.toPosix(path__namespace.relative(resolvedRoot, absolutePath)),
     content: await fs__namespace.readFile(absolutePath, "utf8")
   })));
   const draftDocuments = await Promise.all(draftFiles.map(async (absolutePath) => ({
-    filePath: toPosix(path__namespace.relative(resolvedRoot, absolutePath)),
+    filePath: publication.toPosix(path__namespace.relative(resolvedRoot, absolutePath)),
     content: await fs__namespace.readFile(absolutePath, "utf8")
   })));
   const documents = [...formalDocuments, ...draftDocuments].sort((left, right) => left.filePath.localeCompare(right.filePath));
@@ -9718,7 +6675,7 @@ async function loadWorkspaceSnapshot(rootPath, revision2 = 1) {
     readIndex(resolvedRoot, "definitions"),
     readIndex(resolvedRoot, "symbols")
   ]);
-  const formalState = scanFormalDocuments(formalDocuments, config2, symbols, definitions2);
+  const formalState = publication.scanFormalDocuments(formalDocuments, config2, symbols, definitions2);
   formalState.pages.forEach((page) => {
     page.documentMode = "formal";
   });
@@ -9734,8 +6691,7 @@ async function loadWorkspaceSnapshot(rootPath, revision2 = 1) {
       documentCollectionTitle: collection?.title
     };
   });
-  formalState.pages.push(...draftPages);
-  formalState.pages.sort((left, right) => left.filePath.localeCompare(right.filePath));
+  formalState.pages = publication.sortManuscriptPages([...formalState.pages, ...draftPages], "workspace");
   const leanIndex = await scanLeanWorkspace(resolvedRoot, config2, formalState.labels, formalState.dependencyGraph);
   formalState.issues.push(...leanIndex.diagnostics.map((diagnostic) => ({
     severity: diagnostic.severity,
@@ -9768,8 +6724,8 @@ class ReaderWorkspace {
   async start() {
     this.closed = false;
     await this.refresh();
-    this.watcher = nodeFs$8.watch(this.rootPath, { recursive: true }, (_event, fileName) => {
-      const relativePath2 = typeof fileName === "string" ? toPosix(fileName) : "";
+    this.watcher = nodeFs$9.watch(this.rootPath, { recursive: true }, (_event, fileName) => {
+      const relativePath2 = typeof fileName === "string" ? publication.toPosix(fileName) : "";
       if (isLeanReviewMetadataPath(relativePath2)) {
         if (this.pendingMetadataPaths.size < 256) this.pendingMetadataPaths.add(relativePath2);
         if (this.metadataTimer) clearTimeout(this.metadataTimer);
@@ -9781,7 +6737,7 @@ class ReaderWorkspace {
         }, REFRESH_DELAY_MS);
         return;
       }
-      const stateFile = documentStateRelativePath(this.snapshot?.state.config || mergeConfig({}));
+      const stateFile = documentStateRelativePath(this.snapshot?.state.config || publication.mergeConfig({}));
       if (relativePath2 && relativePath2 === stateFile) {
         void this.refreshDocumentState(relativePath2).catch((error2) => console.error(`[math-workspace] Document state refresh failed: ${error2.message || error2}`));
         return;
@@ -9859,14 +6815,14 @@ class ReaderWorkspace {
    * write. Compare the affected inputs to the current snapshot before parsing them again.
    * Unknown, oversized and genuine source changes keep the conservative refresh path. */
   async sourcePathChanged(filePath) {
-    const normalized = toPosix(filePath).replace(/^\/+/, "");
+    const normalized = publication.toPosix(filePath).replace(/^\/+/, "");
     if (!normalized || !this.snapshot) return true;
     if (isLeanSourcePath(this.snapshot.state.config, normalized)) return true;
     const candidate = path__namespace.resolve(this.rootPath, normalized);
     if (normalized === ".math-workspace/config.json") {
       const stat2 = await fs__namespace.stat(candidate);
       if (stat2.size > SOURCE_EVENT_MAX_BYTES) return true;
-      const config22 = mergeConfig(JSON.parse(await fs__namespace.readFile(candidate, "utf8")));
+      const config22 = publication.mergeConfig(JSON.parse(await fs__namespace.readFile(candidate, "utf8")));
       return JSON.stringify(config22) !== JSON.stringify(this.current().state.config);
     }
     if (this.snapshot.documents.has(normalized)) {
@@ -9900,7 +6856,7 @@ class ReaderWorkspace {
     if (files.length !== expected.length) return true;
     let bytes = 0;
     for (const file of files) {
-      const relative = toPosix(path__namespace.relative(this.rootPath, file));
+      const relative = publication.toPosix(path__namespace.relative(this.rootPath, file));
       if (!this.current().documents.has(relative)) return true;
       bytes += (await fs__namespace.stat(file)).size;
       if (bytes > SOURCE_EVENT_MAX_BYTES) return true;
@@ -9909,7 +6865,7 @@ class ReaderWorkspace {
     return config2 !== this.current().state.config;
   }
   shouldRefresh(filePath) {
-    const normalized = toPosix(filePath).replace(/^\/+/, "");
+    const normalized = publication.toPosix(filePath).replace(/^\/+/, "");
     if (!normalized) return true;
     if (normalized === ".math-workspace/config.json") return true;
     if (normalized === ".math-workspace/definitions.json") return true;
@@ -9917,10 +6873,10 @@ class ReaderWorkspace {
     if (normalized === ".math-workspace/lean-build.json") return true;
     if (normalized === ".math-workspace/lean-contracts.json") return true;
     if (normalized === ".math-workspace/lean-dependency-graph.json") return true;
-    if (normalized === documentStateRelativePath(this.snapshot?.state.config || mergeConfig({}))) return true;
+    if (normalized === documentStateRelativePath(this.snapshot?.state.config || publication.mergeConfig({}))) return true;
     if (normalized === ".math-workspace" || normalized.startsWith(".math-workspace/")) return false;
-    if (isLeanSourcePath(this.snapshot?.state.config || mergeConfig({}), normalized)) return true;
-    return !shouldExcludeScanPath(normalized, this.snapshot?.state.config || mergeConfig({}));
+    if (isLeanSourcePath(this.snapshot?.state.config || publication.mergeConfig({}), normalized)) return true;
+    return !publication.shouldExcludeScanPath(normalized, this.snapshot?.state.config || publication.mergeConfig({}));
   }
   async refresh() {
     if (this.refreshing) {
@@ -10019,6 +6975,180 @@ class ArchiveReaderApi {
     return job;
   }
 }
+const { randomBytes: randomBytes$1 } = require("node:crypto");
+class PublicationReaderError extends Error {
+  constructor(message, status = 400) {
+    super(message);
+    this.status = status;
+  }
+}
+const ACTIONS$1 = /* @__PURE__ */ new Set(["save", "review", "build", "reserve-doi", "attach-zenodo", "review-upload", "upload", "publish"]);
+const ARTIFACTS = /* @__PURE__ */ new Set(["publication.pdf", "compiled.md", "manifest.json", "citation.json"]);
+class PublicationReaderApi {
+  constructor(options = {}) {
+    this.options = options;
+    this.services = /* @__PURE__ */ new Map();
+    this.jobs = /* @__PURE__ */ new Map();
+  }
+  service(root) {
+    if (!this.services.has(root)) this.services.set(root, this.options.service?.(root) || new publication.PublicationService(root, { cliPath: path__namespace.resolve(__dirname, "math-workspace.js") }));
+    return this.services.get(root);
+  }
+  async get(root, route, params) {
+    if (route === "/api/publication/job") {
+      const job = this.jobs.get(root);
+      if (!job || job.id !== params.get("id")) throw new PublicationReaderError("This publication operation is not available in the bound project.", 404);
+      return job;
+    }
+    const service = this.service(root);
+    if (route === "/api/publication") return { ...await service.inspect(), job: this.jobs.get(root) };
+    if (route === "/api/publication/status") return service.status(params.get("profile") || "");
+    throw new PublicationReaderError("Unknown publication read operation.", 404);
+  }
+  async artifact(root, params) {
+    const file = params.get("file");
+    if (!ARTIFACTS.has(file)) throw new PublicationReaderError("Choose a known publication artifact.");
+    const profile = params.get("profile") || "", build = params.get("build") || "";
+    if (!profile || !build) throw new PublicationReaderError("A publication plan and frozen build are required.");
+    return this.service(root).readArtifact(profile, build, file);
+  }
+  start(root, input) {
+    if (!input || typeof input !== "object" || Array.isArray(input) || !ACTIONS$1.has(input.action)) throw new PublicationReaderError("Choose a publication operation.");
+    if (input.action === "publish" && input.confirmedPublication !== true) throw new PublicationReaderError("Review this edition and explicitly confirm public publication.");
+    if (input.action === "reserve-doi" && input.mode === "new-version" && input.confirmedNewVersion !== true) throw new PublicationReaderError("Explicitly confirm a new version of the same work.");
+    if (this.jobs.get(root)?.state === "running") throw new PublicationReaderError("A publication operation is already running in this project.", 409);
+    const body = JSON.parse(JSON.stringify(input));
+    const job = {
+      id: randomBytes$1(16).toString("hex"),
+      action: body.action,
+      state: "running",
+      phase: "Preparing",
+      startedAt: (/* @__PURE__ */ new Date()).toISOString()
+    };
+    this.jobs.set(root, job);
+    void (async () => {
+      try {
+        const service = this.service(root);
+        if (body.action === "save") job.result = await service.save(body.profile, body.expectedRevision);
+        else if (body.action === "review") job.result = await service.plan(body.profile);
+        else if (body.action === "build") job.result = await service.build(
+          body.profile,
+          body.expectedFingerprint,
+          { onProgress: (message) => {
+            job.phase = message;
+          } }
+        );
+        else if (body.action === "reserve-doi") job.result = await service.reserveDoi(
+          body.profileId,
+          body.expectedRevision,
+          { mode: body.mode, expectedRecordId: body.expectedRecordId }
+        );
+        else if (body.action === "attach-zenodo") job.result = await service.attachZenodo(
+          body.profileId,
+          body.expectedRevision,
+          { id: body.id, kind: body.kind }
+        );
+        else if (body.action === "review-upload") job.result = await service.reviewUpload(
+          body.profileId,
+          body.buildId,
+          { pdfSha256: body.pdfSha256, remoteRevision: body.remoteRevision }
+        );
+        else if (body.action === "upload") job.result = await service.upload(
+          body.profileId,
+          body.buildId,
+          { pdfSha256: body.pdfSha256, remoteRevision: body.remoteRevision, uploadFingerprint: body.uploadFingerprint }
+        );
+        else job.result = await service.publish(
+          body.profileId,
+          body.buildId,
+          { pdfSha256: body.pdfSha256, remoteRevision: body.remoteRevision, recordId: body.recordId }
+        );
+        job.state = "completed";
+        job.phase = "Completed";
+      } catch (error2) {
+        job.state = "failed";
+        job.phase = "Failed";
+        job.error = error2 instanceof Error ? error2.message : String(error2);
+      } finally {
+        job.finishedAt = (/* @__PURE__ */ new Date()).toISOString();
+      }
+    })();
+    return job;
+  }
+}
+const fs$4 = require("node:fs/promises");
+const PUBLICATION_PDF_RUNTIME_VERSION = "6.4.299";
+const MAX_RUNTIME_BYTES = 8 * 1024 * 1024;
+const MAX_MANIFEST_BYTES$1 = 128 * 1024;
+const MODULES = ["pdf.mjs", "pdf.worker.mjs"];
+const sha256$3 = (bytes) => crypto__namespace.createHash("sha256").update(bytes).digest("hex");
+const allowedAsset = (name) => MODULES.includes(name) || /^cmaps\/[A-Za-z0-9_-]+\.bcmap$/.test(name) || /^standard_fonts\/[A-Za-z0-9_-]+\.(?:pfb|ttf)$/.test(name);
+class PublicationPdfRuntimeError extends Error {
+  constructor(message, status) {
+    super(message);
+    this.status = status;
+  }
+}
+async function boundedRead$1(root, name, limit2) {
+  const file = await publication.safePath(root, name), stat = await fs$4.stat(file);
+  if (!stat.isFile() || stat.size > limit2) throw new Error("Invalid PDF preview runtime asset size.");
+  const bytes = await fs$4.readFile(file);
+  if (bytes.length !== stat.size || bytes.length > limit2) throw new Error("PDF preview runtime changed while reading.");
+  return bytes;
+}
+async function readPublicationPdfRuntime(staticRoot, requested) {
+  if (!allowedAsset(requested) || requested.length > 180) throw new PublicationPdfRuntimeError("Choose a known PDF preview runtime asset.", 400);
+  try {
+    const manifest = JSON.parse((await boundedRead$1(staticRoot, "pdfjs/runtime.json", MAX_MANIFEST_BYTES$1)).toString("utf8"));
+    if (manifest.schema !== "math-workspace.publication-pdf-runtime/v1" || manifest.version !== PUBLICATION_PDF_RUNTIME_VERSION) throw new Error("Invalid PDF preview runtime identity.");
+    const entry = Object.hasOwn(manifest.files || {}, requested) ? manifest.files[requested] : void 0;
+    if (!entry) throw new PublicationPdfRuntimeError("PDF preview runtime asset not found.", 404);
+    if (!Number.isInteger(entry.bytes) || entry.bytes < 1 || entry.bytes > MAX_RUNTIME_BYTES || !/^[a-f0-9]{64}$/.test(entry.sha256)) throw new Error("Invalid PDF preview runtime entry.");
+    const bytes = await boundedRead$1(staticRoot, `pdfjs/${requested}`, MAX_RUNTIME_BYTES);
+    if (bytes.length !== entry.bytes || sha256$3(bytes) !== entry.sha256) throw new Error("PDF preview runtime asset changed.");
+    return { bytes, contentType: MODULES.includes(requested) ? "text/javascript; charset=utf-8" : "application/octet-stream" };
+  } catch (error2) {
+    if (error2 instanceof PublicationPdfRuntimeError) throw error2;
+    throw new PublicationPdfRuntimeError("The bundled PDF preview runtime is unavailable or changed. Reopen the Reader after updating its local plugin.", 503);
+  }
+}
+const FORMULA_RUNTIME_VERSION = "4.1.3";
+const FORMULA_RUNTIME_FILE = "mathjax-tex-svg.mjs";
+const SCHEMA = "math-workspace.formula-runtime/v1";
+const MAX_MODULE_BYTES = 4 * 1024 * 1024;
+const MAX_MANIFEST_BYTES = 32 * 1024;
+const sha256$2 = (bytes) => crypto$1.createHash("sha256").update(bytes).digest("hex");
+class FormulaRuntimeError extends Error {
+  constructor(message, status) {
+    super(message);
+    this.status = status;
+  }
+}
+async function boundedRead(root, relative, maximum) {
+  const resolvedRoot = await fs__namespace.realpath(root);
+  const file = await fs__namespace.realpath(path__namespace.join(root, relative));
+  if (!file.startsWith(resolvedRoot + path__namespace.sep)) throw new Error("Formula runtime asset leaves its bundle.");
+  const stat = await fs__namespace.stat(file);
+  if (!stat.isFile() || stat.size < 1 || stat.size > maximum) throw new Error("Invalid formula runtime asset size.");
+  const bytes = await fs__namespace.readFile(file);
+  if (bytes.length !== stat.size || bytes.length > maximum) throw new Error("Formula runtime asset changed while reading.");
+  return bytes;
+}
+async function readFormulaRuntime(staticRoot, requested) {
+  if (requested !== FORMULA_RUNTIME_FILE) throw new FormulaRuntimeError("Choose the bundled formula renderer.", 400);
+  try {
+    const manifest = JSON.parse((await boundedRead(staticRoot, "mathjax/runtime.json", MAX_MANIFEST_BYTES)).toString("utf8"));
+    const entry = manifest.files?.[FORMULA_RUNTIME_FILE];
+    if (manifest.schema !== SCHEMA || manifest.version !== FORMULA_RUNTIME_VERSION || !entry || !Number.isInteger(entry.bytes) || entry.bytes < 1 || entry.bytes > MAX_MODULE_BYTES || !/^[a-f0-9]{64}$/.test(entry.sha256)) {
+      throw new Error("Invalid formula runtime manifest.");
+    }
+    const bytes = await boundedRead(staticRoot, "mathjax/" + FORMULA_RUNTIME_FILE, MAX_MODULE_BYTES);
+    if (bytes.length !== entry.bytes || sha256$2(bytes) !== entry.sha256) throw new Error("Formula runtime identity changed.");
+    return { bytes, contentType: "text/javascript; charset=utf-8" };
+  } catch (error2) {
+    throw new FormulaRuntimeError("The bundled formula renderer is unavailable or changed. Reopen the Reader after updating its local plugin.", 503);
+  }
+}
 require("node:fs/promises");
 const { spawn: spawn$3 } = require("node:child_process");
 const { homedir } = require("node:os");
@@ -10032,7 +7162,7 @@ function reviewHash(value) {
 }
 function formalReviewId(value) {
   const id2 = String(value || "").replace(/^[@#]/, "").trim().toLowerCase();
-  if (!HASH_ID_RE.test(id2)) throw new LeanReviewError(400, "A stable formal h-* ID is required.");
+  if (!publication.HASH_ID_RE.test(id2)) throw new LeanReviewError(400, "A stable formal h-* ID is required.");
   return id2;
 }
 class LeanReviewError extends Error {
@@ -10065,9 +7195,9 @@ async function validateReviewWorkspace(root) {
   const configPath = await reviewSafePath(canonical, ".math-workspace/config.json");
   const config2 = JSON.parse(await fs__namespace.readFile(configPath, "utf8"));
   for (const project of leanProjects(config2)) {
-    const projectRoot = await reviewSafePath(canonical, project.root);
-    if (!projectRoot) continue;
-    for (const source of project.sourceRoots) await reviewSafePath(projectRoot, source);
+    const projectRoot2 = await reviewSafePath(canonical, project.root);
+    if (!projectRoot2) continue;
+    for (const source of project.sourceRoots) await reviewSafePath(projectRoot2, source);
   }
   return canonical;
 }
@@ -10122,8 +7252,8 @@ async function declarationSource(root, declaration2, inputs) {
   }
   return snippet(declaration2.filePath, lines2, start, end, "declaration", true);
 }
-async function manifestDependencies(root, projectRoot) {
-  const manifestPath = await reviewSafePath(root, toPosix(path__namespace.relative(root, path__namespace.join(projectRoot, "lake-manifest.json"))), true);
+async function manifestDependencies(root, projectRoot2) {
+  const manifestPath = await reviewSafePath(root, publication.toPosix(path__namespace.relative(root, path__namespace.join(projectRoot2, "lake-manifest.json"))), true);
   if (!manifestPath) return [];
   const manifest = JSON.parse(await fs__namespace.readFile(manifestPath, "utf8"));
   if (!Array.isArray(manifest.packages)) throw new Error("Lake manifest package entries are unavailable.");
@@ -10131,19 +7261,19 @@ async function manifestDependencies(root, projectRoot) {
   const dependencies2 = [];
   for (const entry of manifest.packages) {
     let dependency;
-    if (entry.type === "path" && typeof entry.dir === "string") dependency = path__namespace.resolve(projectRoot, entry.dir);
+    if (entry.type === "path" && typeof entry.dir === "string") dependency = path__namespace.resolve(projectRoot2, entry.dir);
     else if (entry.type === "git" && typeof entry.name === "string" && /^[A-Za-z0-9_.-]+$/.test(entry.name)) {
-      dependency = path__namespace.resolve(projectRoot, packagesDir, entry.name, typeof entry.subDir === "string" ? entry.subDir : ".");
+      dependency = path__namespace.resolve(projectRoot2, packagesDir, entry.name, typeof entry.subDir === "string" ? entry.subDir : ".");
     } else throw new Error("Unsupported Lake manifest dependency format; initialize dependencies deliberately outside the Reader.");
     if (!reviewPathInside(root, dependency)) throw new Error("A Lake dependency is outside the prepared Math Workspace; its input boundary cannot be tracked.");
-    const resolved = await reviewSafePath(root, toPosix(path__namespace.relative(root, dependency)), true);
-    if (!resolved) throw new Error(`Lake dependency is not installed locally: ${toPosix(path__namespace.relative(root, dependency))}.`);
+    const resolved = await reviewSafePath(root, publication.toPosix(path__namespace.relative(root, dependency)), true);
+    if (!resolved) throw new Error(`Lake dependency is not installed locally: ${publication.toPosix(path__namespace.relative(root, dependency))}.`);
     dependencies2.push({ directory: resolved, ...entry.type === "git" ? { gitRevision: entry.rev } : {} });
   }
   return dependencies2;
 }
 async function inputFingerprint(root, project) {
-  const projectRoot = await reviewSafePath(root, project.root);
+  const projectRoot2 = await reviewSafePath(root, project.root);
   const files = /* @__PURE__ */ new Map();
   const visited = /* @__PURE__ */ new Set();
   let diagnostic;
@@ -10156,7 +7286,7 @@ async function inputFingerprint(root, project) {
       if ([".git", "node_modules", ".math-workspace"].includes(entry.name)) continue;
       const candidate = path__namespace.join(directory2, entry.name);
       if (entry.isSymbolicLink()) {
-        throw new LeanReviewError(400, `Lean input symlink is not supported for review evidence: ${toPosix(path__namespace.relative(root, candidate))}`);
+        throw new LeanReviewError(400, `Lean input symlink is not supported for review evidence: ${publication.toPosix(path__namespace.relative(root, candidate))}`);
       }
       if (entry.isDirectory()) {
         if (entry.name !== ".lake") await visit(candidate, packages);
@@ -10164,25 +7294,25 @@ async function inputFingerprint(root, project) {
         const text2 = await fs__namespace.readFile(candidate, "utf8");
         bytes += text2.length;
         if (files.size >= MAX_INPUT_FILES || bytes > MAX_INPUT_BYTES) throw new LeanReviewError(413, "Lean project inputs exceed the bounded review evidence limit.");
-        files.set(toPosix(path__namespace.relative(root, candidate)), reviewHash(text2));
+        files.set(publication.toPosix(path__namespace.relative(root, candidate)), reviewHash(text2));
       }
     }
   };
-  await visit(projectRoot);
+  await visit(projectRoot2);
   try {
-    for (const dependency of await manifestDependencies(root, projectRoot)) await visit(dependency.directory, true);
-    const manifestFile = await reviewSafePath(root, toPosix(path__namespace.relative(root, path__namespace.join(projectRoot, "lake-manifest.json"))), true);
+    for (const dependency of await manifestDependencies(root, projectRoot2)) await visit(dependency.directory, true);
+    const manifestFile = await reviewSafePath(root, publication.toPosix(path__namespace.relative(root, path__namespace.join(projectRoot2, "lake-manifest.json"))), true);
     const manifest = manifestFile ? JSON.parse(await fs__namespace.readFile(manifestFile, "utf8")) : {};
     const lakeDir = typeof manifest.lakeDir === "string" ? manifest.lakeDir : ".lake";
-    const override = await reviewSafePath(root, toPosix(path__namespace.relative(root, path__namespace.resolve(projectRoot, lakeDir, "package-overrides.json"))), true);
+    const override = await reviewSafePath(root, publication.toPosix(path__namespace.relative(root, path__namespace.resolve(projectRoot2, lakeDir, "package-overrides.json"))), true);
     if (override) {
-      files.set(toPosix(path__namespace.relative(root, override)), reviewHash(await fs__namespace.readFile(override, "utf8")));
+      files.set(publication.toPosix(path__namespace.relative(root, override)), reviewHash(await fs__namespace.readFile(override, "utf8")));
       diagnostic = "Lake package overrides require deliberate external resolution; override dependencies are not admitted by the Reader.";
     }
   } catch (error2) {
     diagnostic = error2.message || String(error2);
   }
-  const toolchainFile = await reviewSafePath(projectRoot, "lean-toolchain", true);
+  const toolchainFile = await reviewSafePath(projectRoot2, "lean-toolchain", true);
   const toolchain = toolchainFile ? (await fs__namespace.readFile(toolchainFile, "utf8")).trim() : "";
   const toolchainRoot = installedToolchainRoot(toolchain);
   let binaryIdentity = "unavailable";
@@ -10308,7 +7438,7 @@ async function readReviewContext(rootInput, idInput, reusableSnapshot, projectIn
       build: { state: "unverified" }
     });
   }
-  const displayNumber2 = formatDisplayNumber(label);
+  const displayNumber = publication.formatDisplayNumber(label);
   const evidence = {
     fingerprint: "",
     statement,
@@ -10323,12 +7453,12 @@ async function readReviewContext(rootInput, idInput, reusableSnapshot, projectIn
     diagnostics: contextOverflow ? ["Explicit reference context exceeds the bounded snapshot; review freshness conservatively tracks all workspace Markdown inputs."] : []
   };
   evidence.fingerprint = evidenceFingerprint(evidence);
-  const displayName = typeName(snapshot.state.config, label.type);
+  const displayName = publication.typeName(snapshot.state.config, label.type);
   return { root, id: id2, snapshot, projectConfigs, formal: {
     id: id2,
     type: label.type,
     title: label.title,
-    display: displayNumber2 ? `${displayName} ${displayNumber2}` : displayName,
+    display: displayNumber ? `${displayName} ${displayNumber}` : displayName,
     filePath: label.filePath,
     line: statement.startLine
   }, evidence };
@@ -10517,7 +7647,7 @@ async function refreshReviewEvidence(context, control, expansion) {
       await fs__namespace.access(lean2);
       const cwd = await reviewSafePath(context.root, project.root);
       if (current.diagnostic) throw new Error(current.diagnostic);
-      const manifest = await reviewSafePath(context.root, toPosix(path__namespace.relative(context.root, path__namespace.join(cwd, "lake-manifest.json"))), true);
+      const manifest = await reviewSafePath(context.root, publication.toPosix(path__namespace.relative(context.root, path__namespace.join(cwd, "lake-manifest.json"))), true);
       if (!manifest) throw new Error("Lake manifest is missing. Initialize dependencies deliberately outside the Reader before refreshing evidence.");
       const dependencies2 = await manifestDependencies(context.root, cwd);
       for (const dependency of dependencies2) if (dependency.gitRevision) {
@@ -10565,9 +7695,9 @@ async function refreshReviewEvidence(context, control, expansion) {
             const candidate = path__namespace.resolve(cwd, row.sourcePath);
             const tracked = [cwd, ...dependencies2.map((item2) => item2.directory)].some((directory2) => reviewPathInside(directory2, candidate));
             if (tracked && reviewPathInside(context.root, candidate)) {
-              const sourceFile2 = await reviewSafePath(context.root, toPosix(path__namespace.relative(context.root, candidate)), true);
+              const sourceFile2 = await reviewSafePath(context.root, publication.toPosix(path__namespace.relative(context.root, candidate)), true);
               if (sourceFile2) {
-                actualFile = toPosix(path__namespace.relative(context.root, sourceFile2));
+                actualFile = publication.toPosix(path__namespace.relative(context.root, sourceFile2));
                 if (row.startLine > 0 && row.endLine >= row.startLine) {
                   source = snippet(actualFile, (await fs__namespace.readFile(sourceFile2, "utf8")).split(/\r?\n/), row.startLine, row.endLine, "declaration");
                 }
@@ -10598,11 +7728,11 @@ async function refreshReviewEvidence(context, control, expansion) {
           if (typeof row.oleanPath === "string" && row.oleanPath) {
             const compiled = path__namespace.resolve(cwd, row.oleanPath);
             if (reviewPathInside(context.root, compiled)) {
-              const compiledFile = await reviewSafePath(context.root, toPosix(path__namespace.relative(context.root, compiled)), true);
+              const compiledFile = await reviewSafePath(context.root, publication.toPosix(path__namespace.relative(context.root, compiled)), true);
               if (compiledFile) {
                 if (!compiledFingerprints.has(compiledFile)) compiledFingerprints.set(compiledFile, fs__namespace.readFile(compiledFile).then(reviewHash));
                 definition.compiledSource = {
-                  filePath: toPosix(path__namespace.relative(context.root, compiledFile)),
+                  filePath: publication.toPosix(path__namespace.relative(context.root, compiledFile)),
                   fingerprint: await compiledFingerprints.get(compiledFile)
                 };
               }
@@ -10638,11 +7768,11 @@ const fileSystem$1 = require("node:fs/promises");
 const VERDICTS = ["aligned", "partial", "difference", "undecided"];
 const MAX_SNAPSHOT_BYTES = 4 * 1024 * 1024;
 async function metadataDirectory(root, name, create = false) {
-  const parent = await reviewSafePath(root, ".math-workspace");
-  const directory2 = path__namespace.join(parent, name);
+  const parent2 = await reviewSafePath(root, ".math-workspace");
+  const directory2 = path__namespace.join(parent2, name);
   if (create) await fs__namespace.mkdir(directory2, { recursive: true });
   const resolved = await reviewSafePath(root, path__namespace.relative(root, directory2), true);
-  if (resolved && !reviewPathInside(parent, resolved)) throw new LeanReviewError(400, "Lean review metadata cannot escape .math-workspace.");
+  if (resolved && !reviewPathInside(parent2, resolved)) throw new LeanReviewError(400, "Lean review metadata cannot escape .math-workspace.");
   return resolved;
 }
 async function readJson(root, directoryName, id2) {
@@ -11028,8 +8158,8 @@ class LeanReviewService {
     if (!wholeProject && !snapshot.state.pages.some((page2) => page2.filePath === filePath)) throw new LeanReviewError(404, "Review queue requires a current Markdown page.");
     const page = snapshot.state.pages.find((item2) => item2.filePath === filePath);
     const paths = new Set(snapshot.state.pages.filter((item2) => wholeProject || item2.filePath === filePath || page.unitKey && item2.bookKey === page.bookKey && item2.volumeKey === page.volumeKey && item2.unitKey === page.unitKey).map((item2) => item2.filePath));
-    const coverageTypes = new Set(snapshot.state.config?.lean?.coverageTypes || DEFAULT_LEAN_COVERAGE_TYPES);
-    const ids = Object.entries(snapshot.state.labels || {}).filter(([id2, label]) => HASH_ID_RE.test(id2) && paths.has(label.filePath) && (coverageTypes.has(label.type) || !!snapshot.state.leanIndex?.anchors?.[id2])).sort(([, a], [, b]) => a.filePath.localeCompare(b.filePath) || (a.startLine || 0) - (b.startLine || 0)).map(([id2]) => id2);
+    const coverageTypes = new Set(snapshot.state.config?.lean?.coverageTypes || publication.DEFAULT_LEAN_COVERAGE_TYPES);
+    const ids = Object.entries(snapshot.state.labels || {}).filter(([id2, label]) => publication.HASH_ID_RE.test(id2) && paths.has(label.filePath) && (coverageTypes.has(label.type) || !!snapshot.state.leanIndex?.anchors?.[id2])).sort(([, a], [, b]) => a.filePath.localeCompare(b.filePath) || (a.startLine || 0) - (b.startLine || 0)).map(([id2]) => id2);
     if (ids.length > (wholeProject ? 3e3 : 1e3)) throw new LeanReviewError(413, wholeProject ? "Project review overview is limited to 3000 objects; no partial completeness is claimed." : "Review queue is limited to 1000 objects in a chapter.");
     const items2 = [];
     for (const id2 of ids) {
@@ -11193,7 +8323,7 @@ class LeanReviewService {
     await Promise.all([...this.jobs.values()].map((active) => active.promise));
   }
 }
-const fs$1 = require("node:fs/promises");
+const fs$3 = require("node:fs/promises");
 const path = require("node:path");
 const os$1 = require("node:os");
 const { spawn: spawn$2 } = require("node:child_process");
@@ -11359,14 +8489,14 @@ async function lakeEnvironment(cwd, toolchainRoot, boundaries, operation) {
       let candidate = path.resolve(cwd, entry), resolved;
       for (let depth = 0; depth < 128; depth++) {
         try {
-          resolved = await fs$1.realpath(candidate);
+          resolved = await fs$3.realpath(candidate);
           break;
         } catch (error2) {
           if (error2?.code !== "ENOENT") throw error2;
         }
-        const parent = path.dirname(candidate);
-        if (parent === candidate) break;
-        candidate = parent;
+        const parent2 = path.dirname(candidate);
+        if (parent2 === candidate) break;
+        candidate = parent2;
       }
       const absolute = path.resolve(cwd, entry);
       const inside = (root, file) => {
@@ -11405,16 +8535,16 @@ class LeanLanguageConnection {
     if (process.platform === "win32") throw new Error("Read-only offline Lean language sessions are unavailable on this platform.");
     const environment = await lakeEnvironment(cwd, toolchainRoot, [cwd, toolchainRoot, ...dependencies2], operation);
     operation.check();
-    this.temporary = await fs$1.mkdtemp(path.join(os$1.tmpdir(), "math-workspace-lean-language-"));
+    this.temporary = await fs$3.mkdtemp(path.join(os$1.tmpdir(), "math-workspace-lean-language-"));
     const launcher = path.join(this.temporary, "lake");
     const entry = path.join(this.temporary, "lake.cjs");
     const script = `const {spawnSync}=require('node:child_process');
 const r=spawnSync(${JSON.stringify(path.join(toolchainRoot, "bin", "lake"))},['--offline','--no-build','--no-cache',...process.argv.slice(2)],{stdio:'inherit',env:process.env});
 process.exit(r.status ?? 1);
 `;
-    await fs$1.writeFile(entry, script, { mode: 384 });
+    await fs$3.writeFile(entry, script, { mode: 384 });
     const quote = (value) => `'${value.replace(/'/g, `'\\''`)}'`;
-    await fs$1.writeFile(launcher, `#!/bin/sh
+    await fs$3.writeFile(launcher, `#!/bin/sh
 exec ${quote(process.execPath)} ${quote(entry)} "$@"
 `, { mode: 448 });
     this.child = readonlySpawn(path.join(toolchainRoot, "bin", "lean"), ["--server", "-M4096"], {
@@ -11602,12 +8732,12 @@ exec ${quote(process.execPath)} ${quote(entry)} "$@"
       }
       await killProcessTree(this.child, this.ownedProcesses);
       this.fail(new Error("Lean language session closed."));
-      if (this.temporary) await fs$1.rm(this.temporary, { recursive: true, force: true });
+      if (this.temporary) await fs$3.rm(this.temporary, { recursive: true, force: true });
     })();
     return this.closing;
   }
 }
-const nodeFs$7 = require("node:fs/promises");
+const nodeFs$8 = require("node:fs/promises");
 const { fileURLToPath: fileURLToPath$1 } = require("node:url");
 const MAX_FILE_BYTES = 2 * 1024 * 1024;
 const MAX_INVENTORY_FILES = 16e4;
@@ -11666,27 +8796,27 @@ async function contextFor(rootInput, keyInput) {
   if (matches.length !== 1) throw new LeanReviewError(404, "The Lean project is not uniquely configured in this Math Workspace.");
   const project = matches[0];
   if (project.sourceRoots.length > 64) throw new LeanReviewError(413, "The Lean project exceeds its bounded source-root limit.");
-  const projectRoot = await reviewSafePath(root, project.root || ".");
-  const sourceRoots = await Promise.all(project.sourceRoots.map((source) => reviewSafePath(projectRoot, source)));
-  const toolchainPath = await reviewSafePath(projectRoot, "lean-toolchain", true);
+  const projectRoot2 = await reviewSafePath(root, project.root || ".");
+  const sourceRoots = await Promise.all(project.sourceRoots.map((source) => reviewSafePath(projectRoot2, source)));
+  const toolchainPath = await reviewSafePath(projectRoot2, "lean-toolchain", true);
   const toolchain = toolchainPath ? (await readBounded(toolchainPath, 4096)).trim() : "";
   let dependencies2 = [], dependencyError;
-  const manifestPath = await reviewSafePath(projectRoot, "lake-manifest.json", true);
+  const manifestPath = await reviewSafePath(projectRoot2, "lake-manifest.json", true);
   try {
     if (manifestPath) {
       const manifest = JSON.parse(await readBounded(manifestPath, 1024 * 1024));
       if (Array.isArray(manifest.packages) && manifest.packages.length > 256) throw new LeanReviewError(413, "The Lake manifest exceeds its bounded dependency limit.");
-      const overrideRelative = toPosix(path__namespace.relative(root, path__namespace.resolve(projectRoot, typeof manifest.lakeDir === "string" ? manifest.lakeDir : ".lake", "package-overrides.json")));
+      const overrideRelative = publication.toPosix(path__namespace.relative(root, path__namespace.resolve(projectRoot2, typeof manifest.lakeDir === "string" ? manifest.lakeDir : ".lake", "package-overrides.json")));
       if (await reviewSafePath(root, overrideRelative, true)) throw new Error("Lake package overrides require deliberate external resolution and are not admitted by the read-only language service.");
     }
-    dependencies2 = (await manifestDependencies(root, projectRoot)).map((item2) => item2.directory);
+    dependencies2 = (await manifestDependencies(root, projectRoot2)).map((item2) => item2.directory);
   } catch (error2) {
     dependencyError = error2.message;
   }
   return {
     root,
     project,
-    projectRoot,
+    projectRoot: projectRoot2,
     sourceRoots: sourceRoots.filter(Boolean),
     dependencies: dependencies2,
     dependencyError,
@@ -11697,7 +8827,7 @@ async function contextFor(rootInput, keyInput) {
 }
 function sourceOrigin(context, absolute) {
   if (context.toolchainRoot && reviewPathInside(path__namespace.join(context.toolchainRoot, "src", "lean"), absolute)) return "toolchain";
-  const relative = toPosix(path__namespace.relative(context.root, absolute));
+  const relative = publication.toPosix(path__namespace.relative(context.root, absolute));
   if (relative.split("/").some((part) => [".git", "node_modules", ".math-workspace"].includes(part))) return void 0;
   if (context.dependencies.some((directory2) => reviewPathInside(directory2, absolute))) return "dependency";
   if (!relative.split("/").includes(".lake") && context.sourceRoots.some((directory2) => reviewPathInside(directory2, absolute))) return "project";
@@ -11731,11 +8861,11 @@ async function openSource(context, pathInput, actualAbsolute = false) {
     let candidate = sourceBoundary;
     for (const part of lexical.split(/[\\/]/).filter((part2) => part2 && part2 !== ".")) {
       candidate = path__namespace.join(candidate, part);
-      if ((await nodeFs$7.lstat(candidate)).isSymbolicLink()) throw new LeanReviewError(400, "Lean source symlinks are not admitted.");
+      if ((await nodeFs$8.lstat(candidate)).isSymbolicLink()) throw new LeanReviewError(400, "Lean source symlinks are not admitted.");
     }
   }
   const content = await readBounded(absolute);
-  const filePath = origin === "toolchain" ? `toolchain:${toPosix(relative)}` : toPosix(path__namespace.relative(context.root, absolute));
+  const filePath = origin === "toolchain" ? `toolchain:${publication.toPosix(relative)}` : publication.toPosix(path__namespace.relative(context.root, absolute));
   const projectToken = reviewHash(context.root);
   const source = {
     projectToken,
@@ -11760,7 +8890,7 @@ async function environmentFingerprint(context, operation, knownPaths) {
   };
   const record2 = async (candidate, entry) => {
     check2();
-    const stat = await nodeFs$7.lstat(candidate);
+    const stat = await nodeFs$8.lstat(candidate);
     if (++files > MAX_INVENTORY_FILES) throw new LeanReviewError(413, "Lean environment exceeds its bounded file limit.");
     if (candidate.endsWith(".lean")) sourceBytes += stat.size;
     if (sourceBytes > MAX_SOURCE_BYTES) throw new LeanReviewError(413, "Lean environment exceeds its bounded source-byte limit.");
@@ -12067,7 +9197,7 @@ class LeanLanguageService {
     await Promise.all([...this.sessions.values()].map((session) => this.retire(session)));
   }
 }
-const nodeFs$6 = require("node:fs/promises");
+const nodeFs$7 = require("node:fs/promises");
 const MAX_BYTES$1 = 2 * 1024 * 1024;
 const AUDIT_CATEGORIES = ["assumption", "symbol", "scope", "statement", "proof", "trust", "other"];
 const AUDIT_STATUSES = ["open", "resolved", "dismissed"];
@@ -12237,7 +9367,7 @@ async function updateAuditRecord(root, idInput, expectedRevision, mutate) {
   const dir = await directory$1(root, true), lockPath = path__namespace.join(dir, `${id2}.lock`);
   let lock;
   try {
-    lock = await nodeFs$6.open(lockPath, "wx", 384);
+    lock = await nodeFs$7.open(lockPath, "wx", 384);
   } catch (error2) {
     if (error2?.code === "EEXIST") throw new LeanReviewError(409, "Another audit save owns this object. Reload before retrying; a crashed save may leave a .lock file.");
     throw error2;
@@ -12265,14 +9395,14 @@ async function updateAuditRecord(root, idInput, expectedRevision, mutate) {
     const content = JSON.stringify(record2, null, 2) + "\n";
     if (Buffer.byteLength(content) > MAX_BYTES$1) throw new LeanReviewError(413, "This audit artifact exceeds 2 MiB; narrow the excerpts or notes.");
     temporary = path__namespace.join(dir, `.${id2}-${crypto__namespace.randomBytes(8).toString("hex")}.tmp`);
-    const file = await nodeFs$6.open(temporary, "wx", 384);
+    const file = await nodeFs$7.open(temporary, "wx", 384);
     try {
       await file.writeFile(content, "utf8");
       await file.sync();
     } finally {
       await file.close();
     }
-    await nodeFs$6.rename(temporary, path__namespace.join(dir, `${id2}.json`));
+    await nodeFs$7.rename(temporary, path__namespace.join(dir, `${id2}.json`));
     return record2;
   } finally {
     if (temporary) await fs__namespace.rm(temporary, { force: true });
@@ -12624,7 +9754,7 @@ async function handleLeanAuditRoute(service, root, method, pathname, query, body
   if (method === "POST" && pathname === "/api/lean-audit/action") return { status: 200, value: await service.action(root, body) };
   throw new LeanReviewError(404, "Lean audit route not found.");
 }
-const nodeFs$5 = require("node:fs/promises");
+const nodeFs$6 = require("node:fs/promises");
 const MAX_BYTES = 1024 * 1024;
 function assistanceTask(value) {
   if (!["assumptions", "statement", "proof", "changes"].includes(value)) throw new LeanReviewError(400, "Choose assumptions, statement, proof, or changes.");
@@ -12660,7 +9790,7 @@ function assistanceItem(value) {
 async function directory(root, create = false) {
   const metadata2 = await reviewSafePath(root, ".math-workspace"), dir = path__namespace.join(metadata2, "lean-assistance");
   try {
-    if ((await nodeFs$5.lstat(dir)).isSymbolicLink()) throw new LeanReviewError(400, "Candidate metadata must not be a symlink.");
+    if ((await nodeFs$6.lstat(dir)).isSymbolicLink()) throw new LeanReviewError(400, "Candidate metadata must not be a symlink.");
   } catch (error2) {
     if (error2?.code !== "ENOENT") throw error2;
   }
@@ -12673,7 +9803,7 @@ async function readAssistanceRecord(root, idInput) {
   const file = path__namespace.join(dir, id2 + ".json");
   let stat;
   try {
-    stat = await nodeFs$5.lstat(file);
+    stat = await nodeFs$6.lstat(file);
   } catch (error2) {
     if (error2?.code === "ENOENT") return void 0;
     throw error2;
@@ -12703,7 +9833,7 @@ async function updateAssistanceRecord(root, binding2, mutate) {
   const dir = await directory(root, true), lockPath = path__namespace.join(dir, binding2.id + ".lock");
   let lock;
   try {
-    lock = await nodeFs$5.open(lockPath, "wx", 384);
+    lock = await nodeFs$6.open(lockPath, "wx", 384);
   } catch (error2) {
     if (error2?.code === "EEXIST") throw new LeanReviewError(409, "Another candidate save owns this object. Reload before retrying.");
     throw error2;
@@ -12720,14 +9850,14 @@ async function updateAssistanceRecord(root, binding2, mutate) {
       record2.dropped++;
     }
     temporary = path__namespace.join(dir, `.${binding2.id}-${crypto__namespace.randomBytes(8).toString("hex")}.tmp`);
-    const file = await nodeFs$5.open(temporary, "wx", 384);
+    const file = await nodeFs$6.open(temporary, "wx", 384);
     try {
       await file.writeFile(JSON.stringify(record2, null, 2) + "\n", "utf8");
       await file.sync();
     } finally {
       await file.close();
     }
-    await nodeFs$5.rename(temporary, path__namespace.join(dir, binding2.id + ".json"));
+    await nodeFs$6.rename(temporary, path__namespace.join(dir, binding2.id + ".json"));
     return record2;
   } finally {
     if (temporary) await fs__namespace.rm(temporary, { force: true });
@@ -12884,7 +10014,7 @@ async function handleLeanAssistanceRoute(service, root, method, pathname, query,
   if (method === "POST" && pathname === "/api/lean-assistance/action" && body?.action === "dismiss") return { status: 200, value: await service.dismiss(root, body) };
   throw new LeanReviewError(404, "Lean assistance route not found.");
 }
-const nodeFs$4 = require("node:fs");
+const nodeFs$5 = require("node:fs");
 const SYMBOL_AUDIT_PROMPT_VERSION = "symbol-audit-v2";
 const SYMBOL_AUDIT_REVIEW_VERSION = "symbol-audit-reconciliation-v1";
 const MAX_EXTRACTION_CACHE_ENTRIES = 640;
@@ -12904,11 +10034,11 @@ function positiveLine(value, fallback) {
 function normalizedBindingKey(value) {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 96);
 }
-function sha256(value) {
+function sha256$1(value) {
   return crypto__namespace.createHash("sha256").update(value).digest("hex");
 }
 function symbolAuditExtractionCacheKey(filePath, sourceHash2, settings) {
-  return sha256(JSON.stringify({
+  return sha256$1(JSON.stringify({
     filePath,
     sourceHash: sourceHash2,
     promptVersion: SYMBOL_AUDIT_PROMPT_VERSION,
@@ -12917,7 +10047,7 @@ function symbolAuditExtractionCacheKey(filePath, sourceHash2, settings) {
   }));
 }
 function symbolAuditReportCacheKey(sources, settings, comparisonBindings = []) {
-  return sha256(JSON.stringify({
+  return sha256$1(JSON.stringify({
     sources: sources.map((source) => [source.filePath, source.cacheKey]).sort((left, right) => left[0].localeCompare(right[0])),
     comparisonBindings: comparisonBindings.map((binding2) => [binding2.id, binding2.bindingKey, binding2.normalizedExpression]).sort((left, right) => left[0].localeCompare(right[0])),
     promptVersion: SYMBOL_AUDIT_PROMPT_VERSION,
@@ -12935,7 +10065,7 @@ function normalizeSymbolAuditBindings(rawBindings, source) {
     if (!item2 || typeof item2 !== "object") return;
     const value = item2;
     const expression = stringValue(value.expression, 160).replace(/^\$+|\$+$/g, "");
-    const normalizedExpression = expression ? normalizeLatexSymbol(expression) : "";
+    const normalizedExpression = expression ? publication.normalizeLatexSymbol(expression) : "";
     const meaning = stringValue(value.meaning, 480);
     const bindingKey = normalizedBindingKey(stringValue(value.bindingKey, 120));
     const semanticType = normalizedBindingKey(stringValue(value.semanticType, 80));
@@ -12951,7 +10081,7 @@ function normalizeSymbolAuditBindings(rawBindings, source) {
     if (seen.has(identity)) return;
     seen.add(identity);
     bindings.push({
-      id: "mwsym_" + sha256(identity).slice(0, 16),
+      id: "mwsym_" + sha256$1(identity).slice(0, 16),
       filePath: source.filePath,
       startLine,
       endLine,
@@ -12996,7 +10126,7 @@ function analyzeSymbolAuditBindings(bindings) {
   return { candidates: order(candidates) };
 }
 function symbolAuditInputHash(extractions, comparisonBindings = []) {
-  return sha256(JSON.stringify({ reviewVersion: SYMBOL_AUDIT_REVIEW_VERSION, extractions: extractions.map((extraction) => ({
+  return sha256$1(JSON.stringify({ reviewVersion: SYMBOL_AUDIT_REVIEW_VERSION, extractions: extractions.map((extraction) => ({
     filePath: extraction.filePath,
     cacheKey: extraction.cacheKey,
     bindings: extraction.bindings.map((binding2) => [binding2.id, binding2.bindingKey, binding2.normalizedExpression])
@@ -13004,13 +10134,13 @@ function symbolAuditInputHash(extractions, comparisonBindings = []) {
 }
 function normalizeSymbolAuditReconciliations(rawReconciliations, candidates) {
   const raw = Array.isArray(rawReconciliations) ? rawReconciliations : [];
-  const candidatesByExpression = new Map(candidates.map((candidate) => [normalizeLatexSymbol(candidate.expression), candidate]));
+  const candidatesByExpression = new Map(candidates.map((candidate) => [publication.normalizeLatexSymbol(candidate.expression), candidate]));
   const reconciled = /* @__PURE__ */ new Map();
   raw.forEach((item2) => {
     if (!item2 || typeof item2 !== "object") return;
     const value = item2;
     const expression = stringValue(value.expression, 160).replace(/^\$+|\$+$/g, "");
-    const candidate = candidatesByExpression.get(normalizeLatexSymbol(expression));
+    const candidate = candidatesByExpression.get(publication.normalizeLatexSymbol(expression));
     if (!candidate || reconciled.has(candidate.expression)) return;
     const relation = enumValue(value.relation, ["same-binding", "specialization", "compatible-reuse", "conflict", "uncertain"], "uncertain");
     const confidence = enumValue(value.confidence, ["high", "medium", "low"], "low");
@@ -13139,15 +10269,15 @@ class SymbolAuditStore {
     const temporaryPath = `${this.stateFilePath}.${process.pid}.${crypto__namespace.randomBytes(4).toString("hex")}.tmp`;
     try {
       await fs__namespace.writeFile(temporaryPath, JSON.stringify(state, null, 2) + "\n", "utf8");
-      await nodeFs$4.promises.rename(temporaryPath, this.stateFilePath);
+      await nodeFs$5.promises.rename(temporaryPath, this.stateFilePath);
     } catch (error2) {
-      await nodeFs$4.promises.unlink(temporaryPath).catch(() => void 0);
+      await nodeFs$5.promises.unlink(temporaryPath).catch(() => void 0);
       throw error2;
     }
   }
 }
 function createSymbolAuditExtraction(source, settings, rawBindings) {
-  const sourceHash2 = sha256(source.content);
+  const sourceHash2 = sha256$1(source.content);
   return {
     cacheKey: symbolAuditExtractionCacheKey(source.filePath, sourceHash2, settings),
     filePath: source.filePath,
@@ -13713,8 +10843,8 @@ class CodexSymbolAuditRunner {
     clearTimeout(turn.timer);
     if (error2) turn.reject(error2);
     else {
-      const usage = turn.tokenUsage || turn.rawResponseUsage;
-      turn.resolve({ text: turn.finalText || turn.text || "", ...usage ? { tokenUsage: usage } : {} });
+      const usage2 = turn.tokenUsage || turn.rawResponseUsage;
+      turn.resolve({ text: turn.finalText || turn.text || "", ...usage2 ? { tokenUsage: usage2 } : {} });
     }
   }
   write(message) {
@@ -13810,14 +10940,14 @@ function externalRegisteredSpecialBindings(snapshot, selectedFilePaths) {
     const filePath = String(symbol?.sourceFilePath || "").trim();
     if (filePath && selectedFilePaths.has(filePath)) return [];
     const expression = String(symbol?.pattern || symbol?.display || "").replace(/^\$+|\$+$/g, "").trim();
-    const normalizedExpression = expression ? normalizeLatexSymbol(expression) : "";
+    const normalizedExpression = expression ? publication.normalizeLatexSymbol(expression) : "";
     const meaning = String(symbol?.meaning || "").trim();
     if (!normalizedExpression || !meaning) return [];
     const sourceLine = Number.isInteger(symbol?.sourceLine) && symbol.sourceLine > 0 ? symbol.sourceLine : 1;
     const sourcePath = filePath || ".math-workspace/symbols.json";
-    const bindingKey = "registered-special-" + sha256(`${normalizedExpression}:${meaning}`).slice(0, 24);
+    const bindingKey = "registered-special-" + sha256$1(`${normalizedExpression}:${meaning}`).slice(0, 24);
     return [{
-      id: "registered:" + sha256(`${sourcePath}:${sourceLine}:${bindingKey}`).slice(0, 24),
+      id: "registered:" + sha256$1(`${sourcePath}:${sourceLine}:${bindingKey}`).slice(0, 24),
       filePath: sourcePath,
       startLine: sourceLine,
       endLine: sourceLine,
@@ -13837,7 +10967,7 @@ function externalRegisteredSpecialBindings(snapshot, selectedFilePaths) {
 function currentReportKey(sources, settings, comparisonBindings) {
   return symbolAuditReportCacheKey(sources.map((source) => ({
     filePath: source.filePath,
-    cacheKey: symbolAuditExtractionCacheKey(source.filePath, sha256(source.content), settings)
+    cacheKey: symbolAuditExtractionCacheKey(source.filePath, sha256$1(source.content), settings)
   })), settings, comparisonBindings);
 }
 class SymbolAuditService {
@@ -13869,7 +10999,7 @@ class SymbolAuditService {
     if (!sources.length) throw new Error("The selected symbol-audit scope does not contain a current Markdown page.");
     const externalSpecialBindings = externalRegisteredSpecialBindings(snapshot, new Set(sources.map((source) => source.filePath)));
     const job = {
-      id: "mwaudit_" + sha256(`${rootPath}:${Date.now()}:${Math.random()}`).slice(0, 16),
+      id: "mwaudit_" + sha256$1(`${rootPath}:${Date.now()}:${Math.random()}`).slice(0, 16),
       rootPath,
       settings: project.settings,
       status: "running",
@@ -13907,7 +11037,7 @@ class SymbolAuditService {
       for (const source of sources) {
         if (job.cancelled) throw new Error("Symbol audit was cancelled.");
         job.currentFilePath = source.filePath;
-        const sourceHash2 = sha256(source.content);
+        const sourceHash2 = sha256$1(source.content);
         const cacheKey = symbolAuditExtractionCacheKey(source.filePath, sourceHash2, job.settings);
         const cached2 = !force ? cachedExtractions[cacheKey] : void 0;
         if (cached2) {
@@ -13976,7 +11106,7 @@ async function readSymbolAuditStatus(rootPath, snapshot, store = new SymbolAudit
   const catalog = scopeCatalog(snapshot, allSources);
   const sources = sourcesForScope(allSources, catalog, project.settings.scope);
   const externalSpecialBindings = externalRegisteredSpecialBindings(snapshot, new Set(sources.map((source) => source.filePath)));
-  const reusableFiles = sources.filter((source) => !!project.extractions[symbolAuditExtractionCacheKey(source.filePath, sha256(source.content), project.settings)]).length;
+  const reusableFiles = sources.filter((source) => !!project.extractions[symbolAuditExtractionCacheKey(source.filePath, sha256$1(source.content), project.settings)]).length;
   const key = currentReportKey(sources, project.settings, externalSpecialBindings);
   const report = project.reports[key] || (project.latestReportKey ? project.reports[project.latestReportKey] : void 0);
   const reportState = !report ? "none" : project.reports[key] ? "current" : "stale";
@@ -13998,7 +11128,7 @@ async function readSymbolAuditStatus(rootPath, snapshot, store = new SymbolAudit
   };
 }
 const http$1 = require("node:http");
-const nodeFs$3 = require("node:fs");
+const nodeFs$4 = require("node:fs");
 const { URL: URL$2 } = require("node:url");
 const MAX_READER_INSTANCES = 12;
 function defaultReaderInstancesPath() {
@@ -14028,7 +11158,7 @@ async function writeState(stateFilePath, instances) {
   await fs__namespace.mkdir(path__namespace.dirname(stateFilePath), { recursive: true });
   const temporaryPath = `${stateFilePath}.${process.pid}.tmp`;
   await fs__namespace.writeFile(temporaryPath, JSON.stringify({ version: 1, instances }, null, 2) + "\n", { encoding: "utf8", mode: 384 });
-  await nodeFs$3.promises.rename(temporaryPath, stateFilePath);
+  await nodeFs$4.promises.rename(temporaryPath, stateFilePath);
 }
 async function registerReaderInstance(record2, stateFilePath = defaultReaderInstancesPath()) {
   const state = await readState(stateFilePath);
@@ -14098,6 +11228,328 @@ async function dispatchReaderLocation(rootPath, location, stateFilePath = defaul
   if (failed.size) await writeState(stateFilePath, state.instances.filter((item2) => !failed.has(item2.url)));
   return void 0;
 }
+const fs$2 = require("node:fs/promises");
+const nodeFs$3 = require("node:fs");
+const kinds = /* @__PURE__ */ new Set(["chapter", "front-matter", "back-matter", "continued"]);
+const controls = /[\u0000-\u001f\u007f-\u009f\u2028\u2029]/;
+const sha256 = (value) => crypto$1.createHash("sha256").update(value).digest("hex");
+const folded = (value) => value.normalize("NFC").toLowerCase();
+const inMatterDirectory = (value) => value.split("/").some((part) => /^(?:front|back)-matter$/i.test(part));
+const parent = (file) => path__namespace.posix.dirname(file);
+const inSameScope = (left, right) => left.bookKey === right.bookKey && left.volumeKey === right.volumeKey;
+function relativeDirectory(value) {
+  if (value === ".") return ".";
+  if (typeof value !== "string" || !value || controls.test(value) || value.includes("\\") || path__namespace.isAbsolute(value) || /^[A-Za-z]:/.test(value) || value.split("/").some((part) => !part || part === "." || part === "..")) {
+    throw new Error("The manuscript container must be an exact project-relative directory, or . for the project root.");
+  }
+  return value;
+}
+async function safePath(root, relative) {
+  relativeDirectory(relative);
+  let current = root;
+  if ((await fs$2.lstat(current)).isSymbolicLink() || !(await fs$2.stat(current)).isDirectory()) {
+    throw new Error("The manuscript project root must be a real directory.");
+  }
+  if (relative === ".") return current;
+  const parts = relative.split("/");
+  for (let index = 0; index < parts.length; index++) {
+    current = path__namespace.join(current, parts[index]);
+    try {
+      const stat = await fs$2.lstat(current);
+      if (stat.isSymbolicLink()) throw new Error("Manuscript paths cannot follow symbolic links.");
+      if (index < parts.length - 1 && !stat.isDirectory()) throw new Error("A manuscript parent path is not a directory.");
+    } catch (error2) {
+      if (error2.code !== "ENOENT") throw error2;
+    }
+  }
+  return current;
+}
+async function readSource(root, relative) {
+  const file = await safePath(root, relative);
+  const handle = await fs$2.open(file, nodeFs$3.constants.O_RDONLY | (nodeFs$3.constants.O_NOFOLLOW || 0));
+  try {
+    if (!(await handle.stat()).isFile()) throw new Error("Manuscript inputs must be regular files.");
+    return await handle.readFile("utf8");
+  } finally {
+    await handle.close();
+  }
+}
+async function projectRoot(rootPath) {
+  const root = path__namespace.resolve(rootPath);
+  await safePath(root, ".");
+  return fs$2.realpath(root);
+}
+function probePage(directory2, config2) {
+  const filePath = directory2 === "." ? "01-manuscript-probe.md" : `${directory2}/01-manuscript-probe.md`;
+  return publication.scanFormalDocuments([{ filePath, content: "# Manuscript probe\n" }], config2).pages[0];
+}
+function scopesFor(entries, pages, config2) {
+  const root = probePage(".", config2);
+  const scopes = [{
+    container: ".",
+    kind: "project",
+    title: root.bookTitle || "Workspace",
+    label: `${root.bookTitle || "Workspace"} (.)`,
+    bookKey: root.bookKey
+  }];
+  const directories = entries.filter((entry) => entry.kind === "directory" && !inMatterDirectory(entry.filePath)).map((entry) => ({ entry, page: probePage(entry.filePath, config2), above: probePage(parent(entry.filePath), config2) }));
+  const formalContainers = new Set(pages.map((page) => parent(page.filePath)));
+  for (const page of pages) {
+    const parts = page.filePath.split("/");
+    const matter = parts.findIndex((part) => /^(?:front|back)-matter$/i.test(part));
+    if (matter >= 0) formalContainers.add(parts.slice(0, matter).join("/") || ".");
+  }
+  for (const { entry, page, above } of directories) {
+    if (page.volumeKey && page.volumeKey !== above.volumeKey) formalContainers.add(parent(entry.filePath));
+  }
+  for (const { entry, page, above } of directories) {
+    const kind = page.volumeKey !== above.volumeKey ? "volume" : page.bookKey !== above.bookKey ? "book" : formalContainers.has(entry.filePath) ? "formal" : void 0;
+    if (!kind) continue;
+    const title2 = kind === "volume" ? page.volumeTitle || entry.filePath : kind === "book" ? page.bookTitle || entry.filePath : path__namespace.posix.basename(entry.filePath);
+    scopes.push({
+      container: entry.filePath,
+      kind,
+      title: title2,
+      label: `${title2} (${entry.filePath})`,
+      bookKey: page.bookKey,
+      ...page.volumeKey ? { volumeKey: page.volumeKey } : {}
+    });
+  }
+  return scopes;
+}
+async function readSnapshot(rootPath) {
+  const root = await projectRoot(rootPath);
+  let configText;
+  try {
+    configText = await readSource(root, ".math-workspace/config.json");
+  } catch (error2) {
+    if (error2.code === "ENOENT") throw new Error("Create pages only in a prepared project with .math-workspace/config.json.");
+    throw error2;
+  }
+  const config2 = publication.mergeConfig(JSON.parse(configText));
+  const entries = [];
+  const documents = [];
+  const visit = async (directory2) => {
+    const absolute = await safePath(root, directory2);
+    const children = (await fs$2.readdir(absolute, { withFileTypes: true })).sort((a, b) => a.name.localeCompare(b.name));
+    for (const child of children) {
+      const filePath = directory2 === "." ? child.name : `${directory2}/${child.name}`;
+      if (publication.shouldExcludeScanPath(filePath, config2) || isHardIgnoredDirectory(child.name)) continue;
+      const kind = child.isSymbolicLink() ? "symlink" : child.isDirectory() ? "directory" : child.isFile() ? "file" : "other";
+      entries.push({ filePath, kind });
+      if (kind === "directory") {
+        if (!documentCollectionForPath(`${filePath}/01-manuscript-probe.md`, config2)) await visit(filePath);
+      } else if (kind === "file" && /\.md$/i.test(child.name) && !documentCollectionForPath(filePath, config2)) {
+        documents.push({ filePath, content: await readSource(root, filePath) });
+      }
+    }
+  };
+  await visit(".");
+  const pages = publication.scanFormalDocuments(documents, config2).pages;
+  const scopes = scopesFor(entries.filter((entry) => !documentCollectionForPath(`${entry.filePath}/01-manuscript-probe.md`, config2)), pages, config2);
+  const stateToken = sha256(JSON.stringify({ root, config: configText, entries, documents: documents.map((document) => [document.filePath, sha256(document.content)]) }));
+  return { root, config: config2, entries, documents, pages, scopes, stateToken };
+}
+async function manuscriptCreationScopes(rootPath) {
+  return (await readSnapshot(rootPath)).scopes;
+}
+function normalizedInput(input) {
+  if (!input || !kinds.has(input.kind)) throw new Error("Page kind must be chapter, front-matter, back-matter, or continued.");
+  const title2 = typeof input.title === "string" ? input.title.trim() : "";
+  if (!title2 || title2.length > 240 || controls.test(input.title)) throw new Error("The page title must be a nonempty single line of at most 240 characters.");
+  if (input.kind === "continued" && input.slug !== void 0) throw new Error("Continued pages use the canonical filename to-be-continued.md; omit --slug.");
+  let slug = input.slug;
+  if (slug !== void 0) {
+    if (typeof slug !== "string" || !slug || slug !== slug.trim() || controls.test(slug) || /[<>:"/\\|?*]/.test(slug) || /^[.]/.test(slug) || /[. ]$/.test(slug) || /\.md$/i.test(slug) || Buffer.byteLength(slug, "utf8") > 160) {
+      throw new Error("The slug must be one filename stem, without a path, .md extension, control characters, or reserved filename punctuation.");
+    }
+    slug = slug.normalize("NFC");
+  }
+  return { kind: input.kind, title: title2, container: relativeDirectory(input.container), ...slug === void 0 ? {} : { slug } };
+}
+function titleSlug(title2) {
+  const slug = title2.normalize("NFKC").toLowerCase().replace(/[^\p{L}\p{N}\p{M}]+/gu, "-").replace(/^-+|-+$/g, "");
+  let bounded2 = slug || "page";
+  while (Buffer.byteLength(bounded2, "utf8") > 140) bounded2 = Array.from(bounded2).slice(0, -1).join("");
+  return bounded2 === "to-be-continued" ? `${bounded2}-page` : bounded2;
+}
+function ensureFormalTarget(filePath, config2) {
+  if (publication.shouldExcludeScanPath(filePath, config2) || documentCollectionForPath(filePath, config2)) {
+    throw new Error("The page would be excluded from the formal scan or placed in a draft collection.");
+  }
+}
+async function planFromSnapshot(snapshot, rawInput) {
+  const input = normalizedInput(rawInput);
+  await safePath(snapshot.root, input.container);
+  const scope2 = snapshot.scopes.find((scope22) => scope22.container === input.container);
+  if (!scope2) throw new Error("Choose an existing manuscript container returned by manuscriptCreationScopes; matter, excluded and draft directories are not containers.");
+  let directory2 = input.kind === "front-matter" || input.kind === "back-matter" ? input.container === "." ? input.kind : `${input.container}/${input.kind}` : input.container;
+  if (input.kind === "front-matter" || input.kind === "back-matter") {
+    const existingDirectories = snapshot.entries.filter((entry) => folded(entry.filePath) === folded(directory2));
+    if (existingDirectories.length > 1) throw new Error("The matter directory has ambiguous filename casing or Unicode normalization.");
+    if (existingDirectories.length) directory2 = existingDirectories[0].filePath;
+  }
+  await safePath(snapshot.root, directory2);
+  const stem = input.slug ?? titleSlug(input.title);
+  const siblings = snapshot.entries.filter((entry) => parent(entry.filePath) === directory2);
+  let basename = "to-be-continued.md";
+  if (input.kind !== "continued") {
+    const orderedEntries = input.kind === "chapter" ? snapshot.pages.filter((page) => page.kind === "chapter" && page.bookKey === scope2.bookKey).map((page) => page.filePath) : siblings.map((entry) => entry.filePath);
+    let next = 1, width = 2;
+    for (const file of orderedEntries) {
+      const prefix = path__namespace.posix.basename(file).match(/^(\d+)[-_\s]+/);
+      if (prefix) {
+        next = Math.max(next, Number(prefix[1]) + 1);
+        width = Math.max(width, prefix[1].length);
+      }
+    }
+    if (!Number.isSafeInteger(next)) throw new Error("The manuscript filename sequence exceeds the supported integer range.");
+    basename = `${String(next).padStart(width, "0")}-${stem}.md`;
+  }
+  const filePath = directory2 === "." ? basename : `${directory2}/${basename}`;
+  ensureFormalTarget(filePath, snapshot.config);
+  await safePath(snapshot.root, filePath);
+  const probe = publication.scanFormalDocuments([{ filePath, content: `# #h-0000000000000000 ${input.title}
+
+` }], snapshot.config).pages[0];
+  if (!probe || probe.kind !== input.kind || !inSameScope(probe, scope2)) throw new Error("This filename does not describe the requested page kind and manuscript scope. Choose another slug or container.");
+  if (probe.title !== input.title) throw new Error("The title must remain one Markdown heading; remove closing heading hashes or other heading delimiters.");
+  const continued = input.kind === "continued" ? snapshot.pages.find((page) => page.kind === "continued" && inSameScope(page, scope2)) : void 0;
+  const collision = siblings.find((entry) => folded(entry.filePath) === folded(filePath) || input.kind !== "continued" && /\.md$/i.test(entry.filePath) && folded(path__namespace.posix.basename(entry.filePath).replace(/^\d+[-_\s]+/, "").replace(/\.md$/i, "")) === folded(stem));
+  const existingFile = continued?.filePath || collision?.filePath;
+  if (existingFile) {
+    const absolute = await safePath(snapshot.root, existingFile);
+    if (!(await fs$2.lstat(absolute)).isFile()) throw new Error("The manuscript filename is already occupied by a non-file path.");
+  }
+  return {
+    kind: input.kind,
+    title: input.title,
+    container: input.container,
+    filePath,
+    exists: Boolean(existingFile),
+    ...existingFile ? { existingFile, existingTitle: snapshot.pages.find((page) => page.filePath === existingFile)?.title } : {},
+    scope: scope2,
+    stateToken: snapshot.stateToken
+  };
+}
+async function planManuscriptPage(rootPath, input) {
+  return planFromSnapshot(await readSnapshot(rootPath), input);
+}
+async function createManuscriptPage(rootPath, input, options = {}) {
+  if (options.expectedStateToken !== void 0 && !/^[a-f0-9]{64}$/.test(options.expectedStateToken)) throw new Error("Invalid manuscript plan state token.");
+  normalizedInput(input);
+  const root = await projectRoot(rootPath);
+  try {
+    await readSource(root, ".math-workspace/config.json");
+  } catch (error2) {
+    if (error2.code === "ENOENT") throw new Error("Create pages only in a prepared project with .math-workspace/config.json.");
+    throw error2;
+  }
+  const lockPath = await safePath(root, ".math-workspace/create-page.lock");
+  let lock;
+  for (let attempt = 0; !lock; attempt++) {
+    try {
+      lock = await fs$2.open(lockPath, "wx", 384);
+    } catch (error2) {
+      if (error2.code !== "EEXIST") throw error2;
+      if (attempt >= 150) throw new Error("Another page creation owns .math-workspace/create-page.lock. Retry after it finishes; inspect the lock after an interrupted operation.");
+      await new Promise((resolve2) => setTimeout(resolve2, 20));
+    }
+  }
+  try {
+    await lock.writeFile(`${JSON.stringify({ pid: process.pid })}
+`);
+    const snapshot = await readSnapshot(root);
+    const plan = await planFromSnapshot(snapshot, input);
+    if (options.expectedStateToken && options.expectedStateToken !== plan.stateToken) throw new Error("The manuscript or configuration changed after this plan. Request a fresh plan before creating the page.");
+    if (plan.exists) throw new Error(`A manuscript page already exists: ${plan.existingFile}. Open it or choose another title/slug.`);
+    const existingIds = new Set(snapshot.documents.flatMap((document) => document.content.match(/\bh-[a-f0-9]{16}\b/g) || []));
+    let id2;
+    do {
+      id2 = `h-${crypto$1.randomBytes(8).toString("hex")}`;
+    } while (existingIds.has(id2));
+    const content = `# #${id2} ${plan.title}
+
+`;
+    const checked = publication.scanFormalDocuments([...snapshot.documents, { filePath: plan.filePath, content }], snapshot.config);
+    const created = checked.pages.find((page) => page.filePath === plan.filePath);
+    const issues = checked.issues.filter((issue2) => issue2.file === plan.filePath && issue2.severity === "error");
+    if (!created || created.id !== id2 || issues.length) throw new Error(`The new heading failed formal validation${issues.length ? `: ${issues.map((issue2) => issue2.code).join(", ")}` : "."}`);
+    if ((await readSnapshot(root)).stateToken !== plan.stateToken) throw new Error("The manuscript changed during creation. Request a fresh plan before retrying.");
+    const directory2 = parent(plan.filePath);
+    const absoluteDirectory = await safePath(root, directory2);
+    if (directory2 !== ".") {
+      try {
+        await fs$2.mkdir(absoluteDirectory);
+      } catch (error2) {
+        if (error2.code !== "EEXIST") throw error2;
+      }
+      if (!(await fs$2.lstat(await safePath(root, directory2))).isDirectory()) throw new Error("The manuscript destination is not a directory.");
+    }
+    const destination = await safePath(root, plan.filePath);
+    const temporary = path__namespace.join(absoluteDirectory, `.create-page-${crypto$1.randomBytes(12).toString("hex")}.tmp`);
+    try {
+      await fs$2.writeFile(temporary, content, { flag: "wx", mode: 420 });
+      await safePath(root, plan.filePath);
+      await fs$2.link(temporary, destination);
+    } finally {
+      await fs$2.rm(temporary, { force: true });
+    }
+    return { ...plan, created: true, id: id2 };
+  } finally {
+    await lock.close();
+    await fs$2.rm(lockPath, { force: true });
+  }
+}
+class ReaderCreatePageError extends Error {
+  constructor(status, message) {
+    super(message);
+    this.status = status;
+  }
+}
+async function handleReaderCreatePageRoute(root, method, pathname, query) {
+  if (method !== "GET") throw new ReaderCreatePageError(405, "Page creation previews support GET only.");
+  if (pathname === "/api/create-page/scopes") {
+    const scopes = await manuscriptCreationScopes(root);
+    const filePath = query.get("filePath") || "";
+    const containing = scopes.filter((scope2) => scope2.container !== "." && filePath.startsWith(scope2.container + "/"));
+    const books = containing.filter((scope2) => scope2.kind === "book" || scope2.kind === "volume");
+    const selected = (books.length ? books : containing).sort((left, right) => right.container.length - left.container.length)[0];
+    return { projectRoot: root, scopes, defaultContainer: selected?.container || "." };
+  }
+  if (pathname === "/api/create-page/plan") {
+    try {
+      const input = {
+        kind: query.get("kind"),
+        title: query.get("title") || "",
+        container: query.get("container") || ".",
+        ...query.get("slug") === null ? {} : { slug: query.get("slug") }
+      };
+      const plan = await planManuscriptPage(root, input);
+      return { projectRoot: root, plan, assistantCommand: {
+        executable: process.execPath,
+        cwd: root,
+        args: [
+          path__namespace.resolve(__dirname, "math-workspace.js"),
+          "create-page",
+          "--kind",
+          plan.kind,
+          "--container",
+          plan.container,
+          "--title",
+          plan.title,
+          ...input.slug === void 0 ? [] : ["--slug", input.slug],
+          "--expect-state",
+          plan.stateToken,
+          "--json"
+        ]
+      } };
+    } catch (error2) {
+      throw new ReaderCreatePageError(400, error2 instanceof Error ? error2.message : String(error2));
+    }
+  }
+  throw new ReaderCreatePageError(404, "Page creation preview route not found.");
+}
 const http = require("node:http");
 const { URL: URL$1 } = require("node:url");
 const { createHash, randomBytes } = require("node:crypto");
@@ -14106,11 +11558,12 @@ const API_CACHE_CONTROL = "no-store";
 const READER_CONTENT_SECURITY_POLICY = [
   "default-src 'self'",
   "connect-src 'self'",
+  "frame-src 'self' blob:",
   "img-src 'self' data: https:",
   "style-src 'self'",
   // KaTeX positions scripts and extensible glyphs with generated style attributes.
   "style-src-attr 'unsafe-inline'",
-  "script-src 'self'",
+  "script-src 'self' blob:",
   "base-uri 'none'",
   "frame-ancestors 'self'"
 ].join("; ");
@@ -14141,11 +11594,11 @@ function stripUndefinedFields(value) {
 }
 function displayLabel(label, config2, pagesByPath) {
   const page = pagesByPath.get(label.filePath);
-  if (page && ["chapter", "appendix", "intro", "summary"].includes(label.type)) {
-    return formatPageReference(page, config2);
+  if (page && publication.isPageLabelType(label.type)) {
+    return publication.formatPageReference(page, config2);
   }
-  const number2 = formatDisplayNumber(label);
-  const name = typeName(config2, label.type);
+  const number2 = publication.formatDisplayNumber(label);
+  const name = publication.typeName(config2, label.type);
   if (label.type === "solution") return config2.language === "en" ? `Solution to Exercise ${number2}` : `习题 ${number2} 的解答`;
   return number2 ? name + " " + number2 : name;
 }
@@ -14153,8 +11606,8 @@ function decoratePage(page, config2, lifecycle) {
   return {
     ...page,
     ...lifecycle ? { lifecycle } : {},
-    displayHeading: formatPageHeading(page, config2),
-    displayReference: formatPageReference(page, config2)
+    displayHeading: publication.formatPageHeading(page, config2),
+    displayReference: publication.formatPageReference(page, config2)
   };
 }
 function labelSummary(label, config2, pagesByPath) {
@@ -14232,7 +11685,7 @@ function sendText(response, status, body) {
   response.end(body);
 }
 function stateProjection(snapshot, rootPath) {
-  const definitions2 = buildRuntimeDefinitions(snapshot.state.definitions || []);
+  const definitions2 = publication.buildRuntimeDefinitions(snapshot.state.definitions || []);
   const pages = snapshot.state.pages || [];
   return {
     revision: snapshot.revision,
@@ -14342,7 +11795,7 @@ function symbolAuditSettingsInput(value) {
 }
 function documentStateInput(value) {
   const record2 = value && typeof value === "object" && !Array.isArray(value) ? value : {};
-  const filePath = typeof record2.filePath === "string" ? toPosix(record2.filePath).replace(/^\/+/, "") : "";
+  const filePath = typeof record2.filePath === "string" ? publication.toPosix(record2.filePath).replace(/^\/+/, "") : "";
   if (!filePath || filePath.startsWith("../") || filePath.includes("/../")) throw new Error("Document path is invalid.");
   const stage = record2.stage;
   if (stage !== void 0 && !["draft", "revising", "stable"].includes(stage)) throw new Error("Document stage is invalid.");
@@ -14358,13 +11811,21 @@ function documentStateInput(value) {
   };
 }
 function resolveWorkspacePath(rootPath, relativePath2) {
-  const normalized = toPosix(relativePath2 || "").replace(/^\/+/, "");
+  const normalized = publication.toPosix(relativePath2 || "").replace(/^\/+/, "");
   if (!normalized) return void 0;
   const absolutePath = path__namespace.resolve(rootPath, normalized);
   return pathInside(rootPath, absolutePath) ? absolutePath : void 0;
 }
 async function sendStaticFile(response, staticRoot, requestPath) {
   const relativePath2 = requestPath === "/" ? "index.html" : requestPath.replace(/^\/+/, "");
+  if (/^pdfjs(?:\/|$)/i.test(publication.toPosix(relativePath2))) {
+    sendText(response, 404, "PDF preview assets use the authenticated publication route.");
+    return;
+  }
+  if (/^mathjax(?:\/|$)/i.test(publication.toPosix(relativePath2))) {
+    sendText(response, 404, "Formula renderer assets use the authenticated formula route.");
+    return;
+  }
   const absolutePath = resolveWorkspacePath(staticRoot, relativePath2);
   if (!absolutePath || !await pathExists$1(absolutePath)) {
     sendText(response, 404, "Math Workspace asset not found.");
@@ -14420,6 +11881,7 @@ async function startReaderServer(options) {
   const symbolAudit = new SymbolAuditService();
   const requestToken = randomBytes(24).toString("hex");
   const archiveApi = new ArchiveReaderApi();
+  const publicationApi = new PublicationReaderApi();
   let rootPath;
   let workspace;
   let unsubscribe = () => {
@@ -14445,15 +11907,15 @@ data: ${JSON.stringify(value)}
       projectChanged
     });
   };
-  const leanReview = new LeanReviewService((projectRoot, formalId) => {
-    if (rootPath === projectRoot) workspace?.notifyMetadataChange([`.math-workspace/lean-reviews/${formalId}.json`]);
+  const leanReview = new LeanReviewService((projectRoot2, formalId) => {
+    if (rootPath === projectRoot2) workspace?.notifyMetadataChange([`.math-workspace/lean-reviews/${formalId}.json`]);
   });
   const leanLanguage = new LeanLanguageService();
-  const leanAudit = new LeanAuditService(leanReview, (projectRoot, formalId) => {
-    if (rootPath === projectRoot) workspace?.notifyMetadataChange([`.math-workspace/lean-audits/${formalId}.json`]);
+  const leanAudit = new LeanAuditService(leanReview, (projectRoot2, formalId) => {
+    if (rootPath === projectRoot2) workspace?.notifyMetadataChange([`.math-workspace/lean-audits/${formalId}.json`]);
   });
-  const leanAssistance = new LeanAssistanceService(leanReview, (projectRoot, formalId) => {
-    if (rootPath === projectRoot) workspace?.notifyMetadataChange([`.math-workspace/lean-assistance/${formalId}.json`]);
+  const leanAssistance = new LeanAssistanceService(leanReview, (projectRoot2, formalId) => {
+    if (rootPath === projectRoot2) workspace?.notifyMetadataChange([`.math-workspace/lean-assistance/${formalId}.json`]);
   });
   const syncReaderInstance = async (previousRoot) => {
     if (!serverUrl) return;
@@ -14494,14 +11956,14 @@ data: ${JSON.stringify(value)}
   const server = http.createServer(async (request, response) => {
     try {
       const url2 = new URL$1(request.url || "/", "http://127.0.0.1");
-      if (url2.pathname.startsWith("/api/lean-")) {
+      if (url2.pathname.startsWith("/api/lean-") || url2.pathname === "/api/publication" || url2.pathname.startsWith("/api/publication/") || url2.pathname === "/api/formula-runtime" || url2.pathname === "/api/create-page" || url2.pathname.startsWith("/api/create-page/")) {
         if (projectChanging) {
-          sendText(response, 409, "The Reader is changing its bound Lean project. Retry after it finishes.");
+          sendText(response, 409, "The Reader is changing its bound project. Retry after it finishes.");
           return;
         }
         const origin = request.headers?.origin;
         if (request.headers?.host !== new URL$1(serverUrl).host || origin !== void 0 && origin !== serverUrl || request.headers?.["sec-fetch-site"] === "cross-site") {
-          sendText(response, 403, "Lean review requires the bound local Reader origin.");
+          sendText(response, 403, "This action requires the bound local Reader origin.");
           return;
         }
       }
@@ -14575,7 +12037,7 @@ data: ${JSON.stringify({
           return;
         }
         const body = await readJsonRequest(request, 8 * 1024);
-        const filePath = toPosix(typeof body?.filePath === "string" ? body.filePath : "").replace(/^\/+/, "");
+        const filePath = publication.toPosix(typeof body?.filePath === "string" ? body.filePath : "").replace(/^\/+/, "");
         const line = body?.line === void 0 ? void 0 : Number(body.line);
         const column = body?.column === void 0 ? void 0 : Number(body.column);
         if (!workspace.current().state.pages.some((page) => page.filePath === filePath)) {
@@ -14599,6 +12061,46 @@ data: ${JSON.stringify({
         return;
       }
       const snapshot = workspace.current();
+      if (url2.pathname === "/api/create-page" || url2.pathname.startsWith("/api/create-page/")) {
+        if (!requireRequestToken(request, response, requestToken)) return;
+        const boundRoot = rootPath;
+        if (request.headers?.["x-math-workspace-project"] !== createHash("sha256").update(boundRoot).digest("hex")) {
+          sendText(response, 409, "The page project changed. Refresh the Reader before retrying.");
+          return;
+        }
+        const result = await handleReaderCreatePageRoute(boundRoot, request.method, url2.pathname, url2.searchParams);
+        if (rootPath !== boundRoot || projectChanging) {
+          sendText(response, 409, "The page project changed while preparing the preview. Refresh the Reader.");
+          return;
+        }
+        sendJson(response, 200, result);
+        return;
+      }
+      if (url2.pathname === "/api/formula-runtime") {
+        if (!requireRequestToken(request, response, requestToken)) return;
+        const boundRoot = rootPath;
+        if (request.headers?.["x-math-workspace-project"] !== createHash("sha256").update(boundRoot).digest("hex")) {
+          sendText(response, 409, "The formula project changed. Refresh the Reader before retrying.");
+          return;
+        }
+        if (request.method !== "GET") {
+          sendText(response, 405, "Formula renderer reads use GET.");
+          return;
+        }
+        const runtime = await readFormulaRuntime(staticRoot, url2.searchParams.get("file") || "");
+        if (rootPath !== boundRoot || projectChanging) {
+          sendText(response, 409, "The formula project changed. Refresh the Reader before retrying.");
+          return;
+        }
+        response.writeHead(200, {
+          "cache-control": API_CACHE_CONTROL,
+          "content-type": runtime.contentType,
+          "content-length": runtime.bytes.length,
+          "x-content-type-options": "nosniff"
+        });
+        response.end(runtime.bytes);
+        return;
+      }
       if (url2.pathname === "/api/lean-language/source" || url2.pathname === "/api/lean-language/action" || url2.pathname === "/api/lean-audit" || url2.pathname.startsWith("/api/lean-audit/") || url2.pathname === "/api/lean-assistance" || url2.pathname.startsWith("/api/lean-assistance/")) {
         if (!requireRequestToken(request, response, requestToken)) return;
         const boundRoot = rootPath;
@@ -14685,6 +12187,48 @@ data: ${JSON.stringify({
         } else sendText(response, 405, "Lean review reads use GET; explicit review actions use POST.");
         return;
       }
+      if (url2.pathname === "/api/publication" || url2.pathname.startsWith("/api/publication/")) {
+        if (!requireRequestToken(request, response, requestToken)) return;
+        const publicationRoot = rootPath;
+        const boundProject = createHash("sha256").update(publicationRoot).digest("hex");
+        if (request.headers?.["x-math-workspace-project"] !== boundProject) {
+          sendText(response, 409, "The publication project changed. Refresh the Reader before retrying.");
+          return;
+        }
+        if (request.method === "GET" && url2.pathname === "/api/publication/pdf-runtime") {
+          const runtime = await readPublicationPdfRuntime(staticRoot, url2.searchParams.get("file") || "");
+          if (rootPath !== publicationRoot || projectChanging) {
+            sendText(response, 409, "The publication project changed. Refresh the Reader before retrying.");
+            return;
+          }
+          response.writeHead(200, {
+            "cache-control": API_CACHE_CONTROL,
+            "content-type": runtime.contentType,
+            "content-length": runtime.bytes.length,
+            "x-content-type-options": "nosniff"
+          });
+          response.end(runtime.bytes);
+        } else if (request.method === "GET" && url2.pathname === "/api/publication/artifact") {
+          const artifact = await publicationApi.artifact(publicationRoot, url2.searchParams);
+          response.writeHead(200, {
+            "cache-control": API_CACHE_CONTROL,
+            "content-type": artifact.contentType,
+            "content-length": artifact.bytes.length,
+            "x-content-type-options": "nosniff",
+            "content-disposition": `attachment; filename="${artifact.fileName.replace(/[^a-zA-Z0-9._-]/g, "_")}"`
+          });
+          response.end(artifact.bytes);
+        } else if (request.method === "GET") sendJson(response, 200, await publicationApi.get(publicationRoot, url2.pathname, url2.searchParams));
+        else if (request.method === "POST" && url2.pathname === "/api/publication/action") {
+          const body = await readJsonRequest(request, 512 * 1024);
+          if (rootPath !== publicationRoot || projectChanging) {
+            sendText(response, 409, "The publication project changed before this action started. Refresh the Reader.");
+            return;
+          }
+          sendJson(response, 202, publicationApi.start(publicationRoot, body));
+        } else sendText(response, 405, "Publication reads use GET; deliberate actions use POST.");
+        return;
+      }
       if (url2.pathname === "/api/archive" || url2.pathname.startsWith("/api/archive/")) {
         if (!requireRequestToken(request, response, requestToken)) return;
         const archiveRoot = rootPath;
@@ -14759,14 +12303,14 @@ data: ${JSON.stringify({
         return;
       }
       if (url2.pathname === "/api/page") {
-        const filePath = toPosix(url2.searchParams.get("path") || "").replace(/^\/+/, "");
+        const filePath = publication.toPosix(url2.searchParams.get("path") || "").replace(/^\/+/, "");
         const content = snapshot.documents.get(filePath);
         if (content === void 0) {
           sendText(response, 404, "Markdown page not found in the bound project.");
           return;
         }
         const rawPage = (snapshot.state.pages || []).find((item2) => item2.filePath === filePath);
-        const symbols = findSymbolsInMarkdown(content, snapshot.state.symbols || []).map((match2) => ({ ...match2.symbol, index: match2.index }));
+        const symbols = publication.findSymbolsInMarkdown(content, snapshot.state.symbols || []).map((match2) => ({ ...match2.symbol, index: match2.index }));
         sendJson(response, 200, stripUndefinedFields({
           revision: snapshot.revision,
           filePath,
@@ -14798,7 +12342,7 @@ data: ${JSON.stringify({
         return;
       }
       if (url2.pathname === "/api/definition") {
-        const definitions2 = buildRuntimeDefinitions(snapshot.state.definitions || []);
+        const definitions2 = publication.buildRuntimeDefinitions(snapshot.state.definitions || []);
         const index = Number(url2.searchParams.get("index"));
         const definition = definitions2[index];
         if (!Number.isInteger(index) || !definition) {
@@ -14849,7 +12393,7 @@ data: ${JSON.stringify({
       }
       await sendStaticFile(response, staticRoot, url2.pathname);
     } catch (error2) {
-      sendText(response, error2 instanceof LeanReviewError ? error2.status : 500, error2 instanceof Error ? error2.message : String(error2));
+      sendText(response, error2 instanceof LeanReviewError || error2 instanceof PublicationReaderError || error2 instanceof PublicationPdfRuntimeError || error2 instanceof FormulaRuntimeError || error2 instanceof ReaderCreatePageError ? error2.status : 500, error2 instanceof Error ? error2.message : String(error2));
     }
   });
   const requestedPort = parsePort(options.port === void 0 ? void 0 : String(options.port));
@@ -15348,9 +12892,9 @@ var errorUtil;
   errorUtil2.toString = (message) => typeof message === "string" ? message : message?.message;
 })(errorUtil || (errorUtil = {}));
 class ParseInputLazyPath {
-  constructor(parent, value, path2, key) {
+  constructor(parent2, value, path2, key) {
     this._cachedPath = [];
-    this.parent = parent;
+    this.parent = parent2;
     this.data = value;
     this._path = path2;
     this._key = key;
@@ -21233,11 +18777,11 @@ class JSONSchemaGenerator {
         schemaPath: [..._params.schemaPath, schema],
         path: _params.path
       };
-      const parent = schema._zod.parent;
-      if (parent) {
-        result.ref = parent;
-        this.process(parent, params);
-        this.seen.get(parent).isParent = true;
+      const parent2 = schema._zod.parent;
+      if (parent2) {
+        result.ref = parent2;
+        this.process(parent2, params);
+        this.seen.get(parent2).isParent = true;
       } else {
         const _json = result.schema;
         switch (def.type) {
@@ -25353,8 +22897,8 @@ function parseUnknownDef(refs) {
 const parseReadonlyDef = (def, refs) => {
   return parseDef(def.innerType._def, refs);
 };
-const selectParser = (def, typeName2, refs) => {
-  switch (typeName2) {
+const selectParser = (def, typeName, refs) => {
+  switch (typeName) {
     case ZodFirstPartyTypeKind.ZodString:
       return parseStringDef(def, refs);
     case ZodFirstPartyTypeKind.ZodNumber:
@@ -26724,10 +24268,10 @@ function requireScope() {
       var: new code_1.Name("var")
     };
     class Scope {
-      constructor({ prefixes, parent } = {}) {
+      constructor({ prefixes, parent: parent2 } = {}) {
         this._names = {};
         this._prefixes = prefixes;
-        this._parent = parent;
+        this._parent = parent2;
       }
       toName(nameOrPrefix) {
         return nameOrPrefix instanceof code_1.Name ? nameOrPrefix : this.name(nameOrPrefix);
@@ -34921,9 +32465,9 @@ async function findMathWorkspaceRoot(startPath) {
   }
   while (true) {
     if (await isMathWorkspaceProject(current)) return nodeFs$2.promises.realpath(current);
-    const parent = path__namespace.dirname(current);
-    if (parent === current) return void 0;
-    current = parent;
+    const parent2 = path__namespace.dirname(current);
+    if (parent2 === current) return void 0;
+    current = parent2;
   }
 }
 const VERIFY_BLOCKING_WARNING_CODES$1 = /* @__PURE__ */ new Set([
@@ -34945,7 +32489,7 @@ function excerpt(value) {
 … [truncated by Math Workspace]`, truncated: true };
 }
 function display(label) {
-  const number2 = formatDisplayNumber(label);
+  const number2 = publication.formatDisplayNumber(label);
   return number2 ? `${label.type} ${number2}` : label.type;
 }
 function pageFor(snapshot, filePath) {
@@ -35006,8 +32550,8 @@ class WorkspaceQueries {
     this.options = options;
     this.symbolAudit = new SymbolAuditStore({ stateFilePath: options.symbolAuditStatePath });
   }
-  async archiveRead(input, projectRoot) {
-    const root = await this.resolveRoot(projectRoot);
+  async archiveRead(input, projectRoot2) {
+    const root = await this.resolveRoot(projectRoot2);
     const archive = await oetConverter.AcademicArchive.open(root);
     const offset = Math.max(0, Math.min(1e4, Number(input.offset) || 0));
     const limit2 = Math.max(1, Math.min(50, Number(input.limit) || 20));
@@ -35055,8 +32599,8 @@ class WorkspaceQueries {
       interpretation: "Read archived source before making historical claims. Signature status is separate from source completeness and proof status."
     };
   }
-  async formalLookup(idInput, projectRoot) {
-    const rootPath = await this.resolveRoot(projectRoot);
+  async formalLookup(idInput, projectRoot2) {
+    const rootPath = await this.resolveRoot(projectRoot2);
     const snapshot = await loadWorkspaceSnapshot(rootPath);
     const id2 = normalizeFormalId(idInput);
     const label = snapshot.state.labels?.[id2];
@@ -35084,8 +32628,8 @@ class WorkspaceQueries {
       } : void 0
     };
   }
-  async dependencySlice(idInput, direction = "both", depth = 1, projectRoot) {
-    const rootPath = await this.resolveRoot(projectRoot);
+  async dependencySlice(idInput, direction = "both", depth = 1, projectRoot2) {
+    const rootPath = await this.resolveRoot(projectRoot2);
     const snapshot = await loadWorkspaceSnapshot(rootPath);
     const id2 = normalizeFormalId(idInput);
     const graph2 = snapshot.state.dependencyGraph || {};
@@ -35133,8 +32677,8 @@ class WorkspaceQueries {
       }))
     };
   }
-  async leanAlignment(idInput, projectRoot) {
-    const rootPath = await this.resolveRoot(projectRoot);
+  async leanAlignment(idInput, projectRoot2) {
+    const rootPath = await this.resolveRoot(projectRoot2);
     const snapshot = await loadWorkspaceSnapshot(rootPath);
     const id2 = normalizeFormalId(idInput);
     const human = snapshot.state.labels?.[id2] ? await new LeanReviewService().get(rootPath, id2) : void 0;
@@ -35154,14 +32698,14 @@ class WorkspaceQueries {
       ...dependencies2?.comparisons?.[id2] ? { dependencyComparison: dependencies2.comparisons[id2] } : {}
     };
   }
-  async knowledgeLookup(queryInput, limit2 = 12, projectRoot) {
-    const rootPath = await this.resolveRoot(projectRoot);
+  async knowledgeLookup(queryInput, limit2 = 12, projectRoot2) {
+    const rootPath = await this.resolveRoot(projectRoot2);
     const snapshot = await loadWorkspaceSnapshot(rootPath);
     const query = normalizedSearch(queryInput);
     if (!query) throw new Error("A non-empty project-knowledge query is required.");
     const boundedLimit = Math.max(1, Math.min(40, Number.isInteger(limit2) ? limit2 : 12));
     const matches = [];
-    for (const definition of buildRuntimeDefinitions(snapshot.state.definitions || [])) {
+    for (const definition of publication.buildRuntimeDefinitions(snapshot.state.definitions || [])) {
       const score = matchScore(query, [definition.title, ...definition.aliases || []], [definition.content]);
       if (score === void 0) continue;
       matches.push({
@@ -35192,13 +32736,15 @@ class WorkspaceQueries {
       });
     }
     for (const source of snapshot.state.projectAnalysis?.sources || []) {
-      const score = matchScore(query, [source.title, source.kind, source.filePath]);
+      const sourceKinds = source.kinds || [source.kind];
+      const score = matchScore(query, [source.title, ...sourceKinds, source.filePath]);
       if (score === void 0) continue;
       matches.push({
         score,
         sortKey: `source:${source.filePath}`,
         kind: "project-source",
         sourceKind: source.kind,
+        sourceKinds,
         title: source.title,
         filePath: source.filePath,
         confidence: source.confidence,
@@ -35215,8 +32761,8 @@ class WorkspaceQueries {
       matches: projected
     };
   }
-  async symbolAuditReport(limit2 = 40, projectRoot) {
-    const rootPath = await this.resolveRoot(projectRoot);
+  async symbolAuditReport(limit2 = 40, projectRoot2) {
+    const rootPath = await this.resolveRoot(projectRoot2);
     const snapshot = await loadWorkspaceSnapshot(rootPath);
     const status = await readSymbolAuditStatus(rootPath, snapshot, this.symbolAudit);
     const report = status.report;
@@ -35270,8 +32816,8 @@ class WorkspaceQueries {
       }
     };
   }
-  async verify(strictChapters = false, projectRoot) {
-    const rootPath = await this.resolveRoot(projectRoot);
+  async verify(strictChapters = false, projectRoot2) {
+    const rootPath = await this.resolveRoot(projectRoot2);
     const snapshot = await loadWorkspaceSnapshot(rootPath);
     const allIssues = snapshot.state.issues || [];
     const blockingIssues = allIssues.filter((issue2) => issue2.severity === "error" || VERIFY_BLOCKING_WARNING_CODES$1.has(issue2.code) || strictChapters && issue2.code === "chapter-gap");
@@ -35289,8 +32835,8 @@ class WorkspaceQueries {
       ...blockingIssues.length > 80 ? { truncated: true } : {}
     };
   }
-  async resolveRoot(projectRoot) {
-    const rootPath = await findMathWorkspaceRoot(path__namespace.resolve(projectRoot || this.options.rootPath || process.cwd()));
+  async resolveRoot(projectRoot2) {
+    const rootPath = await findMathWorkspaceRoot(path__namespace.resolve(projectRoot2 || this.options.rootPath || process.cwd()));
     if (rootPath) return rootPath;
     throw new Error("No Math Workspace project was found at or above that path. Run `math-workspace init` first.");
   }
@@ -35303,14 +32849,14 @@ class ReaderAppGateway {
     this.views = /* @__PURE__ */ new Map();
     this.creating = /* @__PURE__ */ new Map();
   }
-  async open(key, projectRoot, launcher = false) {
+  async open(key, projectRoot2, launcher = false) {
     if (this.closed) throw new Error("Math Workspace panel is closed.");
     if (!/^[a-f0-9]{32}$/.test(key)) throw new Error("Invalid Reader view identity.");
     if (!this.views.has(key)) {
       let pending = this.creating.get(key);
       if (!pending) {
         if (this.views.size + this.creating.size >= 16) throw new Error("Close an unused Math Workspace panel before opening another.");
-        pending = this.create(key, projectRoot, launcher);
+        pending = this.create(key, projectRoot2, launcher);
         this.creating.set(key, pending);
       }
       try {
@@ -35321,10 +32867,10 @@ class ReaderAppGateway {
     }
     return { ready: true };
   }
-  async create(key, projectRoot, launcher = false) {
-    const requested = projectRoot || (launcher ? void 0 : this.defaultRoot);
+  async create(key, projectRoot2, launcher = false) {
+    const requested = projectRoot2 || (launcher ? void 0 : this.defaultRoot);
     const rootPath = requested ? await findMathWorkspaceRoot(path__namespace.resolve(requested)) : void 0;
-    if (projectRoot && !rootPath) throw new Error("Choose a prepared Math Workspace project.");
+    if (projectRoot2 && !rootPath) throw new Error("Choose a prepared Math Workspace project.");
     const reader = await startReaderServer({ rootPath });
     if (this.closed) {
       await reader.close();
@@ -35474,7 +33020,7 @@ function registerReaderApp(server, defaultRoot) {
       }
     }] };
   });
-  const projectRoot = stringType().optional().describe("Prepared Math Workspace project to open. Otherwise use the local project chooser.");
+  const projectRoot2 = stringType().optional().describe("Prepared Math Workspace project to open. Otherwise use the local project chooser.");
   const currentProject = async () => {
     if (!server.server.getClientCapabilities()?.roots) return defaultRoot;
     try {
@@ -35489,7 +33035,7 @@ function registerReaderApp(server, defaultRoot) {
     server.registerTool(entrypoint === "global" ? "open_workspace" : "open_reader", {
       title: "Math Workspace",
       description: entrypoint === "global" ? "Open the current prepared Math Workspace project from the sidebar, or choose a local project." : "Open the existing Math Workspace Reader beside this conversation. Each panel keeps its own project and reading position.",
-      inputSchema: { projectRoot, pagePath },
+      inputSchema: { projectRoot: projectRoot2, pagePath },
       annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
       _meta: {
         ui: { resourceUri: RESOURCE_URI },
@@ -35518,12 +33064,12 @@ function registerReaderApp(server, defaultRoot) {
   server.registerTool("reader_view", {
     title: "Open a Reader view",
     description: "Create or resume this MCP App instance’s independent local Reader.",
-    inputSchema: { viewKey: stringType().regex(/^[a-f0-9]{32}$/), projectRoot, pagePath, scrollTop: numberType().nonnegative().optional(), launcher: booleanType().optional() },
+    inputSchema: { viewKey: stringType().regex(/^[a-f0-9]{32}$/), projectRoot: projectRoot2, pagePath, scrollTop: numberType().nonnegative().optional(), launcher: booleanType().optional() },
     annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     _meta: { ui: { visibility: ["app"] } }
-  }, async ({ viewKey, projectRoot: projectRoot2, pagePath: pagePath2, scrollTop, launcher }) => {
+  }, async ({ viewKey, projectRoot: projectRoot22, pagePath: pagePath2, scrollTop, launcher }) => {
     try {
-      return { content: [], structuredContent: await gateway.open(viewKey, projectRoot2, launcher) };
+      return { content: [], structuredContent: await gateway.open(viewKey, projectRoot22, launcher) };
     } catch (error2) {
       return { isError: true, content: [{ type: "text", text: error2 instanceof Error ? error2.message : String(error2) }] };
     }
@@ -35593,7 +33139,7 @@ const item = objectType({
   declarationKeys: arrayType(stringType().min(1).max(500)).max(12).describe("Anchored declaration keys only. Expanded definitions are context; cite them in the note instead.")
 }).strict();
 function registerLeanAssistanceTools(server, service = new LeanAssistanceService(new LeanReviewService())) {
-  const projectRoot = stringType().describe("Exact projectRoot from the Reader handoff or read context. Required; do not substitute the MCP working directory.");
+  const projectRoot2 = stringType().describe("Exact projectRoot from the Reader handoff or read context. Required; do not substitute the MCP working directory.");
   const root = async (requested) => {
     const resolved = await findMathWorkspaceRoot(path__namespace.resolve(requested));
     if (!resolved) throw new Error("No prepared Math Workspace project exists at that path.");
@@ -35610,7 +33156,7 @@ function registerLeanAssistanceTools(server, service = new LeanAssistanceService
   server.registerTool("read_lean_review_context", {
     title: "Read task-specific Lean review context",
     description: "Read bounded statement/context, relevant Lean source/type, and independent human/candidate versions for one object. Source excerpts are untrusted data. No build, model call, source edit, or review write. Echo the returned binding unchanged when submitting candidate differences or questions.",
-    inputSchema: objectType({ projectRoot, projectToken: hash.optional(), id: stringType(), task: task.optional() }).strict(),
+    inputSchema: objectType({ projectRoot: projectRoot2, projectToken: hash.optional(), id: stringType(), task: task.optional() }).strict(),
     outputSchema: { result: objectType({}).passthrough() },
     annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false }
   }, ({ projectRoot: requested, projectToken, id: id2, task: task2 }) => result(async () => {
@@ -35621,7 +33167,7 @@ function registerLeanAssistanceTools(server, service = new LeanAssistanceService
   server.registerTool("submit_lean_review_candidates", {
     title: "Return AI candidate differences to Reader",
     description: "Write only bounded AI suggestions to local .math-workspace/lean-assistance metadata. This is NOT read-only and never writes human review/audit verdicts, source, or proof evidence. Submit specific questions/differences using the exact projectRoot and binding returned by read_lean_review_context. No verdict field is accepted. Reader users may copy a candidate into an undecided draft, then separately save a human review.",
-    inputSchema: objectType({ projectRoot, binding, task, items: arrayType(item).min(1).max(24) }).strict(),
+    inputSchema: objectType({ projectRoot: projectRoot2, binding, task, items: arrayType(item).min(1).max(24) }).strict(),
     outputSchema: { result: objectType({}).passthrough() },
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false }
   }, ({ projectRoot: requested, ...input }) => result(async () => service.submit(await root(requested), input)));
@@ -35640,12 +33186,12 @@ class ReaderServerRegistry {
     this.options = options;
     this.servers = /* @__PURE__ */ new Map();
   }
-  async open(projectRoot, pagePath) {
-    const requestedRoot = projectRoot || this.options.rootPath || process.cwd();
+  async open(projectRoot2, pagePath) {
+    const requestedRoot = projectRoot2 || this.options.rootPath || process.cwd();
     const rootPath = await findMathWorkspaceRoot(path__namespace.resolve(requestedRoot));
     const page = normalizePagePath(pagePath);
     if (!rootPath) {
-      if (projectRoot || this.options.rootPath) {
+      if (projectRoot2 || this.options.rootPath) {
         throw new Error("No Math Workspace project was found at or above that path. Run `math-workspace init` first.");
       }
       return this.openLauncher();
@@ -35684,7 +33230,7 @@ async function runReaderMcpServer(options = {}) {
   }, {
     instructions: "Use Math Workspace for local formal Markdown and Lean context. Queries are read-only; submit_lean_review_candidates is an explicit exception that writes only AI candidate metadata, never source or human decisions. Reader selections are quoted as source attachments in the current conversation. Use the attached Markdown and source locations as context; discussion and editing stay in the native conversation. Use narrow lookup, project-knowledge, cached-audit, dependency, Lean, and validation tools only when the task needs their evidence instead of asking the user to paste broad project context. Dependency and audit results do not decide edits automatically."
   });
-  const projectRoot = stringType().optional().describe("Absolute or relative root of a project containing .math-workspace/config.json. Defaults to the MCP working directory.");
+  const projectRoot2 = stringType().optional().describe("Absolute or relative root of a project containing .math-workspace/config.json. Defaults to the MCP working directory.");
   const query = async (work, success) => {
     try {
       const result = await work();
@@ -35705,7 +33251,7 @@ ${JSON.stringify(result, null, 2)}`
     title: "Read academic archives",
     description: "Read original academic archive records, source lines, or stable-ID history. Report signature verification separately from source completeness and mathematical proof status; a recorded occurrence does not establish original authorship.",
     inputSchema: {
-      projectRoot,
+      projectRoot: projectRoot2,
       action: enumType(["list", "source", "history"]).optional(),
       record: stringType().optional(),
       filePath: stringType().optional(),
@@ -35720,7 +33266,7 @@ ${JSON.stringify(result, null, 2)}`
   server.registerTool("lookup_formal_object", {
     title: "Look up a formal Markdown object",
     description: "Return one formal object’s stable location, source excerpt, and Lean-anchor summary by h- id.",
-    inputSchema: { id: stringType().describe("An h- id, with or without @ or #."), projectRoot },
+    inputSchema: { id: stringType().describe("An h- id, with or without @ or #."), projectRoot: projectRoot2 },
     outputSchema: { result: objectType({}).passthrough() },
     annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false }
   }, ({ id: id2, projectRoot: root }) => query(() => queries.formalLookup(id2, root), `Math Workspace formal object ${id2} loaded.`));
@@ -35731,7 +33277,7 @@ ${JSON.stringify(result, null, 2)}`
       id: stringType().describe("An h- id, with or without @ or #."),
       direction: enumType(["upstream", "downstream", "both"]).optional().describe("Defaults to both."),
       depth: numberType().int().min(1).max(4).optional().describe("Graph hops, from 1 to 4. Defaults to 1."),
-      projectRoot
+      projectRoot: projectRoot2
     },
     outputSchema: { result: objectType({}).passthrough() },
     annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false }
@@ -35739,7 +33285,7 @@ ${JSON.stringify(result, null, 2)}`
   server.registerTool("inspect_lean_alignment", {
     title: "Inspect Lean alignment",
     description: "Return observed Lean anchors, declaration status, build evidence, and dependency comparison for one formal object.",
-    inputSchema: { id: stringType().describe("An h- id, with or without @ or #."), projectRoot },
+    inputSchema: { id: stringType().describe("An h- id, with or without @ or #."), projectRoot: projectRoot2 },
     outputSchema: { result: objectType({}).passthrough() },
     annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false }
   }, ({ id: id2, projectRoot: root }) => query(() => queries.leanAlignment(id2, root), `Math Workspace Lean alignment for ${id2} loaded.`));
@@ -35749,7 +33295,7 @@ ${JSON.stringify(result, null, 2)}`
     inputSchema: {
       query: stringType().describe("A term, alias, LaTeX symbol, or maintained project-knowledge source name."),
       limit: numberType().int().min(1).max(40).optional().describe("Maximum matches. Defaults to 12."),
-      projectRoot
+      projectRoot: projectRoot2
     },
     outputSchema: { result: objectType({}).passthrough() },
     annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false }
@@ -35762,7 +33308,7 @@ ${JSON.stringify(result, null, 2)}`
     description: "Return the current or stale cached symbol-audit findings with source locations. This read-only tool never starts an audit or calls a model.",
     inputSchema: {
       limit: numberType().int().min(1).max(100).optional().describe("Maximum actionable findings. Defaults to 40."),
-      projectRoot
+      projectRoot: projectRoot2
     },
     outputSchema: { result: objectType({}).passthrough() },
     annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false }
@@ -35773,7 +33319,7 @@ ${JSON.stringify(result, null, 2)}`
   server.registerTool("verify", {
     title: "Run a read-only Math Workspace validation scan",
     description: "Scan formal Markdown and Lean alignment in memory. It does not generate artifacts, run Lean builds, or modify source files.",
-    inputSchema: { strictChapters: booleanType().optional().describe("Treat chapter-gap warnings as blocking."), projectRoot },
+    inputSchema: { strictChapters: booleanType().optional().describe("Treat chapter-gap warnings as blocking."), projectRoot: projectRoot2 },
     outputSchema: { result: objectType({}).passthrough() },
     annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false }
   }, ({ strictChapters, projectRoot: root }) => query(() => queries.verify(strictChapters, root), "Math Workspace read-only validation completed."));
@@ -35794,9 +33340,9 @@ ${JSON.stringify(result, null, 2)}`
       destructiveHint: false,
       openWorldHint: false
     }
-  }, async ({ projectRoot: projectRoot2, pagePath }) => {
+  }, async ({ projectRoot: projectRoot22, pagePath }) => {
     try {
-      const launch = await registry2.open(projectRoot2, pagePath);
+      const launch = await registry2.open(projectRoot22, pagePath);
       const target = launch.pagePath ? ` for ${launch.pagePath}` : "";
       return {
         content: [{
@@ -36041,7 +33587,7 @@ async function runCodexFileHandler(args, packageRoot, cliPath) {
   }
   throw new Error(`Unknown Codex handler action: ${action}`);
 }
-const fs = require("node:fs/promises");
+const fs$1 = require("node:fs/promises");
 const HELP = `Academic archives — original evidence stays in the writing project.
 
 math-workspace archive status|list|sources [--root PROJECT] [list: --include-hidden]
@@ -36143,9 +33689,9 @@ async function runArchiveCli(args) {
   };
   const policyFile = async () => {
     const file = path__namespace.resolve(one("--policy", true));
-    if ((await fs.stat(file)).size > 1024 * 1024) throw new Error("Archive policy input exceeds its byte limit.");
+    if ((await fs$1.stat(file)).size > 1024 * 1024) throw new Error("Archive policy input exceeds its byte limit.");
     if ([...flags.keys()].some((flag) => !["--root", "--trusted-root", "--policy", "--expected-policy"].includes(flag)) || switches.has("--clear-volumes")) throw new Error("--policy cannot be combined with inline policy fields.");
-    return oetConverter.parseJson(await fs.readFile(file));
+    return oetConverter.parseJson(await fs$1.readFile(file));
   };
   const progress = (done, total) => {
     if (done % 25 === 0 || done === total) console.error(`Archive verification: ${done}/${total}`);
@@ -36191,8 +33737,8 @@ async function runArchiveCli(args) {
     result = await archive.import(converted.exchange, progress);
   } else if (command === "import") {
     const file = path__namespace.resolve(one("--from", true));
-    if ((await fs.stat(file)).size > oetConverter.MAX_ARCHIVE_BYTES * 1.5) throw new Error("Exchange file exceeds its byte limit.");
-    result = await archive.import(oetConverter.parseJson(await fs.readFile(file)), progress);
+    if ((await fs$1.stat(file)).size > oetConverter.MAX_ARCHIVE_BYTES * 1.5) throw new Error("Exchange file exceeds its byte limit.");
+    result = await archive.import(oetConverter.parseJson(await fs$1.readFile(file)), progress);
   } else if (command === "status") result = await archive.status();
   else if (command === "list") {
     const { hiddenRecords: _, ...state } = await archive.records(false, void 0, switches.has("--include-hidden"));
@@ -36214,6 +33760,66 @@ async function runArchiveCli(args) {
     await oetConverter.recoverLock(archive.directory);
     result = { recovered: true };
   } else throw new Error("Unknown archive command.\n" + HELP);
+  console.log(JSON.stringify(result, null, 2));
+}
+const fs = require("node:fs/promises");
+const usage = `math-workspace publication inspect
+math-workspace publication status <profile-id>
+math-workspace publication save <profile.json> --expected-revision new|N
+math-workspace publication plan <profile.json|profile-id>
+math-workspace publication build <profile.json|profile-id> --fingerprint SHA256
+math-workspace publication reserve-doi <profile-id> --expected-revision N [--new-version --record-id ID]
+math-workspace publication attach-zenodo <profile-id> --expected-revision N --kind draft|record --record-id ID
+math-workspace publication review-upload <profile-id> --build ID --pdf-sha256 SHA256 --remote-revision N
+math-workspace publication upload <profile-id> --build ID --pdf-sha256 SHA256 --remote-revision N --upload-fingerprint SHA256
+math-workspace publication publish <profile-id> --build ID --pdf-sha256 SHA256 --remote-revision N --record-id ID`;
+async function runPublicationCli(args, root = process.cwd()) {
+  const [action, selector, ...flags] = args;
+  if (!action || action === "--help" || action === "help") {
+    console.log(usage);
+    return;
+  }
+  const service = new publication.PublicationService(root), options = {};
+  for (let index = 0; index < flags.length; index++) {
+    const flag = flags[index];
+    if (flag === "--new-version") {
+      options["new-version"] = true;
+      continue;
+    }
+    const match2 = /^--(expected-revision|fingerprint|record-id|kind|build|pdf-sha256|remote-revision|upload-fingerprint)(?:=(.*))?$/.exec(flag);
+    if (!match2) throw new Error(`Unknown publication option: ${flag}`);
+    const value = match2[2] ?? flags[++index];
+    if (!value || value.startsWith("--")) throw new Error(`Missing ${match2[1]}.`);
+    options[match2[1]] = value;
+  }
+  const required2 = (key) => {
+    const value = options[key];
+    if (typeof value !== "string" || !value) throw new Error(`Publication action requires --${key}.`);
+    return value;
+  };
+  const revision2 = (key) => {
+    const value = Number(required2(key));
+    if (!Number.isInteger(value) || value < 1) throw new Error(`Invalid ${key}.`);
+    return value;
+  };
+  const profile = async () => {
+    if (!selector) throw new Error("A publication profile is required.");
+    if (/\.json$/i.test(selector)) return JSON.parse(await fs.readFile(await publication.safePath(root, publication.relativeInput(selector)), "utf8"));
+    return (await service.status(selector)).profile.profile;
+  };
+  let result;
+  if (action === "inspect") result = await service.inspect();
+  else if (action === "status") result = await service.status(selector);
+  else if (action === "save") result = await service.save(await profile(), required2("expected-revision") === "new" ? null : revision2("expected-revision"));
+  else if (action === "plan") result = await service.plan(await profile());
+  else if (action === "build") result = await service.build(await profile(), required2("fingerprint"));
+  else if (action === "reserve-doi") result = await service.reserveDoi(selector, revision2("expected-revision"), { mode: options["new-version"] ? "new-version" : "reuse-or-create", expectedRecordId: options["new-version"] ? required2("record-id") : void 0 });
+  else if (action === "attach-zenodo") result = await service.attachZenodo(selector, revision2("expected-revision"), { id: required2("record-id"), kind: required2("kind") });
+  else if (action === "review-upload" || action === "upload" || action === "publish") {
+    const review = { pdfSha256: required2("pdf-sha256"), remoteRevision: revision2("remote-revision") };
+    result = action === "review-upload" ? await service.reviewUpload(selector, required2("build"), review) : action === "upload" ? await service.upload(selector, required2("build"), { ...review, uploadFingerprint: required2("upload-fingerprint") }) : await service.publish(selector, required2("build"), { ...review, recordId: required2("record-id") });
+  } else throw new Error(`Unknown publication action.
+${usage}`);
   console.log(JSON.stringify(result, null, 2));
 }
 let ROOT = process.cwd();
@@ -36241,14 +33847,14 @@ async function readConfig() {
   const configPath = path__namespace.join(CACHE_DIR, "config.json");
   try {
     const raw = JSON.parse(await fs__namespace.readFile(configPath, "utf8"));
-    const config2 = mergeConfig(raw);
+    const config2 = publication.mergeConfig(raw);
     if (JSON.stringify(raw) !== JSON.stringify(config2)) {
       await fs__namespace.writeFile(configPath, `${JSON.stringify(config2, null, 2)}
 `, "utf8");
     }
     return config2;
   } catch (_err) {
-    const config2 = mergeConfig(DEFAULT_CONFIG);
+    const config2 = publication.mergeConfig(publication.DEFAULT_CONFIG);
     await fs__namespace.writeFile(configPath, `${JSON.stringify(config2, null, 2)}
 `, "utf8");
     return config2;
@@ -36257,9 +33863,9 @@ async function readConfig() {
 async function readConfigIfExists() {
   const configPath = path__namespace.join(CACHE_DIR, "config.json");
   try {
-    return mergeConfig(JSON.parse(await fs__namespace.readFile(configPath, "utf8")));
+    return publication.mergeConfig(JSON.parse(await fs__namespace.readFile(configPath, "utf8")));
   } catch (err) {
-    if (err?.code === "ENOENT") return mergeConfig(DEFAULT_CONFIG);
+    if (err?.code === "ENOENT") return publication.mergeConfig(publication.DEFAULT_CONFIG);
     throw err;
   }
 }
@@ -36269,18 +33875,18 @@ async function collectMarkdownFiles(config2, dir = ROOT, acc = []) {
     const fullPath = path__namespace.join(dir, entry.name);
     const relative = relativePath(fullPath);
     if (entry.isDirectory()) {
-      if (shouldExcludeScanPath(relative, config2)) continue;
+      if (publication.shouldExcludeScanPath(relative, config2)) continue;
       await collectMarkdownFiles(config2, fullPath, acc);
       continue;
     }
     if (!entry.isFile() || !entry.name.toLowerCase().endsWith(".md")) continue;
-    if (shouldExcludeScanPath(relative, config2)) continue;
+    if (publication.shouldExcludeScanPath(relative, config2)) continue;
     acc.push(fullPath);
   }
   return acc.sort((a, b) => relativePath(a).localeCompare(relativePath(b)));
 }
 function relativePath(filePath) {
-  return toPosix(path__namespace.relative(ROOT, filePath));
+  return publication.toPosix(path__namespace.relative(ROOT, filePath));
 }
 function isPathInside(parentPath, candidatePath) {
   const relative = path__namespace.relative(parentPath, candidatePath);
@@ -36312,13 +33918,13 @@ async function readDefinitions() {
     throw err;
   }
 }
-async function scanWorkspace() {
-  const config2 = await readConfig();
+async function scanWorkspace({ readOnly = false } = {}) {
+  const config2 = readOnly ? await readConfigIfExists() : await readConfig();
   const files = await collectMarkdownFiles(config2);
   const documents = await readWorkspaceDocuments(files);
   const symbols = await readSymbols();
   const definitions2 = await readDefinitions();
-  const state = scanFormalDocuments(documents, config2, symbols, definitions2);
+  const state = publication.scanFormalDocuments(documents, config2, symbols, definitions2);
   const leanIndex = await scanLeanWorkspace(ROOT, config2, state.labels, state.dependencyGraph);
   state.issues.push(...leanIndex.diagnostics.map((diagnostic) => ({
     severity: diagnostic.severity,
@@ -36331,20 +33937,20 @@ async function scanWorkspace() {
 }
 async function writeArtifacts(state) {
   await ensureCacheDir();
-  await fs__namespace.writeFile(path__namespace.join(CACHE_DIR, "workspace-index.json"), `${JSON.stringify(buildReaderIndex(state), null, 2)}
+  await fs__namespace.writeFile(path__namespace.join(CACHE_DIR, "workspace-index.json"), `${JSON.stringify(publication.buildReaderIndex(state), null, 2)}
 `, "utf8");
   await fs__namespace.writeFile(path__namespace.join(CACHE_DIR, "dependency-graph.json"), `${JSON.stringify(state.dependencyGraph, null, 2)}
 `, "utf8");
-  await fs__namespace.writeFile(path__namespace.join(CACHE_DIR, "dependency-report.md"), renderDependencyReport(state.dependencyGraph), "utf8");
-  await fs__namespace.writeFile(path__namespace.join(CACHE_DIR, "reference-map.md"), renderReferenceMap(state.definitions, state.config, state.pages), "utf8");
+  await fs__namespace.writeFile(path__namespace.join(CACHE_DIR, "dependency-report.md"), publication.renderDependencyReport(state.dependencyGraph), "utf8");
+  await fs__namespace.writeFile(path__namespace.join(CACHE_DIR, "reference-map.md"), publication.renderReferenceMap(state.definitions, state.config, state.pages), "utf8");
   await fs__namespace.writeFile(path__namespace.join(CACHE_DIR, "project-analysis.json"), `${JSON.stringify(state.projectAnalysis || {}, null, 2)}
 `, "utf8");
-  await fs__namespace.writeFile(path__namespace.join(CACHE_DIR, "project-analysis.md"), renderProjectAnalysis(state.projectAnalysis), "utf8");
+  await fs__namespace.writeFile(path__namespace.join(CACHE_DIR, "project-analysis.md"), publication.renderProjectAnalysis(state.projectAnalysis), "utf8");
   await fs__namespace.writeFile(path__namespace.join(CACHE_DIR, "lean-index.json"), `${JSON.stringify(state.leanIndex, null, 2)}
 `, "utf8");
   await fs__namespace.writeFile(path__namespace.join(CACHE_DIR, "lean-report.md"), renderLeanReport(state.leanIndex), "utf8");
-  await fs__namespace.writeFile(path__namespace.join(CACHE_DIR, "agent-guide.md"), renderAgentGuide(state), "utf8");
-  await fs__namespace.writeFile(path__namespace.join(CACHE_DIR, "report.md"), renderReport(state), "utf8");
+  await fs__namespace.writeFile(path__namespace.join(CACHE_DIR, "agent-guide.md"), publication.renderAgentGuide(state), "utf8");
+  await fs__namespace.writeFile(path__namespace.join(CACHE_DIR, "report.md"), publication.renderReport(state), "utf8");
   await removeStaleArtifact("definition-index.md");
   await removeStaleArtifact("labels.json");
   await removeStaleArtifact("pages.json");
@@ -36429,7 +34035,7 @@ async function doctor(args) {
   const options = parseProjectDirectoryArg(args, "doctor");
   if (options.help) return;
   const startPath = options.inputPath ? await requireDirectory(options.inputPath) : ROOT;
-  const projectRoot = await findMathWorkspaceRoot(startPath);
+  const projectRoot2 = await findMathWorkspaceRoot(startPath);
   const packagePath = path__namespace.join(PACKAGE_ROOT, "package.json");
   const manifestPath = path__namespace.join(PACKAGE_ROOT, ".codex-plugin", "plugin.json");
   const isPluginPackage = await pathExists(manifestPath);
@@ -36443,8 +34049,8 @@ async function doctor(args) {
   console.log(`Math Workspace doctor ${packageJson.version}`);
   console.log(`CLI: ${path__namespace.join(__dirname, "math-workspace.js")}`);
   console.log(`Node: ${process.version}`);
-  console.log(`Project root: ${projectRoot || "not found"}`);
-  console.log(`Configuration: ${projectRoot ? "found" : "run `math-workspace init`"}`);
+  console.log(`Project root: ${projectRoot2 || "not found"}`);
+  console.log(`Configuration: ${projectRoot2 ? "found" : "run `math-workspace init`"}`);
   console.log(`Reader bundle: ${readerReady ? "ready" : "missing; run the project build"}`);
   console.log(`Plugin runtime: ${pluginRuntimeStatus}`);
   console.log(`Pandoc: ${commandAvailable("pandoc") ? "available" : "not found (optional)"}`);
@@ -36579,19 +34185,19 @@ async function graph(args = []) {
     return;
   }
   if (options.action === "summary") {
-    console.log(renderDependencyGraphSummary(dependencyGraph, options.where));
+    console.log(publication.renderDependencyGraphSummary(dependencyGraph, options.where));
     return;
   }
   if (options.action === "isolated") {
-    console.log(renderDependencyGraphIsolated(dependencyGraph, options.where));
+    console.log(publication.renderDependencyGraphIsolated(dependencyGraph, options.where));
     return;
   }
   if (options.action === "cycles") {
-    console.log(renderDependencyGraphCycles(dependencyGraph, options.where));
+    console.log(publication.renderDependencyGraphCycles(dependencyGraph, options.where));
     return;
   }
   if (options.action === "bridges") {
-    console.log(renderDependencyGraphBridges(dependencyGraph, options.where));
+    console.log(publication.renderDependencyGraphBridges(dependencyGraph, options.where));
     return;
   }
   if (options.action === "matrix") {
@@ -36599,7 +34205,7 @@ async function graph(args = []) {
     if (scope2 !== "chapter" && scope2 !== "volume" && scope2 !== "book") {
       throw new Error(`Invalid graph matrix scope: ${scope2}. Use chapter, volume, or book.`);
     }
-    console.log(renderDependencyGraphMatrix(dependencyGraph, scope2, options.where));
+    console.log(publication.renderDependencyGraphMatrix(dependencyGraph, scope2, options.where));
     return;
   }
   if (options.action === "focus" || options.action === "impact" || options.action === "upstream") {
@@ -36608,11 +34214,11 @@ async function graph(args = []) {
       throw new Error(`graph ${options.action} requires a hash id.`);
     }
     if (options.action === "focus") {
-      console.log(renderDependencyGraphFocus(dependencyGraph, id2, options.depth, options.where));
+      console.log(publication.renderDependencyGraphFocus(dependencyGraph, id2, options.depth, options.where));
     } else if (options.action === "impact") {
-      console.log(renderDependencyGraphImpact(dependencyGraph, id2, options.where));
+      console.log(publication.renderDependencyGraphImpact(dependencyGraph, id2, options.where));
     } else {
-      console.log(renderDependencyGraphUpstream(dependencyGraph, id2, options.where));
+      console.log(publication.renderDependencyGraphUpstream(dependencyGraph, id2, options.where));
     }
     return;
   }
@@ -36679,7 +34285,7 @@ async function finalize(paths, commandName = "finalize") {
   }
   const state = await scanWorkspace();
   const targetFiles = await resolveInputMarkdownFiles(options.paths, state.config);
-  const existingIds = new Set(Object.keys(state.labels).filter((id2) => !TMP_ID_RE.test(id2)));
+  const existingIds = new Set(Object.keys(state.labels).filter((id2) => !publication.TMP_ID_RE.test(id2)));
   const tmpDefs = [];
   for (const filePath of targetFiles) {
     const content = await fs__namespace.readFile(filePath, "utf8");
@@ -36691,8 +34297,8 @@ async function finalize(paths, commandName = "finalize") {
         continue;
       }
       if (inFence) continue;
-      const marker = parseFormalMarkerLine(line);
-      if (marker?.id && TMP_ID_RE.test(marker.id)) {
+      const marker = publication.parseFormalMarkerLine(line);
+      if (marker?.id && publication.TMP_ID_RE.test(marker.id)) {
         tmpDefs.push({ id: marker.id, file: relativePath(filePath) });
       }
     }
@@ -36770,6 +34376,59 @@ async function finish(args) {
   if (process.exitCode && process.exitCode !== 0) return;
   await verify([]);
 }
+async function createPage(args) {
+  const usage2 = 'Usage: math-workspace create-page --kind chapter|front-matter|back-matter|continued --container <project-relative-dir|.> --title "Title" [--slug stem] [--dry-run] [--json] [--expect-state token]';
+  if (args[0] === "help") {
+    console.log(usage2);
+    return;
+  }
+  const values = {};
+  let dryRun = false, json = false;
+  for (let index = 0; index < args.length; index++) {
+    const argument = args[index];
+    if (argument === "--help") {
+      console.log(usage2);
+      return;
+    }
+    if (argument === "--dry-run") {
+      dryRun = true;
+      continue;
+    }
+    if (argument === "--json") {
+      json = true;
+      continue;
+    }
+    const match2 = argument.match(/^--(kind|container|title|slug|expect-state)(?:=(.*))?$/);
+    if (!match2) throw new Error(`Unknown create-page option: ${argument}.
+${usage2}`);
+    if (Object.prototype.hasOwnProperty.call(values, match2[1])) throw new Error(`Duplicate create-page option: --${match2[1]}.`);
+    const value = match2[2] === void 0 ? args[++index] : match2[2];
+    if (!value || match2[2] === void 0 && match2[1] !== "title" && value.startsWith("--")) throw new Error(`Missing create-page value: --${match2[1]}.`);
+    values[match2[1]] = value;
+  }
+  if (!values.kind || !values.container || !values.title) throw new Error(usage2);
+  const root = await findMathWorkspaceRoot(ROOT);
+  if (!root) throw new Error("Create pages only in a prepared project with .math-workspace/config.json.");
+  const input = {
+    kind: values.kind,
+    container: values.container,
+    title: values.title,
+    ...values.slug === void 0 ? {} : { slug: values.slug }
+  };
+  const result = dryRun ? await planManuscriptPage(root, input) : await createManuscriptPage(root, input, { expectedStateToken: values["expect-state"] });
+  if (json) {
+    console.log(JSON.stringify(result, null, 2));
+    return;
+  }
+  if (dryRun) {
+    console.log(`${result.exists ? "EXISTS" : "PLAN"} create-page: ${result.existingFile || result.filePath}`);
+    console.log(`State: ${result.stateToken}`);
+  } else {
+    console.log(`OK create-page: ${result.filePath}`);
+    console.log(`Stable page ID: ${result.id}`);
+    console.log(`Continue writing the page, then run finish on ${result.filePath}.`);
+  }
+}
 function naturalTmpCompare(a, b) {
   const na = a.match(/^tmp-(\d+)$/)?.[1];
   const nb = b.match(/^tmp-(\d+)$/)?.[1];
@@ -36782,18 +34441,18 @@ function rewriteInlineRefsOutsideCode(line, mapping) {
     if (part.startsWith("`") && part.endsWith("`")) return part;
     let updated = part;
     for (const [oldId, newId] of mapping) {
-      const re = new RegExp(`@${escapeRegExp(oldId)}(?=(?:\\.(?:title|full))?\\b)`, "g");
+      const re = new RegExp(`@${publication.escapeRegExp(oldId)}(?=(?:\\.(?:title|full))?\\b)`, "g");
       updated = updated.replace(re, `@${newId}`);
     }
     return updated;
   }).join("");
 }
 function rewriteMarkerId(line, mapping) {
-  const marker = parseFormalMarkerLine(line);
+  const marker = publication.parseFormalMarkerLine(line);
   if (!marker?.id) return line;
   let updated = line;
   for (const [oldId, newId] of mapping) {
-    const re = new RegExp(`#${escapeRegExp(oldId)}(?=\\b)`, "g");
+    const re = new RegExp(`#${publication.escapeRegExp(oldId)}(?=\\b)`, "g");
     updated = updated.replace(re, `#${newId}`);
   }
   return updated;
@@ -36830,7 +34489,7 @@ function rewritePageReferences(content, file) {
       if (part.kind !== "text") return part.text;
       pageRefRe.lastIndex = 0;
       return part.text.replace(pageRefRe, (match2, prefix, kind, rawTarget, mode) => {
-        const normalized = normalizeFormalPagePath(rawTarget, file);
+        const normalized = publication.normalizeFormalPagePath(rawTarget, file);
         if (!normalized || normalized === rawTarget) return match2;
         changed = true;
         return `${prefix}@${kind}:${normalized}${mode ? `.${mode}` : ""}`;
@@ -36840,7 +34499,7 @@ function rewritePageReferences(content, file) {
   return changed ? updated.join(eol) : content;
 }
 function isPageLabel(label) {
-  return !!label && ["chapter", "intro", "summary", "appendix"].includes(label.type);
+  return !!label && publication.isPageLabelType(label.type);
 }
 function pageFromLabel(label, state) {
   const page = (state.pages || []).find((item2) => item2.id && state.labels[item2.id] === label);
@@ -36873,11 +34532,11 @@ function displayObjectReference(state, id2, mode = "default") {
   if (isPageLabel(label)) {
     const page = pageFromLabel(label, state);
     const pageMode = mode === "title" || mode === "full" ? mode : "default";
-    return formatPageReference(page, state.config, pageMode);
+    return publication.formatPageReference(page, state.config, pageMode);
   }
   if (mode === "title") return label.title || id2;
   const def = findDefinitionById(state, id2);
-  const base2 = def ? displayLabel$1(def, state.config) : label.title || id2;
+  const base2 = def ? publication.displayLabel(def, state.config) : label.title || id2;
   if (mode !== "full" || !label.title) return base2;
   const language = state.config?.language === "en" ? "en" : "zh";
   const open = language === "en" ? " (" : "（";
@@ -36885,11 +34544,11 @@ function displayObjectReference(state, id2, mode = "default") {
   return `${base2}${open}${label.title}${close}`;
 }
 function displayPagePathReference(state, sourceFilePath, kind, rawTarget, mode = "default") {
-  const target = normalizeFormalPagePath(rawTarget, sourceFilePath);
+  const target = publication.normalizeFormalPagePath(rawTarget, sourceFilePath);
   const page = (state.pages || []).find((item2) => item2.filePath === target);
   if (!page) return `@${kind}:${rawTarget}${mode === "default" ? "" : `.${mode}`}`;
   const displayMode = mode === "title" || mode === "full" ? mode : "default";
-  return formatPageReference(page, state.config, displayMode);
+  return publication.formatPageReference(page, state.config, displayMode);
 }
 function displayMarkerDeclaration(marker, state) {
   if (!marker?.id) return marker?.markerText || "";
@@ -36898,21 +34557,21 @@ function displayMarkerDeclaration(marker, state) {
   if (isPageLabel(label)) return "";
   const def = findDefinitionById(state, marker.id);
   if (!def) return marker.markerText;
-  if (marker.type === "section") return displayNumber(def) || marker.title;
-  return displayLabel$1(def, state.config);
+  if (marker.type === "section") return publication.displayNumber(def) || marker.title;
+  return publication.displayLabel(def, state.config);
 }
 function compileFormalMarkerLine(line, state) {
-  const marker = parseFormalMarkerLine(line);
+  const marker = publication.parseFormalMarkerLine(line);
   if (!marker?.id) return line;
   const label = state.labels[marker.id];
   if (isPageLabel(label)) {
     const page = pageFromLabel(label, state);
-    const headingRe = new RegExp(`^(\\s*#{1,6}\\s+)#${escapeRegExp(marker.id)}\\b\\s*.*$`);
-    return line.replace(headingRe, `$1${formatPageHeading(page, state.config)}`);
+    const headingRe = new RegExp(`^(\\s*#{1,6}\\s+)#${publication.escapeRegExp(marker.id)}\\b\\s*.*$`);
+    return line.replace(headingRe, `$1${publication.formatPageHeading(page, state.config)}`);
   }
   const replacement = displayMarkerDeclaration(marker, state);
   const compiled = line.replace(marker.markerText, replacement);
-  return marker.type === "solution" ? stripSolutionAssociation(compiled) : compiled;
+  return marker.type === "solution" ? publication.stripSolutionAssociation(compiled) : compiled;
 }
 function rewriteFormalRefsForExport(text2, sourceFilePath, state) {
   const pageRefRe = /(^|[^A-Za-z0-9_])@(chapter|page):([^\s<>"'`，。；;！？]+?\.md)(?:\.(title|full))?(?=$|[\s,，。；;:：.!！?？)\]}])/g;
@@ -36952,6 +34611,9 @@ function compileFormalMarkdownContent(content, sourceFilePath, state, options = 
     }
     if (inFence) return line;
     const markerCompiled = compileFormalMarkerLine(staticFigureMarkdown(line), state);
+    if (linkTargetMode !== "preserve" && /^\s*\[[^\]]+\]:\s*/.test(markerCompiled)) {
+      return markerCompiled.replace(/^(\s*\[[^\]]+\]:\s*)(.+)$/, (_match, prefix, target) => `${prefix}${normalizeExportLinkTarget(target, sourceFilePath)}`);
+    }
     return splitProtectedInlineSegments(markerCompiled).map((part) => {
       if (part.kind === "code") return part.text;
       if (part.kind === "link") return rewriteMarkdownLinkTargetsForExport(part.text, sourceFilePath, linkTargetMode);
@@ -36969,34 +34631,13 @@ async function compileFormalMarkdownForFiles(files, state, options = {}) {
   return `${chunks.filter(Boolean).join("\n\n\\pagebreak\n\n")}
 `;
 }
-function exportPageOrder(page) {
-  if (!page) return Number.MAX_SAFE_INTEGER;
-  if (page.kind === "intro") return -1e5;
-  if (page.kind === "summary") return 9e4;
-  if (page.kind === "appendix") return typeof page.unitOrder === "number" ? page.unitOrder : 1e5;
-  if (typeof page.unitOrder === "number") return page.unitOrder;
-  return typeof page.order === "number" ? page.order : Number.MAX_SAFE_INTEGER;
-}
-function compareExportNumber(a, b) {
-  const av = Number.isFinite(a) ? a : Number.MAX_SAFE_INTEGER;
-  const bv = Number.isFinite(b) ? b : Number.MAX_SAFE_INTEGER;
-  return av === bv ? 0 : av - bv;
-}
 function sortExportFiles(files, state) {
   const pageByPath = new Map((state.pages || []).map((page) => [page.filePath, page]));
-  return [...files].sort((a, b) => {
-    const relA = relativePath(a);
-    const relB = relativePath(b);
-    const pageA = pageByPath.get(relA);
-    const pageB = pageByPath.get(relB);
-    const bookOrder = compareExportNumber(pageA?.bookOrder, pageB?.bookOrder);
-    if (bookOrder !== 0) return bookOrder;
-    const volumeOrder = compareExportNumber(pageA?.volumeOrder, pageB?.volumeOrder);
-    if (volumeOrder !== 0) return volumeOrder;
-    const pageOrder = compareExportNumber(exportPageOrder(pageA), exportPageOrder(pageB));
-    if (pageOrder !== 0) return pageOrder;
-    return relA.localeCompare(relB);
+  const pages = files.map((file) => {
+    const filePath = relativePath(file);
+    return { ...pageByPath.get(filePath), kind: pageByPath.get(filePath)?.kind || "", filePath, file };
   });
+  return publication.sortManuscriptPages(pages, "export").map((page) => page.file);
 }
 const PDF_TOC_PAGEBREAK_HEADER = "\\let\\markdownFormalOldTableOfContents\\tableofcontents\\renewcommand{\\tableofcontents}{\\clearpage\\markdownFormalOldTableOfContents\\clearpage}";
 function latexEscapeText(value) {
@@ -37018,9 +34659,11 @@ function simpleTitlePageHeader(options) {
   const date2 = latexLine(options.date, options.dateSize);
   const version2 = options.showVersionOnCover ? latexLine(options.releaseVersion, options.dateSize) : "";
   const authorBlock = [author, date2, version2].filter(Boolean).join("\\vspace{0.8em}");
+  const image2 = options.coverImage ? `\\includegraphics[width=0.82\\textwidth,height=0.38\\textheight,keepaspectratio]{\\detokenize{${options.coverImage}}}\\par\\vspace{1.5em}` : "";
   return [
     "\\renewcommand{\\maketitle}{",
-    "\\begin{titlepage}\\thispagestyle{empty}\\vspace*{0.20\\textheight}\\begin{center}",
+    `\\begin{titlepage}\\thispagestyle{empty}\\vspace*{${image2 ? "0.04" : "0.20"}\\textheight}\\begin{center}`,
+    image2,
     title2,
     subtitle ? `\\vspace{1.2em}${subtitle}` : "",
     authorBlock ? `\\vfill${authorBlock}` : "",
@@ -37034,22 +34677,52 @@ function normalizedMetadataUrl(value) {
 }
 function publicationMetadataRows(options) {
   const rows = [];
+  const chinese = String(options.lang || "").toLowerCase().startsWith("zh");
+  const labels = chinese ? {
+    author: "作者",
+    nativeName: "本名",
+    aliases: "别名",
+    repository: "项目地址",
+    license: "许可协议",
+    version: "本版版本",
+    tag: "发布标签",
+    commit: "提交版本",
+    doi: "本版 DOI",
+    workDoi: "作品 DOI",
+    doiNote: "DOI 说明",
+    citation: "推荐引用"
+  } : {
+    author: "Author",
+    nativeName: "Native name",
+    aliases: "Also known as",
+    repository: "Repository",
+    license: "License",
+    version: "Release version",
+    tag: "Release tag",
+    commit: "Commit",
+    doi: "DOI",
+    workDoi: "Work DOI",
+    doiNote: "DOI provenance",
+    citation: "Preferred citation"
+  };
   const add2 = (label, value) => {
     const normalized = String(value || "").trim();
     if (normalized) rows.push([label, normalized]);
   };
-  add2("Author", options.author);
-  add2("Native name", options.authorNative);
-  add2("Also known as", (options.authorAliases || []).join("; "));
+  add2(labels.author, options.author);
+  add2(labels.nativeName, options.authorNative);
+  add2(labels.aliases, (options.authorAliases || []).join("; "));
   add2("ORCID", normalizedMetadataUrl(options.orcid));
-  add2("Repository", normalizedMetadataUrl(options.repository));
+  add2(labels.repository, normalizedMetadataUrl(options.repository));
   const license = options.licenseUrl ? `${options.license || options.licenseUrl}${options.license ? " " : ""}(${normalizedMetadataUrl(options.licenseUrl)})` : options.license;
-  add2("License", license);
-  add2("Release version", options.releaseVersion);
-  add2("Release tag", options.releaseTag);
-  add2("Commit", options.releaseCommit);
-  add2("DOI", options.doi);
-  add2("Preferred citation", options.preferredCitation);
+  add2(labels.license, license);
+  add2(labels.version, options.releaseVersion);
+  add2(labels.tag, options.releaseTag);
+  add2(labels.commit, options.releaseCommit);
+  add2(labels.doi, options.doi);
+  add2(labels.workDoi, options.workDoi);
+  if (String(options.doi || "").trim() || String(options.workDoi || "").trim()) add2(labels.doiNote, options.doiState);
+  add2(labels.citation, options.preferredCitation);
   return rows;
 }
 function latexMetadataText(value) {
@@ -37057,10 +34730,22 @@ function latexMetadataText(value) {
 }
 function frontMatterMarkdownWithSafeHeadings(content, includeHeadingsInToc) {
   const classes = includeHeadingsInToc ? "{.unnumbered}" : "{.unnumbered .unlisted}";
-  return String(content || "").replace(/^(#{1,6}\s+)(.+?)\s*$/gm, (_match, prefix, title2) => {
-    if (/\{[^}]*\}\s*$/.test(title2)) return `${prefix}${title2}`;
-    return `${prefix}${title2} ${classes}`;
-  });
+  let fence2 = false;
+  return String(content || "").split(/\r?\n/).map((line) => {
+    if (/^\s*(```|~~~)/.test(line)) {
+      fence2 = !fence2;
+      return line;
+    }
+    if (fence2) return line;
+    return line.replace(/^(#{1,6}\s+)(.+?)\s*$/, (_match, prefix, title2) => {
+      const attributes = /\s*\{([^}]*)\}\s*$/.exec(title2);
+      if (attributes) {
+        const retained = attributes[1].split(/\s+/).filter((value) => value && ![".unnumbered", ".unlisted", "-"].includes(value));
+        return `${prefix}${title2.slice(0, attributes.index)} {${[...retained, ".unnumbered", ...!includeHeadingsInToc ? [".unlisted"] : []].join(" ")}}`;
+      }
+      return `${prefix}${title2} ${classes}`;
+    });
+  }).join("\n");
 }
 function markdownToLatexSnippet(content, sourceLabel) {
   const result = spawnSync("pandoc", ["-f", "markdown", "-t", "latex"], {
@@ -37101,6 +34786,7 @@ async function frontMatterLatex(options) {
         lines2.push(`\\addcontentsline{toc}{section}{${latexMetadataText(entry.title)}}`);
       }
     }
+    lines2.push("\\markboth{}{}");
     if (body) lines2.push(body);
     if (entry.pageBreakAfter !== false) lines2.push("\\clearpage");
     pages.push(lines2.join("\n"));
@@ -37113,7 +34799,8 @@ function publicationMetadataLatex(options) {
   if (rows.length === 0) return "";
   return [
     "\\clearpage",
-    "\\section*{Publication Metadata}",
+    `\\section*{${String(options.lang || "").toLowerCase().startsWith("zh") ? "出版信息" : "Publication Metadata"}}`,
+    "\\markboth{}{}",
     "\\begin{description}",
     ...rows.map(([label, value]) => `\\item[${latexMetadataText(label)}] ${latexMetadataText(value)}`),
     "\\end{description}",
@@ -37151,8 +34838,8 @@ function pdfLanguageDefault(config2) {
 function pdfTocTitleDefault(config2) {
   return config2?.language === "en" ? "Contents" : "目录";
 }
-function pdfConfigDefaults(configInput = DEFAULT_CONFIG) {
-  const config2 = mergeConfig(configInput);
+function pdfConfigDefaults(configInput = publication.DEFAULT_CONFIG) {
+  const config2 = publication.mergeConfig(configInput);
   const pdf = config2.pdf || {};
   return {
     pdfEngine: pdf.pdfEngine || "xelatex",
@@ -37177,11 +34864,14 @@ function pdfConfigDefaults(configInput = DEFAULT_CONFIG) {
     releaseTag: pdf.releaseTag || "",
     releaseCommit: pdf.releaseCommit || "",
     doi: pdf.doi || "",
+    workDoi: pdf.workDoi || "",
+    doiState: pdf.doiState || "",
     showVersionOnCover: pdf.showVersionOnCover === true,
     metadataPage: pdf.metadataPage === true,
     documentClass: pdf.documentClass || "",
     titlePage: pdf.titlePage === true,
     coverStyle: pdf.coverStyle || "simple",
+    coverImage: pdf.coverImage || "",
     titleSize: pdf.titleSize || "32pt",
     subtitleSize: pdf.subtitleSize || "18pt",
     authorSize: pdf.authorSize || "12pt",
@@ -37191,8 +34881,8 @@ function pdfConfigDefaults(configInput = DEFAULT_CONFIG) {
     variables: Array.isArray(pdf.variables) ? pdf.variables.filter((value) => typeof value === "string" && value) : []
   };
 }
-function parseExportArgs(args, defaultOutput, configInput = DEFAULT_CONFIG) {
-  const pdfDefaults = pdfConfigDefaults(configInput);
+function parseExportArgs(args, defaultOutput, configInput = publication.DEFAULT_CONFIG) {
+  const pdfDefaults = pdfConfigDefaults(args.includes("--no-project-pdf-defaults") ? { language: configInput?.language } : configInput);
   const options = {
     output: defaultOutput,
     mdOutput: "",
@@ -37219,11 +34909,14 @@ function parseExportArgs(args, defaultOutput, configInput = DEFAULT_CONFIG) {
     releaseTag: pdfDefaults.releaseTag,
     releaseCommit: pdfDefaults.releaseCommit,
     doi: pdfDefaults.doi,
+    workDoi: pdfDefaults.workDoi,
+    doiState: pdfDefaults.doiState,
     showVersionOnCover: pdfDefaults.showVersionOnCover,
     metadataPage: pdfDefaults.metadataPage,
     documentClass: pdfDefaults.documentClass,
     titlePage: pdfDefaults.titlePage,
     coverStyle: pdfDefaults.coverStyle,
+    coverImage: pdfDefaults.coverImage,
     titleSize: pdfDefaults.titleSize,
     subtitleSize: pdfDefaults.subtitleSize,
     authorSize: pdfDefaults.authorSize,
@@ -37334,6 +35027,14 @@ function parseExportArgs(args, defaultOutput, configInput = DEFAULT_CONFIG) {
       options.doi = args[++i] || options.doi;
     } else if (arg.startsWith("--doi=")) {
       options.doi = arg.slice("--doi=".length);
+    } else if (arg === "--work-doi") {
+      options.workDoi = args[++i] || "";
+    } else if (arg.startsWith("--work-doi=")) {
+      options.workDoi = arg.slice("--work-doi=".length);
+    } else if (arg === "--doi-state") {
+      options.doiState = args[++i] || "";
+    } else if (arg.startsWith("--doi-state=")) {
+      options.doiState = arg.slice("--doi-state=".length);
     } else if (arg === "--show-version-on-cover") {
       options.showVersionOnCover = true;
     } else if (arg === "--no-show-version-on-cover") {
@@ -37376,6 +35077,10 @@ function parseExportArgs(args, defaultOutput, configInput = DEFAULT_CONFIG) {
       options.coverStyle = args[++i] || options.coverStyle;
     } else if (arg.startsWith("--cover-style=")) {
       options.coverStyle = arg.slice("--cover-style=".length);
+    } else if (arg === "--cover-image") {
+      options.coverImage = args[++i] || "";
+    } else if (arg.startsWith("--cover-image=")) {
+      options.coverImage = arg.slice("--cover-image=".length);
     } else if (arg === "--title-size") {
       options.titleSize = args[++i] || options.titleSize;
     } else if (arg.startsWith("--title-size=")) {
@@ -37421,8 +35126,8 @@ async function exportMarkdown(args = []) {
     process.exitCode = 1;
     return "";
   }
-  const state = await scanWorkspace();
-  await writeArtifacts(state);
+  const state = await scanWorkspace({ readOnly: args.includes("--read-only") });
+  if (!args.includes("--read-only")) await writeArtifacts(state);
   const errors2 = state.issues.filter((issue2) => issue2.severity === "error");
   if (errors2.length > 0) {
     printSummary("export-md", state);
@@ -37441,6 +35146,14 @@ async function exportMarkdown(args = []) {
   await fs__namespace.writeFile(outputPath, compiled, "utf8");
   console.log(`OK export-md: ${files.length} files -> ${relativePath(outputPath)}`);
   return outputPath;
+}
+async function compilePublicationFragment(args) {
+  if (args.length !== 3) throw new Error("Invalid publication fragment request.");
+  const [input, sourceContext, output] = args.map(publication.relativeInput);
+  const state = await scanWorkspace({ readOnly: true });
+  const content = await fs__namespace.readFile(await publication.safePath(ROOT, input), "utf8");
+  const destination = await publication.safePath(ROOT, output);
+  await fs__namespace.writeFile(destination, compileFormalMarkdownContent(content, sourceContext, state), "utf8");
 }
 async function exportMarkdownSplit(args = []) {
   const options = parseExportArgs(args, ".math-workspace/export-md-split");
@@ -37530,6 +35243,10 @@ async function renderPdfFile(inputMarkdownPath, outputPdfPath, options) {
   await fs__namespace.mkdir(path__namespace.dirname(outputPdfPath), { recursive: true });
   let preparedInclude;
   try {
+    if (options.coverImage) {
+      if (/[{}\n\r]/.test(options.coverImage)) throw new Error("Invalid cover image path.");
+      await fs__namespace.access(await publication.safePath(ROOT, publication.relativeInput(options.coverImage)));
+    }
     preparedInclude = await preparePdfIncludeBeforeBody(options, inputMarkdownPath);
   } catch (err) {
     console.error(err?.message || String(err));
@@ -37608,7 +35325,7 @@ async function resolveInputMarkdownFiles(inputs, config2) {
   for (const input of inputs) {
     const full = path__namespace.resolve(ROOT, input);
     const relative = relativePath(full);
-    if (shouldExcludeScanPath(relative, config2)) continue;
+    if (publication.shouldExcludeScanPath(relative, config2)) continue;
     const stat = await fs__namespace.stat(full);
     if (stat.isDirectory()) {
       const files = await collectMarkdownFiles(config2, full, []);
@@ -37634,7 +35351,7 @@ async function migrateIds(args) {
   const targetFiles = options.all ? allFiles : await resolveInputMarkdownFiles(options.paths, state.config);
   const rewriteFiles = migrationRewriteFiles(options, allFiles, targetFiles);
   const targetFileSet = new Set(targetFiles.map(relativePath));
-  const idsToMigrate = state.definitions.filter((def) => targetFileSet.has(def.file)).map((def) => def.id).filter((id2) => typeof id2 === "string" && !HASH_ID_RE.test(id2) && !TMP_ID_RE.test(id2));
+  const idsToMigrate = state.definitions.filter((def) => targetFileSet.has(def.file)).map((def) => def.id).filter((id2) => typeof id2 === "string" && !publication.HASH_ID_RE.test(id2) && !publication.TMP_ID_RE.test(id2));
   const uniqueIds = [...new Set(idsToMigrate)].sort();
   if (uniqueIds.length === 0) {
     console.log("OK migrate-ids: no non-hash ids found");
@@ -37722,17 +35439,17 @@ function pushAlias(byAlias, alias, def) {
   if (!defs.some((existing) => existing.id === def.id)) defs.push(def);
 }
 function numberedReferenceAliases(def, config2) {
-  const number2 = displayNumber(def);
+  const number2 = publication.displayNumber(def);
   if (!number2) return [];
-  const aliases2 = [];
+  const aliases = [];
   if (def.type === "solution") return [];
-  const names2 = def.type === "section" ? ["节", "Section", "Sec.", "Sec"] : FORMAL_KIND_POLICIES[def.type]?.aliases || [];
+  const names2 = def.type === "section" ? ["节", "Section", "Sec.", "Sec"] : publication.FORMAL_KIND_POLICIES[def.type]?.aliases || [];
   for (const name of names2) {
-    aliases2.push(`${name}${number2}`, `${name} ${number2}`);
-    if (def.type === "equation") aliases2.push(`${name}(${number2})`, `${name} (${number2})`, `${name}（${number2}）`);
+    aliases.push(`${name}${number2}`, `${name} ${number2}`);
+    if (def.type === "equation") aliases.push(`${name}(${number2})`, `${name} (${number2})`, `${name}（${number2}）`);
   }
   if (def.type === "section") {
-    aliases2.push(
+    aliases.push(
       `§ ${number2}`,
       `§${number2}`,
       `${number2}节`,
@@ -37747,14 +35464,14 @@ function numberedReferenceAliases(def, config2) {
       `章节 ${number2}`
     );
   }
-  const configuredName = typeName(config2, def.type);
+  const configuredName = publication.typeName(config2, def.type);
   if (configuredName) {
-    aliases2.push(`${configuredName}${number2}`, `${configuredName} ${number2}`);
+    aliases.push(`${configuredName}${number2}`, `${configuredName} ${number2}`);
     if (def.type === "equation") {
-      aliases2.push(`${configuredName}(${number2})`, `${configuredName} (${number2})`, `${configuredName}（${number2}）`);
+      aliases.push(`${configuredName}(${number2})`, `${configuredName} (${number2})`, `${configuredName}（${number2}）`);
     }
   }
-  return unique$1(aliases2);
+  return publication.unique(aliases);
 }
 function buildTextReferenceIndex(definitions2, config2) {
   const byAlias = /* @__PURE__ */ new Map();
@@ -37768,7 +35485,7 @@ function buildTextReferenceIndex(definitions2, config2) {
 function normalizeTextReferenceAlias(value) {
   const alias = value.trim().replace(/．/g, ".").replace(/\s+/g, " ");
   const number2 = `(${TEXT_REF_NUMBER.replace(/．/g, ".")})`;
-  const typed = alias.match(new RegExp(`^(${FORMAL_TYPE_PATTERN})\\s*[（(]?${number2}[）)]?$`, "i"));
+  const typed = alias.match(new RegExp(`^(${publication.FORMAL_TYPE_PATTERN})\\s*[（(]?${number2}[）)]?$`, "i"));
   if (typed) return `${typed[1].toLowerCase()} ${normalizeReferenceNumber(typed[2])}`;
   const cjkSectionPrefix = alias.match(new RegExp(`^第\\s*${number2}\\s*节$`));
   if (cjkSectionPrefix) return `§${normalizeReferenceNumber(cjkSectionPrefix[1])}`;
@@ -37781,8 +35498,8 @@ function normalizeTextReferenceAlias(value) {
   return alias;
 }
 function makeTextReferencePattern(config2) {
-  const configuredTypes = Object.keys(FORMAL_KIND_POLICIES).filter((kind) => kind !== "solution").map((type2) => typeName(config2, type2)).filter((name) => name && name !== "§");
-  const typeWords = [FORMAL_TYPE_PATTERN, "Section", "Sec\\.?", "节", ...configuredTypes.map(escapeRegExp)].join("|");
+  const configuredTypes = Object.keys(publication.FORMAL_KIND_POLICIES).filter((kind) => kind !== "solution").map((type2) => publication.typeName(config2, type2)).filter((name) => name && name !== "§");
+  const typeWords = [publication.FORMAL_TYPE_PATTERN, "Section", "Sec\\.?", "节", ...configuredTypes.map(publication.escapeRegExp)].join("|");
   const typedNumber = `[（(]?(?:${TEXT_REF_NUMBER})[）)]?`;
   const alternatives = [
     `(?:(?:${typeWords})\\s*${typedNumber})`,
@@ -37801,7 +35518,7 @@ function describeTextReference(alias, byAlias) {
       status: "resolved",
       id: def.id,
       title: def.title,
-      display: displayLabel$1(def, { language: "zh", dictionary: DEFAULT_CONFIG.dictionary })
+      display: publication.displayLabel(def, { language: "zh", dictionary: publication.DEFAULT_CONFIG.dictionary })
     };
   }
   if (defs.length > 1) {
@@ -37809,7 +35526,7 @@ function describeTextReference(alias, byAlias) {
       status: "ambiguous",
       candidates: defs.map((def) => ({
         id: def.id,
-        display: displayLabel$1(def, { language: "zh", dictionary: DEFAULT_CONFIG.dictionary }),
+        display: publication.displayLabel(def, { language: "zh", dictionary: publication.DEFAULT_CONFIG.dictionary }),
         title: def.title,
         file: def.file,
         line: def.line
@@ -37888,7 +35605,7 @@ function rewriteTextReferenceLine(line, pattern2, byAlias, file, lineNumber, rep
           ...record2,
           candidates: defs.map((def) => ({
             id: def.id,
-            display: displayLabel$1(def, { language: "zh", dictionary: DEFAULT_CONFIG.dictionary }),
+            display: publication.displayLabel(def, { language: "zh", dictionary: publication.DEFAULT_CONFIG.dictionary }),
             title: def.title,
             file: def.file,
             line: def.line
@@ -38076,7 +35793,7 @@ function hasBareReferenceCue(before, after) {
   return /(由|见|参见|参考|根据|结合|利用|推出|得到|可得|来自|遵循|see|by|from|using|as|in)\s*$/i.test(left) || /^\s*(可得|推出|得到|给出|implies|gives|shows|follows)/i.test(right);
 }
 function isTypedNumberContext(before, after) {
-  return new RegExp(`(${FORMAL_TYPE_PATTERN}|§|第)\\s*$`, "i").test(before) || /^\s*节/.test(after);
+  return new RegExp(`(${publication.FORMAL_TYPE_PATTERN}|§|第)\\s*$`, "i").test(before) || /^\s*节/.test(after);
 }
 function collectBareNumberCandidates(content, file) {
   const candidates = [];
@@ -38169,7 +35886,7 @@ function isAuditProofBoundary(line) {
   return /^(?:证明(?:概要|草图|思路|如下|在此略去)?|Proof(?:\s+sketch)?|Sketch of proof)\s*(?:[：:。.．.]|$|\s)/i.test(text2);
 }
 function isAuditBlockBoundary(line) {
-  return /^#{1,6}\s+/.test(line) || !!parseFormalMarkerLine(line);
+  return /^#{1,6}\s+/.test(line) || !!publication.parseFormalMarkerLine(line);
 }
 function collectMissingProofBoundaries(content, file) {
   const findings = [];
@@ -38183,7 +35900,7 @@ function collectMissingProofBoundaries(content, file) {
       continue;
     }
     if (inFence) continue;
-    const marker = parseFormalMarkerLine(line);
+    const marker = publication.parseFormalMarkerLine(line);
     if (!marker || !theoremTypes.has(marker.type)) continue;
     let hasProof = false;
     for (let j = i + 1; j < lines2.length; j++) {
@@ -38212,7 +35929,7 @@ function collectUnusedOptionalBlocks(state, targetFileSet) {
     file: def.file,
     line: def.line,
     id: def.id,
-    display: displayLabel$1(def, state.config),
+    display: publication.displayLabel(def, state.config),
     title: def.title || ""
   }));
 }
@@ -38387,7 +36104,7 @@ async function migrateTextRefs(args) {
   const targetFiles = options.all ? allFiles : await resolveInputMarkdownFiles(options.paths, state.config);
   const targetFileSet = new Set(targetFiles.map(relativePath));
   const targetDefinitions = options.all ? state.definitions : state.definitions.filter((def) => targetFileSet.has(def.file));
-  const targetNumberedEntries = targetDefinitions.filter(displayNumber);
+  const targetNumberedEntries = targetDefinitions.filter(publication.displayNumber);
   const targetByAlias = buildTextReferenceIndex(targetDefinitions, state.config);
   const rewriteFiles = migrationRewriteFiles(options, allFiles, targetFiles);
   const result = {
@@ -38469,7 +36186,7 @@ async function perfDummy(args) {
   const blocksPerChapter = Math.max(1, Number(options.positionals[1] || 200));
   const documents = makeDummyDocuments(chapters, blocksPerChapter);
   const started = Date.now();
-  const state = scanFormalDocuments(documents, mergeConfig(DEFAULT_CONFIG));
+  const state = publication.scanFormalDocuments(documents, publication.mergeConfig(publication.DEFAULT_CONFIG));
   const elapsed = Date.now() - started;
   const memory = process.memoryUsage ? process.memoryUsage() : void 0;
   const heapMbValue = memory ? memory.heapUsed / 1024 / 1024 : void 0;
@@ -38514,6 +36231,7 @@ function printHelp({ all = false } = {}) {
     console.log(`Usage:
   math-workspace init [project-dir]
   math-workspace open [project-dir] [--port 0]
+  math-workspace create-page --kind <kind> --container <dir|.> --title "Title" [--dry-run] [--json]
   math-workspace finish <file-or-dir> [...] [--all]
   math-workspace verify [--strict-chapters]
   math-workspace doctor [project-dir]
@@ -38544,7 +36262,7 @@ Migrations are dry-run by default. Pass --apply to edit files.
 Agent workflow:
   1. Run prepare when starting or resuming a task, or when the index may be stale.
   2. Read the target source; retrieve only matching rows from .math-workspace/reference-map.md for external existing refs.
-  3. Use tmp-* for new objects and page anchors, then run finish on the edited file or directory (it verifies).
+  3. Create blank pages with create-page; they receive a stable page ID. Use tmp-* for new numbered objects, then run finish on the edited file or directory (it verifies).
   4. For old numbered prose, migrate-text-refs <scope> updates target files plus incoming references by default.
   5. If you use finalize directly, run verify before treating generated or migrated content as complete.
 
@@ -38556,6 +36274,7 @@ Advanced commands:
   math-workspace init [project-dir]
   math-workspace open [project-dir] [--port 0]
   math-workspace doctor [project-dir]
+  math-workspace create-page --kind chapter|front-matter|back-matter|continued --container <dir|.> --title "Title" [--slug stem] [--dry-run] [--json] [--expect-state token]
   npm run workspace -- prepare
   npm run workspace -- finish <file-or-dir> [...] [--all]
   npm run workspace -- migrate-text-refs <file-or-dir> [...] [--apply] [--target-only] [--all]
@@ -38594,7 +36313,7 @@ Migrations are dry-run by default. Pass --apply to edit files.
 Agent workflow:
   1. Run prepare when starting or resuming a task, or when the index may be stale.
   2. Read the target source; retrieve only matching rows from .math-workspace/reference-map.md for external existing refs.
-  3. Use tmp-* for new objects and page anchors, then run finish on the edited file or directory (it verifies).
+  3. Create blank pages with create-page; they receive a stable page ID. Use tmp-* for new numbered objects, then run finish on the edited file or directory (it verifies).
   4. For old numbered prose, migrate-text-refs <scope> updates target files plus incoming references by default.
   5. If you use finalize directly, run verify before treating generated or migrated content as complete.`);
 }
@@ -38614,7 +36333,7 @@ async function printArtifactPaths() {
   console.log("math-workspace paths");
   for (const [label, filePath] of rows) {
     const exists = await pathExists(filePath);
-    console.log(`${label}: ${toPosix(filePath)}${exists ? "" : " (missing)"}`);
+    console.log(`${label}: ${publication.toPosix(filePath)}${exists ? "" : " (missing)"}`);
   }
   console.log("");
   console.log("AI workflow: review skills/editor.md, skills/math-writing.md, and skills/integrator.md; for Lean projects, also review skills/lean-formalization.md.");
@@ -38747,6 +36466,10 @@ async function main() {
     await serveReaderMcp(args);
   } else if (command === "archive") {
     await runArchiveCli(args);
+  } else if (command === "publication") {
+    await runPublicationCli(args, ROOT);
+  } else if (command === "_publication-fragment") {
+    await compilePublicationFragment(args);
   } else if (command === "codex-handler") {
     await runCodexFileHandler(args, PACKAGE_ROOT, path__namespace.join(__dirname, "math-workspace.js"));
   } else if (command === "verify") {
@@ -38755,6 +36478,8 @@ async function main() {
     await finalize(args);
   } else if (command === "finish") {
     await finish(args);
+  } else if (command === "create-page") {
+    await createPage(args);
   } else if (command === "migrate-text-refs") {
     await migrateTextRefs(args);
   } else if (command === "migrate-ids") {
