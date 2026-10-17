@@ -1,0 +1,241 @@
+:root {
+  color-scheme: light dark;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+body {
+  margin: 0;
+}
+.mb-launcher {
+  box-sizing: border-box;
+  max-width: 720px;
+  margin: 10vh auto;
+  padding: 28px;
+  color: CanvasText;
+}
+.mb-launcher h1 {
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -0.035em;
+}
+.mb-launcher p {
+  font-size: 13px;
+  line-height: 1.7;
+  opacity: 0.75;
+}
+.mb-launcher form {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 18px 0;
+}
+.mb-launcher label {
+  width: 100%;
+  font-size: 13px;
+}
+.mb-launcher input {
+  flex: 1;
+  min-width: 150px;
+  padding: 6px 10px;
+  border: 1px solid color-mix(in srgb, CanvasText 22%, transparent);
+  border-radius: 6px;
+  font: inherit;
+  font-size: 13px;
+  line-height: 18px;
+  background: Canvas;
+  color: CanvasText;
+}
+.mb-launcher button,
+.mb-switch-book {
+  cursor: pointer;
+  border: 1px solid color-mix(in srgb, CanvasText 22%, transparent);
+  border-radius: 5px;
+  padding: 5px 10px;
+  min-height: 28px;
+  background: Canvas;
+  color: CanvasText;
+  font: inherit;
+  font-size: 12px;
+  line-height: 16px;
+}
+.mb-launcher .mb-books {
+  display: grid;
+  gap: 6px;
+}
+.mb-launcher .mb-books button {
+  text-align: left;
+}
+.mb-launcher .mb-books small {
+  display: block;
+  overflow-wrap: anywhere;
+  margin-top: 6px;
+  opacity: 0.6;
+}
+.mb-launcher [role="alert"] {
+  color: #bb422e;
+}
+.mb-switch-book {
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.mb-app-mark {
+  display: inline-block;
+  width: 28px;
+  height: 28px;
+  vertical-align: middle;
+  margin-right: 10px;
+}
+.mb-app-mark svg {
+  width: 100%;
+  height: 100%;
+}
+
+.mb-library-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.mb-library-heading h1 {
+  margin: 0;
+}
+.mb-library-actions {
+  display: flex;
+  gap: 6px;
+  margin: 18px 0;
+}
+.mb-launcher .mb-choose-directory {
+  background: color-mix(in srgb, CanvasText 6%, Canvas);
+  font-weight: 500;
+}
+.mb-launcher button:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+.mb-search-label {
+  display: block;
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+.mb-launcher input[type="search"] {
+  width: 100%;
+  box-sizing: border-box;
+}
+.mb-launcher h2 {
+  font-size: 13px;
+  font-weight: 600;
+  margin: 24px 0 10px;
+  opacity: 0.7;
+}
+.mb-launcher .mb-book-row {
+  display: flex;
+  border: 1px solid color-mix(in srgb, CanvasText 18%, transparent);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.mb-launcher .mb-book-open {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  border-radius: 0;
+  padding: 12px 14px;
+  text-align: left;
+  line-height: 1.5;
+}
+.mb-book-open strong {
+  font-size: 13px;
+  font-weight: 600;
+}
+.mb-launcher .mb-books small {
+  font-size: 11px;
+  margin-top: 3px;
+  line-height: 1.6;
+}
+.mb-launcher .mb-forget-book {
+  flex: 0 0 28px;
+  border: 0;
+  border-radius: 0;
+  font-size: 18px;
+  opacity: 0.5;
+  padding: 0;
+}
+.mb-launcher .mb-book-row:hover {
+  background: color-mix(in srgb, CanvasText 4%, Canvas);
+}
+.mb-launcher .mb-book-row button {
+  background: transparent;
+}
+.mb-launcher button:hover,
+.mb-launcher button:focus-visible {
+  opacity: 1;
+}
+.mb-launcher button:focus-visible,
+.mb-launcher input:focus-visible,
+.mb-launcher summary:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 3px;
+}
+.mb-resume {
+  display: block;
+  margin-top: 3px;
+  font-size: 11px;
+  opacity: 0.75;
+}
+.mb-launcher .mb-empty {
+  font-size: 13px;
+  margin: 0;
+  padding: 12px 0;
+  opacity: 0.55;
+}
+.mb-path-details {
+  border-top: 1px solid color-mix(in srgb, CanvasText 15%, transparent);
+  padding-top: 18px;
+  margin-top: 28px;
+}
+.mb-path-details summary {
+  cursor: pointer;
+  font-size: 12px;
+  opacity: 0.75;
+}
+.mb-launcher .mb-library-note {
+  font-size: 11px;
+  opacity: 0.5;
+  margin-top: 24px;
+}
+@media (max-width: 550px) {
+  .mb-launcher {
+    margin: 28px auto;
+    padding: 22px;
+  }
+  .mb-library-heading h1 {
+    font-size: 22px;
+  }
+  .mb-app-mark {
+    width: 26px;
+    height: 26px;
+    margin-right: 8px;
+  }
+  .mb-library-back {
+    font-size: 11px !important;
+  }
+  .mb-launcher .mb-book-open {
+    padding: 11px 12px;
+  }
+}
+
+.mb-launcher button:hover:not(:disabled),
+.mb-switch-book:hover {
+  background: color-mix(in srgb, CanvasText 6%, Canvas);
+}
+.mb-launcher .mb-choose-directory:hover:not(:disabled) {
+  background: color-mix(in srgb, CanvasText 10%, Canvas);
+}
+@media (pointer: coarse) {
+  .mb-launcher button,
+  .mb-switch-book {
+    min-height: 36px;
+  }
+  .mb-launcher .mb-forget-book {
+    flex-basis: 36px;
+  }
+}

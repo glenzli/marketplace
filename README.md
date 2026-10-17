@@ -9,6 +9,7 @@ codex plugin marketplace add glenzli/marketplace --ref main
 codex plugin add dev-mesh@glenzli-marketplace
 codex plugin add dev-skeleton@glenzli-marketplace
 codex plugin add math-workspace@glenzli-marketplace
+codex plugin add markdown-book@glenzli-marketplace
 ```
 
 The first command registers this plugin collection once. Install or update each plugin
@@ -27,6 +28,26 @@ See the [workflow guide and current screenshots](https://github.com/glenzli/math
 and [project setup](https://github.com/glenzli/math-workspace/blob/main/docs/install.md).
 
 ![Math Workspace Reader](https://raw.githubusercontent.com/glenzli/math-workspace/main/media/readme/banner.jpg)
+
+## Markdown Book
+
+[Markdown Book](https://github.com/glenzli/markdown-book) reads ordinary Markdown
+books with local media, KaTeX math, and optional interactive components. The MIT
+plugin includes the shared Reader, builder, format specification, and
+`open-markdown-book` / `write-markdown-book` skills. No global CLI or project-local
+npm install is needed; Node.js 22+ must be available to the host.
+
+The interface supports Chinese and English, with automatic or manual language and
+light/dark appearance. Book text and author-owned demos retain their original
+language. See the [bilingual README](https://github.com/glenzli/markdown-book#readme),
+[format](https://github.com/glenzli/markdown-book/blob/main/docs/format-v1.en.md),
+and [authoring guide](https://github.com/glenzli/markdown-book/blob/main/docs/authoring.md).
+Reload the plugin or restart the host after an update so existing panels use the
+new runtime.
+
+Markdown Book 提供普通 Markdown 书籍的阅读、校验、静态构建和互动演示，包含
+中英界面、自动/手动主题及写作 skill。工具采用 MIT，教材与素材保留各自许可。
+通过上方统一来源安装；更新后重新加载插件或重启宿主即可使用新版本。
 
 ## PCP connection
 
