@@ -11,9 +11,10 @@ and failure policy.
 
 ## Orient
 
-Use the nearest `SKELETON.md` for stable boundaries and navigation, falling back to
-`DEV_SKELETON.md` in legacy repositories. Reuse orientation already read in this task unless it
-changed or the work enters a new subsystem. Verify implementation facts in the relevant source.
+Use the nearest `SKELETON.md`, falling back to legacy `DEV_SKELETON.md`. If neither exists, follow
+the repository's declared orientation entry, such as `AGENTS.md` and its design record or architecture
+map. Reuse unchanged orientation already read unless entering a new subsystem. Verify implementation
+facts in the relevant source.
 
 ## Judge the Boundary
 
@@ -39,7 +40,7 @@ changed or the work enters a new subsystem. Verify implementation facts in the r
   Let implementations consume direct dependencies instead of an umbrella or lexical prelude.
 - Inspect call sites before promoting shared validation, conversion, serialization, or policy;
   establish one canonical owner rather than spreading duplicate implementations.
-- Remove obsolete implementations and navigation edges owned by the change. Update `SKELETON.md`
+- Remove obsolete implementations and navigation edges owned by the change. Update existing orientation
   only when a stable responsibility or route changes; a short responsibility description is enough.
   Add a nested skeleton only when existing source entries cannot make a large subsystem navigable.
 
@@ -64,6 +65,8 @@ changed or the work enters a new subsystem. Verify implementation facts in the r
   localization, or packaged UI ownership.
 - [native-cross-language.md](references/native-cross-language.md): changing ABI, FFI mappings,
   translation-unit or embedded-language ownership, generated bindings, or build registration.
+- [durable-state-and-handoffs.md](references/durable-state-and-handoffs.md): changing durable mutation
+  authority, external handoffs, publication, or recovery.
 - [large-payload-and-acceleration.md](references/large-payload-and-acceleration.md): changing buffer
   lifetime, cache identity, resource admission, execution paths, or preview geometry.
 - [test-topology-and-migration.md](references/test-topology-and-migration.md): reorganizing mixed

@@ -1,14 +1,15 @@
 ---
 name: skeleton-refresh
-description: Update existing skeletons when durable intent, source authority, ownership, navigation, constraints, or review priorities change; also migrate legacy DEV_SKELETON.md. Skip first-time initialization and routine implementation edits.
+description: Update existing repository orientation when durable intent, source authority, ownership, navigation, constraints, or review priorities change; also migrate legacy DEV_SKELETON.md. Skip first-time initialization and routine implementation edits.
 ---
 
 # Skeleton Refresh
 
-Update only durable orientation.
+Update only durable orientation, preserving a design record's separate purpose.
 
-If no canonical or legacy skeleton files exist, use `skeleton-init` rather than inventing an update
-target.
+Prefer `SKELETON.md`, otherwise legacy `DEV_SKELETON.md` or the repository's declared orientation
+entry. If none exists, report the gap; use `skeleton-init` when adoption is in scope. Do not create
+a competing map just to match a filename.
 
 ## Refresh For
 
@@ -23,16 +24,16 @@ Skip routine refactors, renamed helpers, internal implementation movement, and t
 stable owner and navigation path did not change.
 If only current implementation details changed, leave skeletons unchanged.
 
-1. Prefer `SKELETON.md`. If only `DEV_SKELETON.md` exists and modernization is in scope, migrate its
-   durable content and remove the legacy file rather than maintaining both indefinitely.
+1. Migrate legacy `DEV_SKELETON.md` only when modernization is in scope, removing the superseded
+   copy rather than maintaining both indefinitely.
 2. Inspect the source-of-truth files relevant to the claimed change.
-3. Remove stale detail before adding new detail.
-4. Keep semantic maps bounded: stable entries and short responsibility descriptions, not implementation
-   inventories. Omit or merge sections without distinct project information.
+3. Remove stale detail in the affected guidance before adding new detail.
+4. When a stable owner or route changes, update its map entry or add one concise route. Keep current
+   feature status, execution flows, and version constants in their maintained source.
 5. Add a nested `SKELETON.md` only when a large subsystem cannot be navigated locally in one or two hops.
-6. Keep the result source-first and compact enough to remain useful.
+6. Keep the result compact; omit or merge sections without distinct project information.
 7. Mark uncertainty instead of hard-coding guesses.
 
 ## Finish Check
 
-Prefer a smaller skeleton that points to source over a larger skeleton that competes with source.
+Read the result as a whole: it should route to source without accumulating an implementation history.
