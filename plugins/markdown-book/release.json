@@ -1,11 +1,11 @@
 {
-  "version": "0.7.0",
-  "sourceRevision": "43e13d7e34a5d8351197d282873292bce24763a9",
+  "version": "0.7.1",
+  "sourceRevision": "1903adcba3dd314a96c2be720fa9a335fd2b7e18",
   "sourceDirty": false,
-  "treeSha256": "f1bf29ff689d8f4618fc0615c0f0cfc8288d7c1808fe45937c1dbe633494fecd",
+  "treeSha256": "34c92913407928fef0b85dcc60a289c35ea7a0d9363807bd0f4383b50744fa4e",
   "files": {
     ".codex-plugin/plugin.json": {
-      "sha256": "ad2665df4f44a45fa1f12849b692677524e833b1065fa45576aecee8e358f2a2",
+      "sha256": "deddb7c4466993b29381be6a13bf01c464ae48134b97240f43718e3ed3360cf3",
       "executable": false
     },
     ".mcp.json": {
@@ -17,7 +17,7 @@
       "executable": false
     },
     "README.md": {
-      "sha256": "e557caba2ce2ab14e7b94402454bab61dcf79302cb7fb1ab93d934e50960158d",
+      "sha256": "2e701c6b913d63f26d162c6efe99aeb1803e5a5c6928dc7f8497f91696529a19",
       "executable": false
     },
     "assets/icon-dark.png": {
@@ -27217,11 +27217,11 @@
       "executable": false
     },
     "runtime/package-lock.json": {
-      "sha256": "a905f292f1c79c2ae1063382373f1b7ae553b3e817e6859f91b8174ad0454d6d",
+      "sha256": "760d2ef15a59063bcdbfb6c77cce81d14c5cf9e833d103b428eec5a8cea0fe6b",
       "executable": false
     },
     "runtime/package.json": {
-      "sha256": "746f5f7866a691a58c760c7f53d0afb79d2adc3e31cc8f1518684bb647c616f6",
+      "sha256": "04784c5c45e36e4fd86b6b57e978f2f4ef6dcffcb9dc449758b0a26b08845e0c",
       "executable": false
     },
     "runtime/reader/app.css": {
@@ -27229,7 +27229,7 @@
       "executable": false
     },
     "runtime/reader/app.js": {
-      "sha256": "409ffbb0514c0e8459d1ab3c7144bd9503a069312960a225ce4e6e55f72110da",
+      "sha256": "355e375484c5606f07f8c354cb034dd0e086425a38718c412bfbcd5a1f1e49a9",
       "executable": false
     },
     "runtime/reader/experiment-data.js": {
@@ -27285,7 +27285,7 @@
       "executable": false
     },
     "runtime/reader/style.css": {
-      "sha256": "bcff9622f8782b986ca06cbc6b7a7f65f82145f79285cbf0ba31b59a20716346",
+      "sha256": "17c200f1097279025d2dc2ff529b8411754cfde38abc0bd172dfe212d5c7eccf",
       "executable": false
     },
     "runtime/reader/three.js": {
@@ -27301,7 +27301,7 @@
       "executable": false
     },
     "runtime/src/build.js": {
-      "sha256": "f2242c54c5b87260ee172a873bee801a012ff6c5671cac43a1458d9c99f2ce37",
+      "sha256": "f443d772e8d304629e3a82006cd22053a571faf8eb63d2ba55534d559b4b2378",
       "executable": false
     },
     "runtime/src/bundler.js": {

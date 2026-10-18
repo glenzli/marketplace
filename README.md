@@ -38,7 +38,7 @@ plugin includes the shared Reader, builder, format specification, and
 npm install is needed; Node.js 22+ must be available to the host.
 
 The interface supports Chinese and English, with automatic or manual language and
-light/dark appearance. Book text and author-owned demos retain their original
+light/dark appearance with neutral grayscale surfaces. Book text and author-owned demos retain their original
 language. See the [bilingual README](https://github.com/glenzli/markdown-book#readme),
 [format](https://github.com/glenzli/markdown-book/blob/main/docs/format-v1.en.md),
 and [authoring guide](https://github.com/glenzli/markdown-book/blob/main/docs/authoring.md).
@@ -49,7 +49,7 @@ Reload the plugin or restart the host after an update so existing panels use the
 new runtime.
 
 Markdown Book 提供普通 Markdown 书籍的阅读、校验、静态构建和互动演示，包含
-中英界面、自动/手动主题及写作 skill。支持组件恢复本机实验状态，并把经读者确认的
+中英界面、黑白灰底色、自动/手动明暗及写作 skill。支持组件恢复本机实验状态，并把经读者确认的
 参数与读数放入讨论草稿。工具采用 MIT，教材与素材保留各自许可。
 通过上方统一来源安装；更新后重新加载插件或重启宿主即可使用新版本。
 
