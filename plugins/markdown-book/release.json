@@ -1,11 +1,11 @@
 {
-  "version": "0.7.2",
-  "sourceRevision": "d3b52a116549b04941dc1130fed10ecbaa4573c5",
+  "version": "0.7.5",
+  "sourceRevision": "9387f7cdcdaa428e438a8745dfd04a3cbc72da0e",
   "sourceDirty": false,
-  "treeSha256": "24649e113c16a9e9d7a2718b38d79696c913d74bd6e7af090b0e7f728888aad1",
+  "treeSha256": "2691ebd9cb4ec7c44518ae5aafe18a0d7b5e2c669d446339ec8ebbbf63d7fe85",
   "files": {
     ".codex-plugin/plugin.json": {
-      "sha256": "c063ea9a119cff6a6e0d5a32c3cf2524dc80048d085a4c952ce956efc55b571a",
+      "sha256": "296cfa180afa97b94320b8712d47beeea1574a009c9bfde295e5b482e4c2e350",
       "executable": false
     },
     ".mcp.json": {
@@ -17,7 +17,7 @@
       "executable": false
     },
     "README.md": {
-      "sha256": "2bef3247b196c3cf6aeb27aee59103715bfb0fc53d50b08fe4c95525bc4b65da",
+      "sha256": "25804e7925f5f8c98f74be68a25a4d2f3bd202fc57b8986d3fcf01dbac6c7352",
       "executable": false
     },
     "assets/icon-dark.png": {
@@ -57,7 +57,7 @@
       "executable": false
     },
     "runtime/docs/releasing.md": {
-      "sha256": "a61ad6e64ab1f5017cd5e0f529812f2952ef1aef8bf32378ad12d238592c9d12",
+      "sha256": "e4dc162592247741ba44f071078c1ba60cd4063fb8ebb9992bbcccebf44ae2e4",
       "executable": false
     },
     "runtime/docs/three-components.md": {
@@ -27217,11 +27217,11 @@
       "executable": false
     },
     "runtime/package-lock.json": {
-      "sha256": "96089931b5137df0da7fc000eb8120c4921006c2311b5c34342133b5dd051fff",
+      "sha256": "57505d65fd823fbff6517cc1e0a6d4474acef33a7196b923dfc67a684bf3a1c8",
       "executable": false
     },
     "runtime/package.json": {
-      "sha256": "738d3cbff8be3fe6605f63062212cf450b798ddd8a8165484847bedc3a2c6d3e",
+      "sha256": "72c7713e22654179b748753c24d1ff5d614cdd20ce66bd644be97e3a4b570171",
       "executable": false
     },
     "runtime/reader/app.css": {
@@ -27229,7 +27229,7 @@
       "executable": false
     },
     "runtime/reader/app.js": {
-      "sha256": "754f8275329accae4455fa3e802b3f9dde94a3b66d071f7a94aef3459fd3636a",
+      "sha256": "ec1fcb1df023db0620f86d39137aec9e71d287e8399eb882e004c1c48f7f3499",
       "executable": false
     },
     "runtime/reader/experiment-data.js": {
@@ -27249,7 +27249,7 @@
       "executable": false
     },
     "runtime/reader/navigation.js": {
-      "sha256": "0af51dd46bd39f4610a456f3946fd699ecbe5eef58f686cf9591c12d688a5719",
+      "sha256": "bbccbe5c3f3d2eaece0db10dc7d307f69744a096d30aa1aa9ccb0cfc35479614",
       "executable": false
     },
     "runtime/reader/preferences-data.js": {
@@ -27261,11 +27261,11 @@
       "executable": false
     },
     "runtime/reader/preferences.js": {
-      "sha256": "22d495787075b96a004f1acb304815ad9d738fb15397ff4cfa81cc1d01b79b75",
+      "sha256": "5a588216d22d93aa7c04f25fb1e97f2e97a789c7fc21f7a4af70bf6673bc458a",
       "executable": false
     },
     "runtime/reader/reader.js": {
-      "sha256": "0c0ef0226c0b8a80063b2d292105b0988a6d6b37a35e5a3e7fc8c323e09786e9",
+      "sha256": "fab1649082ea7d45fa1daa388a34b6a65a072b5bc3987d34c0353701191e13b7",
       "executable": false
     },
     "runtime/reader/reference-data.js": {
@@ -27285,7 +27285,7 @@
       "executable": false
     },
     "runtime/reader/style.css": {
-      "sha256": "17c200f1097279025d2dc2ff529b8411754cfde38abc0bd172dfe212d5c7eccf",
+      "sha256": "1f3cb9f6c018dda48a135f1428b575c3178f21561e979c11116ab9e9a34c06ef",
       "executable": false
     },
     "runtime/reader/three.js": {
@@ -27301,7 +27301,7 @@
       "executable": false
     },
     "runtime/src/build.js": {
-      "sha256": "a642697b0af5100ebfdfd1aba917b3b70d0ff7fb66b9a85964c69261493e4a29",
+      "sha256": "9c9e027ff5dce9ff2cf9413e7b27f11758e7438867672014ee4ec79f6326a3a9",
       "executable": false
     },
     "runtime/src/bundler.js": {
@@ -27329,11 +27329,11 @@
       "executable": false
     },
     "runtime/src/mcp.js": {
-      "sha256": "bdbbc9a22d4a69abe7b3dc4e52b3326ddac0518be9852ba9cf21aebdd9e8df87",
+      "sha256": "4258cc3dc628f44e02c34abb29c11eeb17dea763ec0afe411a31153434189343",
       "executable": false
     },
     "runtime/src/reader-app.js": {
-      "sha256": "30b494d41013487ef79851f34e1d328607720f880e5a52313484f947d0c142fc",
+      "sha256": "5aa94a07192683d412dbc9b5a1ff2753d335215b32a014d79b7286a95aff31f3",
       "executable": false
     },
     "runtime/src/reader-gateway.js": {

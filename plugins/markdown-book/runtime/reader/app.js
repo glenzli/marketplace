@@ -1,6 +1,8 @@
 import { createBrowserPreferences } from "./preferences.js";
+import { prepareNavigation } from "./navigation.js";
 import { renderLibrary } from "./library.js";
 import { canDraftDiscussion, discussionRequest } from "./reference-data.js";
+const appInfo = { name: "markdown-book", version: "0.7.5" };
 const appMark = document.querySelector(".mb-app-mark")?.outerHTML ?? "";
 // MCP Apps host bridge. Navigation stays inside this panel, including opaque origins.
 const pending = new Map();
@@ -311,6 +313,7 @@ async function showLibrary(root = libraryRoot) {
   ++pollGeneration;
   wakeWatch?.();
   ++pageGeneration;
+  document.dispatchEvent(new Event("mb:save-navigation"));
   document.dispatchEvent(new Event("mb:save-experiments"));
   if (book) savePending(book);
   disposePage();
@@ -353,6 +356,60 @@ async function showLibrary(root = libraryRoot) {
   });
   window.scrollTo(0, 0);
 }
+function replacePageBody(body, retainShell) {
+  const sidebar = document.getElementById("book-sidebar");
+  if (!retainShell || !sidebar || !document.querySelector(".reader-layout")) {
+    document.body.innerHTML = body;
+    return;
+  }
+  const template = document.createElement("template");
+  template.innerHTML = body;
+  const next = template.content;
+  const nextSidebar = next?.querySelector("#book-sidebar");
+  const directory = sidebar.querySelector("#book-chapters");
+  const nextDirectory = nextSidebar?.querySelector("#book-chapters");
+  const replacements = [".topbar", "#main", ".on-this-page", "#mb-state"].map(
+    (selector) => [
+      document.querySelector(selector),
+      next?.querySelector(selector),
+    ],
+  );
+  if (
+    !next?.querySelector(".reader-layout") ||
+    !directory ||
+    !nextDirectory ||
+    replacements.some(([current, replacement]) => !current || !replacement)
+  ) {
+    document.body.innerHTML = body;
+    return;
+  }
+  const links = [...directory.querySelectorAll("a")];
+  const nextLinks = [...nextDirectory.querySelectorAll("a")];
+  const sameDirectory =
+    links.length === nextLinks.length &&
+    links.every(
+      (link, index) =>
+        link.getAttribute("href") === nextLinks[index].getAttribute("href") &&
+        link.textContent === nextLinks[index].textContent,
+    );
+  if (sameDirectory)
+    links.forEach((link, index) => {
+      const current = nextLinks[index].getAttribute("aria-current");
+      if (current) link.setAttribute("aria-current", current);
+      else link.removeAttribute("aria-current");
+    });
+  else directory.replaceChildren(...nextDirectory.childNodes);
+  for (const selector of [".book-name", ".sidebar-label", ".sidebar-footer"]) {
+    const current = sidebar.querySelector(selector),
+      replacement = nextSidebar.querySelector(selector);
+    if (current && replacement) current.replaceWith(replacement);
+  }
+  // Keep the scrolling element and focused directory links attached. Only the
+  // chapter, outline, header and state belong to the incoming page lifecycle.
+  for (const [current, replacement] of replacements)
+    current.replaceWith(replacement);
+}
+
 async function page(
   chapterId = null,
   anchor = "",
@@ -361,6 +418,7 @@ async function page(
   keepUnchanged = false,
 ) {
   let generation = keepUnchanged ? pageGeneration : ++pageGeneration;
+  document.dispatchEvent(new Event("mb:save-navigation"));
   document.dispatchEvent(new Event("mb:save-experiments"));
   if (book) savePending(book);
   await experimentWrites;
@@ -418,7 +476,12 @@ async function page(
     if (result.stylesheetId) style.dataset.assetId = result.stylesheetId;
     else delete style.dataset.assetId;
   }
-  document.body.innerHTML = result.body;
+  replacePageBody(result.body, renderedPage?.book === book);
+  prepareNavigation({
+    preference: saved.readerLayout,
+    root: book.root,
+    state: { bookId: result.bookId, chapterId },
+  });
   document.title = result.title;
   const switcher = document.createElement("button");
   switcher.type = "button";
@@ -450,6 +513,7 @@ async function page(
   };
   globalThis.__markdownBookHost = Object.freeze({
     root: pageBook.root,
+    appVersion: appInfo.version,
     preferences,
     getLayout: () => saved.readerLayout,
     getReadingPosition: () => resumePosition,
@@ -535,6 +599,7 @@ async function open(root, chapterId, resumeScroll = 0, resumePosition = null) {
   wakeWatch?.();
   ++pageGeneration;
   persist();
+  document.dispatchEvent(new Event("mb:save-navigation"));
   document.dispatchEvent(new Event("mb:save-experiments"));
   if (book) savePending(book);
   disposePage();
@@ -658,8 +723,15 @@ document.addEventListener(
       event.preventDefault();
       const [pathname, anchor = ""] = href.split("#");
       const id = pathname.split("/").filter(Boolean)[0];
-      if (!id || book?.chapters.some((chapter) => chapter.id === id))
-        void page(id ?? null, anchor).catch(showError);
+      // A live rebuild can add chapters after reader_view was opened. The
+      // rendered directory is current; the backend validates the requested ID.
+      const inDirectory = [
+        ...document.querySelectorAll("#book-chapters a[href]"),
+      ].some(
+        (entry) =>
+          entry.getAttribute("href").split("/").filter(Boolean)[0] === id,
+      );
+      if (!id || inDirectory) void page(id ?? null, anchor).catch(showError);
       return;
     }
     if (/^(https?:|mailto:|tel:)/i.test(href)) {
@@ -696,6 +768,7 @@ addEventListener("message", (event) => {
   } else if (message.method === "ui/notifications/host-context-changed") {
     preferences.updateHost(message.params ?? {});
   } else if (message.method === "ui/resource-teardown") {
+    document.dispatchEvent(new Event("mb:save-navigation"));
     document.dispatchEvent(new Event("mb:save-experiments"));
     persist();
     if (book) savePending(book);
@@ -745,7 +818,7 @@ function selectSeed(seed) {
 async function initialize() {
   if (!hostInitialized) {
     const initialized = await request("ui/initialize", {
-      appInfo: { name: "markdown-book", version: "0.7.2" },
+      appInfo,
       appCapabilities: {},
       protocolVersion: "2026-01-26",
     });
