@@ -45,12 +45,15 @@ and [authoring guide](https://github.com/glenzli/markdown-book/blob/main/docs/au
 Optional experiment sessions restore parameters, tabs, and paused playback locally.
 Discussion drafts can include a reviewed snapshot of parameters, readings, and model
 conditions. See the [session contract](https://github.com/glenzli/markdown-book/blob/main/docs/experiment-sessions.md).
-Reload the plugin or restart the host after an update so existing panels use the
-new runtime.
+Native panels rebuild a lost backend session while retaining the current chapter,
+reading position and unconfirmed experiment changes. Reopening a panel restores
+the experiment in place, with playback paused. Reload the plugin or restart the host
+after an update so existing panels use the new runtime.
 
 Markdown Book 提供普通 Markdown 书籍的阅读、校验、静态构建和互动演示，包含
 中英界面、黑白灰底色、自动/手动明暗及写作 skill。支持组件恢复本机实验状态，并把经读者确认的
 参数与读数放入讨论草稿。工具采用 MIT，教材与素材保留各自许可。
+后台会话失效后可在原面板重建连接，保留章节、阅读位置和待保存参数；重新打开时回到原实验，播放保持暂停。
 通过上方统一来源安装；更新后重新加载插件或重启宿主即可使用新版本。
 
 ## PCP connection
