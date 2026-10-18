@@ -1,11 +1,11 @@
 {
-  "version": "0.6.2",
-  "sourceRevision": "a49fc127a6d3478ec62b7c1a6d0c9734c32bc746",
+  "version": "0.6.3",
+  "sourceRevision": "9e0c9eddc49d7e98a1d67b087f18888646a9c948",
   "sourceDirty": false,
-  "treeSha256": "7382e173352628ce738f122d472fb3953e8e519de205b37b22367c68329604c4",
+  "treeSha256": "ddeed035145c4331736b8602efe5893a425b62a3acd4cd15b7ca812b002840c3",
   "files": {
     ".codex-plugin/plugin.json": {
-      "sha256": "7640d2c7e6daa0b941668364faef36c2cdfdefbb55d57f3b2c80f5943f22771e",
+      "sha256": "e9b6a960b06bfcd5c7aa5cf629b4728e19efcf4b79a8efd8c84fa1c8d61f88bd",
       "executable": false
     },
     ".mcp.json": {
@@ -17,7 +17,7 @@
       "executable": false
     },
     "README.md": {
-      "sha256": "87fb75a21f1ea8a8da902c3e7af476a93edfba86782d37684ab913faae973c6a",
+      "sha256": "463b7fdf0d9b5882b4c3f147a34dcdfcb826901ef89cf0f1a6b598bdc3cced87",
       "executable": false
     },
     "assets/icon-dark.png": {
@@ -27213,11 +27213,11 @@
       "executable": false
     },
     "runtime/package-lock.json": {
-      "sha256": "831e41ca5f0e043f78d3a8d19cd3ded50a96aea7f05a5c715067f3003b561814",
+      "sha256": "5c1b5f69ad3f3eb30cd7521bbcad9015889ecf6ff01fa0b293e51f7bbaa7a7e2",
       "executable": false
     },
     "runtime/package.json": {
-      "sha256": "8e5f4d34998f4e2483a350c485d1b35d662b9e155cb1d83f8f834f3c135c598a",
+      "sha256": "07745c2e74ffb7312e2d779d77205945d9d0d54ee1625b8090212ad972512ee5",
       "executable": false
     },
     "runtime/reader/app.css": {
@@ -27225,7 +27225,7 @@
       "executable": false
     },
     "runtime/reader/app.js": {
-      "sha256": "2daa415a8bfa59b8fd7ac235eab969737a9ca18c469ef1139339c4c9fec37988",
+      "sha256": "779e59b63c94ae6590ed9c26be635926be9cee31a24e0bd47d7eb846f814a323",
       "executable": false
     },
     "runtime/reader/i18n.js": {
@@ -27289,7 +27289,7 @@
       "executable": false
     },
     "runtime/src/build.js": {
-      "sha256": "da18511119a8222680bcb0b171bf778c6ac420583598f99c0091c0ac0f849bf5",
+      "sha256": "0567f3eed92c467702818e705a7061ef416d64233e123d18f6d86eb82752552f",
       "executable": false
     },
     "runtime/src/bundler.js": {
@@ -27317,7 +27317,7 @@
       "executable": false
     },
     "runtime/src/mcp.js": {
-      "sha256": "297d0d2ebc7e60d988012bbf53dcbcc321490ca2c045c879b3e06f1315d77cab",
+      "sha256": "060a097d0c1bc3c7060182b965ea5f05229d6c1e761e31d11096ad7d82b1f767",
       "executable": false
     },
     "runtime/src/reader-app.js": {
@@ -27325,7 +27325,7 @@
       "executable": false
     },
     "runtime/src/reader-gateway.js": {
-      "sha256": "cc20fdb00d6b76d717b6d261bb50ae233d93b2a9788fbe9ca2aebe76168c0e31",
+      "sha256": "a7bcfc2e49d9da5531f3b281f9814ec6c31c3ed1d18930e029d0d7cd8100256c",
       "executable": false
     },
     "runtime/src/reader-library.js": {
