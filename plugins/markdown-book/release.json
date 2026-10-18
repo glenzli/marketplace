@@ -1,11 +1,11 @@
 {
-  "version": "0.6.1",
-  "sourceRevision": "e47e580d9d6807ad7468fca823b6bb0fcb858c41",
+  "version": "0.6.2",
+  "sourceRevision": "a49fc127a6d3478ec62b7c1a6d0c9734c32bc746",
   "sourceDirty": false,
-  "treeSha256": "e418e1921cf1ac2f93114457fec94992e332429eb315f1d83142012673283ea6",
+  "treeSha256": "7382e173352628ce738f122d472fb3953e8e519de205b37b22367c68329604c4",
   "files": {
     ".codex-plugin/plugin.json": {
-      "sha256": "35e3958f885fcf4f0569324d7ac866ed6ddf6bd8c747226f1360a7a11e0b5c21",
+      "sha256": "7640d2c7e6daa0b941668364faef36c2cdfdefbb55d57f3b2c80f5943f22771e",
       "executable": false
     },
     ".mcp.json": {
@@ -17,7 +17,7 @@
       "executable": false
     },
     "README.md": {
-      "sha256": "82e96e2360961866eab9d2b719ef21dd302156404c38d215108d8e1489c44bad",
+      "sha256": "87fb75a21f1ea8a8da902c3e7af476a93edfba86782d37684ab913faae973c6a",
       "executable": false
     },
     "assets/icon-dark.png": {
@@ -27213,11 +27213,11 @@
       "executable": false
     },
     "runtime/package-lock.json": {
-      "sha256": "4ac0d262a292f77c08491664414e98abe76271e446564da54a78079429f931d0",
+      "sha256": "831e41ca5f0e043f78d3a8d19cd3ded50a96aea7f05a5c715067f3003b561814",
       "executable": false
     },
     "runtime/package.json": {
-      "sha256": "94d0bf2a71167d3b6881c30e2534e86693c46e7d3f9d7d920781cdb53ff60411",
+      "sha256": "8e5f4d34998f4e2483a350c485d1b35d662b9e155cb1d83f8f834f3c135c598a",
       "executable": false
     },
     "runtime/reader/app.css": {
@@ -27225,11 +27225,11 @@
       "executable": false
     },
     "runtime/reader/app.js": {
-      "sha256": "317dca35963c963e220a5217123a2ee5d4aa98486104475b3be00792d669d2be",
+      "sha256": "2daa415a8bfa59b8fd7ac235eab969737a9ca18c469ef1139339c4c9fec37988",
       "executable": false
     },
     "runtime/reader/i18n.js": {
-      "sha256": "056a89c0fc6db36a7699225af465253fa946b13428cb4dcfe5bd43f68d6c4dec",
+      "sha256": "8b0d4de09127534d2cbe5662f455c3400b8c373ed8bccb73998295d4c2f8f4b6",
       "executable": false
     },
     "runtime/reader/library.js": {
@@ -27289,7 +27289,7 @@
       "executable": false
     },
     "runtime/src/build.js": {
-      "sha256": "bb1f684b5e3e5241cbeffc2c9ebd8f2b658d49dc8428a6c7ea64c60220fecb23",
+      "sha256": "da18511119a8222680bcb0b171bf778c6ac420583598f99c0091c0ac0f849bf5",
       "executable": false
     },
     "runtime/src/bundler.js": {
