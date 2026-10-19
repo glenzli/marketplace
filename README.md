@@ -49,15 +49,19 @@ Native panels rebuild a lost backend session while retaining the current chapter
 reading position and unconfirmed experiment changes. Reopening a panel restores
 the experiment in place, with playback paused. Reload the plugin or restart the host
 after an update so existing panels use the new runtime.
-The current snapshot is **0.7.5**. Chapter changes retain the live directory and its
+The current snapshot is **0.8.0**. Chapter changes retain the live directory and its
 scroll position, and newly added chapters open from the refreshed catalog. Reading
 settings show the loaded panel version so an old panel can be identified.
+Exercises and answers can link across chapters in both directions, with keyboard
+focus and brief landing feedback. These links also work in static output without
+JavaScript; generated labels follow the reader language.
 
 Markdown Book 提供普通 Markdown 书籍的阅读、校验、静态构建和互动演示，包含
 中英界面、黑白灰底色、自动/手动明暗及写作 skill。支持组件恢复本机实验状态，并把经读者确认的
 参数与读数放入讨论草稿。工具采用 MIT，教材与素材保留各自许可。
 后台会话失效后可在原面板重建连接，保留章节、阅读位置和待保存参数；重新打开时回到原实验，播放保持暂停。
-当前快照为 **0.7.5**，切章保留目录节点与滚动位置，书稿新增章节后可从更新目录进入；阅读设置显示实际面板版本。通过上方统一来源安装，更新后重新加载插件或重启宿主，再核对面板版本。
+习题与答案支持跨章节双向跳转，并有焦点定位和短暂标记；生成的静态网页关闭JavaScript也能使用链接。
+当前快照为 **0.8.0**，切章保留目录节点与滚动位置，书稿新增章节后可从更新目录进入；阅读设置显示实际面板版本。通过上方统一来源安装，更新后重新加载插件或重启宿主，再核对面板版本。
 
 ## PCP connection
 
