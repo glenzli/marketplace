@@ -3,7 +3,7 @@
 const fs$5 = require("node:fs/promises");
 const path$1 = require("node:path");
 const crypto$1 = require("node:crypto");
-const publication = require("./index-n3ezPYOc.js");
+const publication = require("./index-BUdhU6k-.js");
 const oetConverter = require("./oet-converter-BK6U8GSY.js");
 const process$1 = require("node:process");
 function _interopNamespaceDefault(e) {
@@ -5346,28 +5346,52 @@ function isImageParagraph(tokens, index) {
   const children = inline2.children;
   return children?.length === 1 && (children[0].type === "image" || children[0].type === "html_inline" && children[0].content.startsWith('<span class="reader-interactive-figure"'));
 }
+function figureCaptionPairs(tokens, captions) {
+  const usedImages = /* @__PURE__ */ new Set();
+  return [...captions].flatMap(([captionIndex, caption]) => {
+    const imageIndex = [captionIndex - 3, captionIndex + 3].find((index) => !usedImages.has(index) && isImageParagraph(tokens, index));
+    if (imageIndex === void 0) return [];
+    usedImages.add(imageIndex);
+    return [{
+      imageIndex,
+      captionIndex,
+      caption,
+      start: Math.min(imageIndex, captionIndex),
+      end: Math.max(imageIndex, captionIndex) + 3
+    }];
+  });
+}
 const markdown = new MarkdownIt({ html: false });
 const latex = (source) => "```{=latex}\n" + source + "\n```";
 function figureMarkdownForPdf(source) {
   const lines2 = source.split("\n"), tokens = markdown.parse(source, {});
   const changes = [];
-  for (let i = 0; i < tokens.length - 5; i++) {
-    if (!isImageParagraph(tokens, i)) continue;
-    const [captionOpen, captionInline, captionClose] = tokens.slice(i + 3, i + 6);
+  const captions = /* @__PURE__ */ new Map();
+  for (let i = 0; i < tokens.length - 2; i++) {
+    const [captionOpen, captionInline, captionClose] = tokens.slice(i, i + 3);
     if (captionOpen.type !== "paragraph_open" || captionOpen.level !== 0 || captionInline.type !== "inline" || captionClose.type !== "paragraph_close") continue;
     const caption = splitFigureCaption(captionInline.content);
-    if (!caption || !tokens[i].map || !tokens[i + 1].map || !captionInline.map) continue;
-    const image2 = lines2.slice(tokens[i].map[0], tokens[i + 1].map[1]).join("\n");
+    if (caption) captions.set(i, caption);
+  }
+  for (const pair of figureCaptionPairs(tokens, captions)) {
+    const { imageIndex, captionIndex, caption } = pair;
+    const imageMap = tokens[imageIndex + 1].map, captionMap = tokens[captionIndex + 1].map;
+    if (!imageMap || !captionMap) continue;
+    const image2 = lines2.slice(imageMap[0], imageMap[1]).join("\n");
     const title2 = caption.title.startsWith("**") ? caption.title : "**" + caption.title + "**";
-    changes.push({ start: tokens[i].map[0], end: captionInline.map[1], text: [
-      latex("\\par\\addvspace{0.8\\baselineskip}\n\\noindent\\begin{minipage}{\\linewidth}\n\\centering"),
-      image2,
-      latex("\\par\\vspace{0.45\\baselineskip}\n\\begin{minipage}{0.92\\linewidth}\n\\small\\color[gray]{0.25}\\centering"),
+    const captionBlock = [
+      latex("\\begin{minipage}{0.92\\linewidth}\n\\small\\color[gray]{0.25}\\centering"),
       title2,
       ...caption.description ? [latex("\\par\\vspace{0.3\\baselineskip}\\raggedright"), caption.description] : [],
-      latex("\\par\\end{minipage}\n\\end{minipage}\\par\\addvspace{1.2\\baselineskip}")
+      latex("\\par\\end{minipage}")
+    ];
+    const gap = latex("\\par\\vspace{0.45\\baselineskip}");
+    const contents = captionIndex < imageIndex ? [...captionBlock, gap, image2] : [image2, gap, ...captionBlock];
+    changes.push({ start: Math.min(imageMap[0], captionMap[0]), end: Math.max(imageMap[1], captionMap[1]), text: [
+      latex("\\par\\addvspace{0.8\\baselineskip}\n\\noindent\\begin{minipage}{\\linewidth}\n\\centering"),
+      ...contents,
+      latex("\\par\\end{minipage}\\par\\addvspace{1.2\\baselineskip}")
     ].join("\n\n") });
-    i += 5;
   }
   for (const change2 of changes.reverse()) lines2.splice(change2.start, change2.end - change2.start, change2.text);
   return lines2.join("\n");
@@ -34290,13 +34314,9 @@ async function finalize(paths, commandName = "finalize") {
   for (const filePath of targetFiles) {
     const content = await fs__namespace.readFile(filePath, "utf8");
     const lines2 = content.split(/\r?\n/);
-    let inFence = false;
+    const codeFence = new publication.MarkdownFence();
     for (const line of lines2) {
-      if (/^\s*(```|~~~)/.test(line)) {
-        inFence = !inFence;
-        continue;
-      }
-      if (inFence) continue;
+      if (codeFence.consume(line)) continue;
       const marker = publication.parseFormalMarkerLine(line);
       if (marker?.id && publication.TMP_ID_RE.test(marker.id)) {
         tmpDefs.push({ id: marker.id, file: relativePath(filePath) });
@@ -34460,13 +34480,9 @@ function rewriteMarkerId(line, mapping) {
 function rewriteFormalIds(content, mapping, { rewriteDefinitions }) {
   const lines2 = content.split(/\r?\n/);
   const eol = content.includes("\r\n") ? "\r\n" : "\n";
-  let inFence = false;
+  const codeFence = new publication.MarkdownFence();
   const updated = lines2.map((line) => {
-    if (/^\s*(```|~~~)/.test(line)) {
-      inFence = !inFence;
-      return line;
-    }
-    if (inFence) return line;
+    if (codeFence.consume(line)) return line;
     let next = rewriteDefinitions ? rewriteMarkerId(line, mapping) : line;
     next = rewriteInlineRefsOutsideCode(next, mapping);
     return next;
@@ -34477,14 +34493,10 @@ function rewritePageReferences(content, file) {
   const lines2 = content.split(/\r?\n/);
   const eol = content.includes("\r\n") ? "\r\n" : "\n";
   const pageRefRe = /(^|[^A-Za-z0-9_])@(chapter|page):([^\s<>"'`，。；;！？]+?\.md)(?:\.(title|full))?(?=$|[\s,，。；;:：.!！?？)\]}])/g;
-  let inFence = false;
+  const codeFence = new publication.MarkdownFence();
   let changed = false;
   const updated = lines2.map((line) => {
-    if (/^\s*(```|~~~)/.test(line)) {
-      inFence = !inFence;
-      return line;
-    }
-    if (inFence) return line;
+    if (codeFence.consume(line)) return line;
     return splitProtectedInlineSegments(line).map((part) => {
       if (part.kind !== "text") return part.text;
       pageRefRe.lastIndex = 0;
@@ -34602,14 +34614,10 @@ function rewriteMarkdownLinkTargetsForExport(segment, sourceFilePath, mode = "ro
 }
 function compileFormalMarkdownContent(content, sourceFilePath, state, options = {}) {
   const lines2 = String(content || "").split(/\r?\n/);
-  let inFence = false;
+  const codeFence = new publication.MarkdownFence();
   const linkTargetMode = options.linkTargetMode || "root";
   return lines2.map((line) => {
-    if (/^\s*(```|~~~)/.test(line)) {
-      inFence = !inFence;
-      return line;
-    }
-    if (inFence) return line;
+    if (codeFence.consume(line)) return line;
     const markerCompiled = compileFormalMarkerLine(staticFigureMarkdown(line), state);
     if (linkTargetMode !== "preserve" && /^\s*\[[^\]]+\]:\s*/.test(markerCompiled)) {
       return markerCompiled.replace(/^(\s*\[[^\]]+\]:\s*)(.+)$/, (_match, prefix, target) => `${prefix}${normalizeExportLinkTarget(target, sourceFilePath)}`);
@@ -34730,13 +34738,9 @@ function latexMetadataText(value) {
 }
 function frontMatterMarkdownWithSafeHeadings(content, includeHeadingsInToc) {
   const classes = includeHeadingsInToc ? "{.unnumbered}" : "{.unnumbered .unlisted}";
-  let fence2 = false;
+  const codeFence = new publication.MarkdownFence();
   return String(content || "").split(/\r?\n/).map((line) => {
-    if (/^\s*(```|~~~)/.test(line)) {
-      fence2 = !fence2;
-      return line;
-    }
-    if (fence2) return line;
+    if (codeFence.consume(line)) return line;
     return line.replace(/^(#{1,6}\s+)(.+?)\s*$/, (_match, prefix, title2) => {
       const attributes = /\s*\{([^}]*)\}\s*$/.exec(title2);
       if (attributes) {
@@ -35622,14 +35626,10 @@ function rewriteTextReferenceLine(line, pattern2, byAlias, file, lineNumber, rep
 function findAuditPageTitleHeadingLine(content) {
   const headings = [];
   const lines2 = String(content || "").split(/\r?\n/);
-  let inFence = false;
+  const codeFence = new publication.MarkdownFence();
   for (let index = 0; index < lines2.length; index++) {
     const line = lines2[index];
-    if (/^\s*(```|~~~)/.test(line)) {
-      inFence = !inFence;
-      continue;
-    }
-    if (inFence) continue;
+    if (codeFence.consume(line)) continue;
     const match2 = line.match(/^[ \t]{0,3}(#{1,6})[ \t]+(.+?)\s*$/);
     if (!match2) continue;
     const title2 = match2[2].replace(/[ \t]+#+[ \t]*$/, "").trim();
@@ -35670,14 +35670,10 @@ function rewriteTextReferences(content, file, pattern2, byAlias, options = {}) {
   const linkedReferences = [];
   const sectionHeadings = [];
   const pageTitleHeadingLine = findAuditPageTitleHeadingLine(content);
-  let inFence = false;
+  const codeFence = new publication.MarkdownFence();
   let changed = false;
   const updatedLines = lines2.map((line, index) => {
-    if (/^\s*(```|~~~)/.test(line)) {
-      inFence = !inFence;
-      return line;
-    }
-    if (inFence) return line;
+    if (codeFence.consume(line)) return line;
     if (options.auditStructure !== false) {
       collectSectionHeadingAudit(line, file, index + 1, sectionHeadings, pageTitleHeadingLine);
     }
@@ -35799,13 +35795,9 @@ function collectBareNumberCandidates(content, file) {
   const candidates = [];
   const lines2 = content.split(/\r?\n/);
   const numberRe = /(^|[^@#A-Za-z0-9_])(\(?[A-Z]?(?:\d+|[A-Z])(?:[.．]\d+)+\)?)(?![A-Za-z0-9_-]|[.．]\d)/g;
-  let inFence = false;
+  const codeFence = new publication.MarkdownFence();
   lines2.forEach((line, index) => {
-    if (/^\s*(```|~~~)/.test(line)) {
-      inFence = !inFence;
-      return;
-    }
-    if (inFence) return;
+    if (codeFence.consume(line)) return;
     for (const segment of splitAuditTextSegments(line)) {
       numberRe.lastIndex = 0;
       let match2;
@@ -35855,13 +35847,9 @@ function collectChapterReferenceCandidates(content, file, pages) {
   const candidates = [];
   const lines2 = content.split(/\r?\n/);
   const chapterRe = /(^|[^@#A-Za-z0-9_])((?:第\s*\d+\s*章)|(?:Chapter\s+\d+))(?![A-Za-z0-9_-])/gi;
-  let inFence = false;
+  const codeFence = new publication.MarkdownFence();
   lines2.forEach((line, index) => {
-    if (/^\s*(```|~~~)/.test(line)) {
-      inFence = !inFence;
-      return;
-    }
-    if (inFence || /^#{1,6}\s+/.test(line)) return;
+    if (codeFence.consume(line) || /^#{1,6}\s+/.test(line)) return;
     for (const segment of splitAuditTextSegments(line)) {
       chapterRe.lastIndex = 0;
       let match2;
@@ -35892,14 +35880,10 @@ function collectMissingProofBoundaries(content, file) {
   const findings = [];
   const theoremTypes = /* @__PURE__ */ new Set(["prop", "lemma", "theorem", "cor"]);
   const lines2 = content.split(/\r?\n/);
-  let inFence = false;
+  const codeFence = new publication.MarkdownFence();
   for (let i = 0; i < lines2.length; i++) {
     const line = lines2[i];
-    if (/^\s*(```|~~~)/.test(line)) {
-      inFence = !inFence;
-      continue;
-    }
-    if (inFence) continue;
+    if (codeFence.consume(line)) continue;
     const marker = publication.parseFormalMarkerLine(line);
     if (!marker || !theoremTypes.has(marker.type)) continue;
     let hasProof = false;
@@ -35922,17 +35906,6 @@ function collectMissingProofBoundaries(content, file) {
   }
   return findings;
 }
-function collectUnusedOptionalBlocks(state, targetFileSet) {
-  const referencedIds = new Set(state.references.map((ref2) => ref2.id));
-  return state.definitions.filter((def) => def.id && def.type === "example").filter((def) => targetFileSet.has(def.file)).filter((def) => !referencedIds.has(def.id)).map((def) => ({
-    code: "unused-optional-block-hash",
-    file: def.file,
-    line: def.line,
-    id: def.id,
-    display: publication.displayLabel(def, state.config),
-    title: def.title || ""
-  }));
-}
 function escapeAuditText(value) {
   return String(value).replace(/\|/g, "\\|").replace(/\n/g, " ");
 }
@@ -35949,7 +35922,6 @@ function renderAuditReport(result) {
     `Chapter references needing page refs: ${result.chapterReferences.length}`,
     `Section headings needing numbered markers: ${result.sectionHeadings.length}`,
     `Bare number candidates: ${result.bareNumberCandidates.length}`,
-    `Unused optional example hashes: ${result.unusedOptionalBlocks.length}`,
     `Theorem-like blocks without proof boundary: ${result.missingProofBoundaries.length}`,
     ""
   ];
@@ -36010,14 +35982,6 @@ function renderAuditReport(result) {
     });
     lines2.push("");
   }
-  if (result.unusedOptionalBlocks.length > 0) {
-    lines2.push("## Unused Optional Example Hashes", "");
-    lines2.push("Examples usually stay plain unless later text cites them. Anchored fact remarks may be intentionally unnumbered and are not reported here.", "");
-    result.unusedOptionalBlocks.forEach((item2) => {
-      lines2.push(`- ${item2.file}:${item2.line}: ${item2.display} \`${item2.id}\`${item2.title ? ` (${escapeAuditText(item2.title)})` : ""}`);
-    });
-    lines2.push("");
-  }
   if (result.missingProofBoundaries.length > 0) {
     lines2.push("## Theorem-Like Blocks Without Proof Boundary", "");
     lines2.push("This is advisory. Add `证明` / `Proof` when the block has a proof and recall should stop before it.", "");
@@ -36035,7 +35999,6 @@ function renderAuditReport(result) {
     result.chapterReferences,
     result.sectionHeadings,
     result.bareNumberCandidates,
-    result.unusedOptionalBlocks,
     result.missingProofBoundaries
   ].every((items2) => items2.length === 0)) {
     lines2.push("No audit findings.", "");
@@ -36048,7 +36011,6 @@ async function audit(args) {
   await writeArtifacts(state);
   const allFiles = await collectMarkdownFiles(state.config);
   const targetFiles = args.length > 0 ? await resolveInputMarkdownFiles(args, state.config) : allFiles;
-  const targetFileSet = new Set(targetFiles.map(relativePath));
   const byAlias = buildTextReferenceIndex(state.definitions, state.config);
   const pattern2 = makeTextReferencePattern(state.config);
   const result = {
@@ -36061,7 +36023,6 @@ async function audit(args) {
     chapterReferences: [],
     sectionHeadings: [],
     bareNumberCandidates: [],
-    unusedOptionalBlocks: collectUnusedOptionalBlocks(state, targetFileSet),
     missingProofBoundaries: []
   };
   for (const fullPath of targetFiles) {
@@ -36079,7 +36040,7 @@ async function audit(args) {
   }
   await ensureCacheDir();
   await fs__namespace.writeFile(path__namespace.join(CACHE_DIR, "audit.md"), renderAuditReport(result), "utf8");
-  const findingCount = result.replacements.length + result.unresolved.length + result.ambiguous.length + result.linkedReferences.length + result.chapterReferences.length + result.sectionHeadings.length + result.bareNumberCandidates.length + result.unusedOptionalBlocks.length + result.missingProofBoundaries.length;
+  const findingCount = result.replacements.length + result.unresolved.length + result.ambiguous.length + result.linkedReferences.length + result.chapterReferences.length + result.sectionHeadings.length + result.bareNumberCandidates.length + result.missingProofBoundaries.length;
   const status = findingCount > 0 ? "WARN" : "OK";
   console.log(`${status} audit: ${findingCount} findings across ${targetFiles.length} files`);
   console.log("Report: .math-workspace/audit.md");
