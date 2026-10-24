@@ -19,6 +19,81 @@ function _interopNamespaceDefault(e) {
 }
 const path__namespace = /* @__PURE__ */ _interopNamespaceDefault(path);
 const crypto__namespace = /* @__PURE__ */ _interopNamespaceDefault(crypto);
+const WORK_METADATA_TEXT_FIELDS = ["title", "subtitle", "language", "description", "license", "licenseUrl", "website", "repository", "preferredCitation"];
+const text = (value, field, limit = 1e5) => {
+  if (typeof value !== "string" || value.length > limit || value.includes("\0")) throw new Error(`Invalid metadata ${field}.`);
+  return value.trim();
+};
+function metadataDoi(value) {
+  if (value === void 0) return;
+  const normalized = text(value, "DOI", 300).replace(/^https?:\/\/(?:dx\.)?doi\.org\//i, "");
+  if (normalized && !/^10\.\d{4,9}\/[^\s<>]+$/i.test(normalized)) throw new Error("Enter a DOI such as 10.1234/example.");
+  return normalized;
+}
+function url(value, field) {
+  const result = text(value, field, 3e3);
+  if (result && !/^https?:\/\/[^\s<>]+$/i.test(result)) throw new Error(`Metadata ${field} must be an HTTP or HTTPS URL.`);
+  if (result) {
+    let parsed;
+    try {
+      parsed = new globalThis.URL(result);
+    } catch {
+      throw new Error(`Invalid metadata ${field} URL.`);
+    }
+    if (!parsed.hostname || parsed.username || parsed.password) throw new Error(`Invalid metadata ${field} URL.`);
+  }
+  return result;
+}
+function strings(input, field, limit = 100) {
+  if (!Array.isArray(input) || input.length > limit) throw new Error(`Invalid metadata ${field}.`);
+  return [...new Set(input.map((value) => text(value, field, 3e3)).filter(Boolean))];
+}
+function normalizeWorkMetadata(input) {
+  if (input === void 0) return {};
+  if (!input || typeof input !== "object" || Array.isArray(input)) throw new Error("Metadata must be an object.");
+  const value = input, result = {};
+  for (const field of WORK_METADATA_TEXT_FIELDS) if (value[field] !== void 0) {
+    result[field] = ["website", "repository", "licenseUrl"].includes(field) ? url(value[field], field) : text(value[field], field);
+  }
+  if (value.authors !== void 0) {
+    if (!Array.isArray(value.authors) || value.authors.length > 100) throw new Error("Invalid metadata authors.");
+    result.authors = value.authors.map((author) => {
+      if (!author || typeof author !== "object" || Array.isArray(author)) throw new Error("Invalid metadata author.");
+      const name = text(author.name, "author name", 1e3);
+      if (!name) throw new Error("Every publication author needs a name.");
+      const result2 = { name };
+      for (const field of ["nativeName", "affiliation"]) if (author[field] !== void 0) result2[field] = text(author[field], field, 3e3);
+      if (author.aliases !== void 0) result2.aliases = strings(author.aliases, "author aliases");
+      if (author.orcid !== void 0) {
+        const orcid = text(author.orcid, "ORCID", 1e3).replace(/^https?:\/\/orcid\.org\//i, "");
+        if (orcid && !/^\d{4}-\d{4}-\d{4}-\d{3}[\dX]$/i.test(orcid)) throw new Error("Enter an ORCID such as 0000-0002-1825-0097.");
+        result2.orcid = orcid ? `https://orcid.org/${orcid.toUpperCase()}` : "";
+      }
+      return result2;
+    });
+  }
+  if (value.keywords !== void 0) result.keywords = strings(value.keywords, "keywords");
+  if (value.doi !== void 0) {
+    if (!value.doi || typeof value.doi !== "object" || Array.isArray(value.doi)) throw new Error("Invalid metadata DOI.");
+    result.doi = {};
+    if (value.doi.conceptDoi !== void 0) result.doi.conceptDoi = metadataDoi(value.doi.conceptDoi);
+    if (value.doi.provenance !== void 0) result.doi.provenance = text(value.doi.provenance, "DOI provenance", 3e3);
+  }
+  return result;
+}
+function mergeWorkMetadata(project, overrides) {
+  return { ...project, ...overrides, ...project.doi || overrides.doi ? { doi: { ...project.doi, ...overrides.doi } } : {} };
+}
+function projectMetadata(config) {
+  const pdf = config?.pdf || {}, legacy = {};
+  for (const field of WORK_METADATA_TEXT_FIELDS) if (pdf[field]) legacy[field] = pdf[field];
+  if (pdf.lang) legacy.language = pdf.lang;
+  if (Array.isArray(pdf.authors) && pdf.authors.length) legacy.authors = pdf.authors;
+  else if (pdf.author) legacy.authors = [{ name: pdf.author, ...pdf.authorNative ? { nativeName: pdf.authorNative } : {}, ...pdf.authorAliases?.length ? { aliases: pdf.authorAliases } : {}, ...pdf.orcid ? { orcid: pdf.orcid } : {} }];
+  if (pdf.keywords) legacy.keywords = pdf.keywords;
+  if (pdf.workDoi) legacy.doi = { conceptDoi: pdf.workDoi };
+  return mergeWorkMetadata(normalizeWorkMetadata(legacy), normalizeWorkMetadata(config?.metadata));
+}
 class MarkdownFence {
   /** True for the opening/closing delimiter and every line inside the block. */
   consume(line) {
@@ -74,16 +149,16 @@ function isPedagogicalKind(kind) {
 function isMainlineKind(kind) {
   return FORMAL_KIND_POLICIES[kind]?.dependency === "mainline";
 }
-function stripSolutionAssociation(text) {
-  return text.replace(
+function stripSolutionAssociation(text2) {
+  return text2.replace(
     new RegExp(`\\s*[（(](?:对应|for)\\s+@${FORMAL_ID_PATTERN}(?:\\s*[；;]\\s*([^）)]*))?[）)]`, "i"),
     (_match, title) => title ? `（${title.trim()}）` : ""
   );
 }
 function exerciseSupportKind(line) {
-  const text = line.trim().replace(/^>\s*/, "").replace(/^(?:\*\*|__)(.*?)(?:\*\*|__)/, "$1").trim();
-  if (/^(?:提示|Hint)\s*(?:[：:.]|$)/i.test(text)) return "hint";
-  if (/^(?:解答|答案|Solution|Answer)\s*(?:[：:.]|$)/i.test(text)) return "solution";
+  const text2 = line.trim().replace(/^>\s*/, "").replace(/^(?:\*\*|__)(.*?)(?:\*\*|__)/, "$1").trim();
+  if (/^(?:提示|Hint)\s*(?:[：:.]|$)/i.test(text2)) return "hint";
+  if (/^(?:解答|答案|Solution|Answer)\s*(?:[：:.]|$)/i.test(text2)) return "solution";
   return void 0;
 }
 function solutionTarget(title) {
@@ -513,6 +588,7 @@ const DEFAULT_CONFIG = {
   render: {
     pageHeadingStyle: "label-title"
   },
+  metadata: {},
   pdf: {
     pdfEngine: "xelatex",
     paper: "a4",
@@ -726,8 +802,8 @@ function formatTemplate(template, values = {}) {
 }
 function uiText(config, key, values = {}) {
   const language = getLanguage(config);
-  const text = config?.ui?.[language]?.[key] || DEFAULT_CONFIG.ui[language]?.[key] || DEFAULT_CONFIG.ui.zh[key] || "";
-  return formatTemplate(text, values);
+  const text2 = config?.ui?.[language]?.[key] || DEFAULT_CONFIG.ui[language]?.[key] || DEFAULT_CONFIG.ui.zh[key] || "";
+  return formatTemplate(text2, values);
 }
 function typeName(config, type) {
   const language = getLanguage(config);
@@ -1240,7 +1316,7 @@ function parseFormalDefinitions(input, documents = [], configInput = DEFAULT_CON
   return { definitions, issues };
 }
 function stripIgnoredMarkdown(content) {
-  const blank = (text) => text.replace(/[^\r\n]/g, " ");
+  const blank = (text2) => text2.replace(/[^\r\n]/g, " ");
   return maskFencedMarkdown(content).replace(/<!--[\s\S]*?-->/g, blank).replace(/`[^`\n]*`/g, blank);
 }
 function cleanMarkerTitle(title) {
@@ -1248,13 +1324,13 @@ function cleanMarkerTitle(title) {
   const strong = trimmed.match(/^(\*\*|__)\s*([\s\S]+?)\s*\1$/);
   return strong ? strong[2].trim() : trimmed;
 }
-function unwrapLeadingStrong(text) {
-  const strong = text.match(/^(\*\*|__)\s*([\s\S]+?)\s*\1([\s\S]*)$/);
+function unwrapLeadingStrong(text2) {
+  const strong = text2.match(/^(\*\*|__)\s*([\s\S]+?)\s*\1([\s\S]*)$/);
   if (!strong) return void 0;
   return `${strong[2].trim()}${strong[3] || ""}`.trim();
 }
-function parseParenMarkerTitle(text, requireSeparator) {
-  const paren = text.match(/^[（(]([^）)]+)[）)]\s*([：:]?)/);
+function parseParenMarkerTitle(text2, requireSeparator) {
+  const paren = text2.match(/^[（(]([^）)]+)[）)]\s*([：:]?)/);
   if (!paren) return "";
   if (requireSeparator && !paren[2]) return "";
   return cleanMarkerTitle(paren[1]);
@@ -1275,8 +1351,8 @@ function extractMarkerTitle(type, rest) {
   }
   return "";
 }
-function normalizeLeadingMarkerEmphasis(text) {
-  const trimmed = text.trim().replace(/^(?:>\s*)+/, "").trim();
+function normalizeLeadingMarkerEmphasis(text2) {
+  const trimmed = text2.trim().replace(/^(?:>\s*)+/, "").trim();
   return unwrapLeadingStrong(trimmed) || trimmed;
 }
 function parseFormalMarkerLine(line) {
@@ -1291,9 +1367,9 @@ function parseFormalMarkerLine(line) {
       level: heading[1].length
     };
   }
-  const text = normalizeLeadingMarkerEmphasis(line);
+  const text2 = normalizeLeadingMarkerEmphasis(line);
   const typePattern = FORMAL_TYPE_PATTERN;
-  const typed = text.match(new RegExp(`^(${typePattern})\\s*([\\s\\S]*)$`, "i"));
+  const typed = text2.match(new RegExp(`^(${typePattern})\\s*([\\s\\S]*)$`, "i"));
   if (!typed) return void 0;
   const type = normalizeFormalKind(typed[1]);
   if (!type) return void 0;
@@ -1309,7 +1385,7 @@ function parseFormalMarkerLine(line) {
       rest: rest2
     };
   }
-  const match = text.match(new RegExp(`^(${typePattern})\\s+#([A-Za-z0-9_-]+)\\b\\s*([\\s\\S]*)$`, "i"));
+  const match = text2.match(new RegExp(`^(${typePattern})\\s+#([A-Za-z0-9_-]+)\\b\\s*([\\s\\S]*)$`, "i"));
   if (!match) return void 0;
   const rest = match[3] || "";
   const parsedTitle = extractMarkerTitle(type, rest);
@@ -1445,36 +1521,36 @@ function normalizeProofBoundaryLine(line) {
   return line.trim().replace(/^>\s*/, "").replace(/^\s*[-+*]\s+/, "").replace(/^\*\*(.+?)\*\*/, "$1").replace(/^__(.+?)__/, "$1").replace(/^\*(.+?)\*/, "$1").replace(/^_(.+?)_/, "$1").trim();
 }
 function isProofBoundaryLine(line) {
-  const text = normalizeProofBoundaryLine(line);
-  return /^(?:证明(?:概要|草图|思路|如下|在此略去)?|Proof(?:\s+sketch)?|Sketch of proof)\s*(?:[：:。.．.]|$|\s)/i.test(text);
+  const text2 = normalizeProofBoundaryLine(line);
+  return /^(?:证明(?:概要|草图|思路|如下|在此略去)?|Proof(?:\s+sketch)?|Sketch of proof)\s*(?:[：:。.．.]|$|\s)/i.test(text2);
 }
 function isProofTerminatorLine(line) {
-  const text = normalizeProofBoundaryLine(line);
-  return /(?:证毕|Q\.?E\.?D\.?|∎|□)\s*[。.．.]?\s*$/i.test(text) || /\$\s*\\square\s*\$\s*[。.．.]?\s*$/.test(text) || /\\\[\s*\\square\s*\\\]\s*[。.．.]?\s*$/.test(text);
+  const text2 = normalizeProofBoundaryLine(line);
+  return /(?:证毕|Q\.?E\.?D\.?|∎|□)\s*[。.．.]?\s*$/i.test(text2) || /\$\s*\\square\s*\$\s*[。.．.]?\s*$/.test(text2) || /\\\[\s*\\square\s*\\\]\s*[。.．.]?\s*$/.test(text2);
 }
 function isMarkerBoundaryLine(line) {
   return /^#{1,6}\s+/.test(line) || !!parseFormalMarkerLine(line);
 }
 function isDisplayMathLine(line) {
-  const text = line.trim();
-  return text.startsWith("$$") || text.startsWith("\\[") || text.startsWith("\\]") || /^\\(?:begin|end)\{(?:equation|align|alignat|gather|multline|flalign|split|aligned|cases|matrix|pmatrix|bmatrix|vmatrix|Vmatrix)\*?\}/.test(text);
+  const text2 = line.trim();
+  return text2.startsWith("$$") || text2.startsWith("\\[") || text2.startsWith("\\]") || /^\\(?:begin|end)\{(?:equation|align|alignat|gather|multline|flalign|split|aligned|cases|matrix|pmatrix|bmatrix|vmatrix|Vmatrix)\*?\}/.test(text2);
 }
 function isStructuredDefinitionContinuation(line) {
-  const text = line.trim();
-  return isDisplayMathLine(line) || /^>\s*/.test(text) || /^\|.*\|$/.test(text) || /^[-+*]\s+/.test(text) || /^\d+[.)]\s+/.test(text) || /^(\*\*|__)?\s*[（(]?(?:[ivxlcdm]+|[a-z]|\d+)[）).、]\s*/i.test(text);
+  const text2 = line.trim();
+  return isDisplayMathLine(line) || /^>\s*/.test(text2) || /^\|.*\|$/.test(text2) || /^[-+*]\s+/.test(text2) || /^\d+[.)]\s+/.test(text2) || /^(\*\*|__)?\s*[（(]?(?:[ivxlcdm]+|[a-z]|\d+)[）).、]\s*/i.test(text2);
 }
 function isDisplayMathStartLine(line) {
-  const text = line.trim();
-  return text.startsWith("$$") || text.startsWith("\\[") || /^\\begin\{(?:equation|align|alignat|gather|multline|flalign|split|aligned|cases|matrix|pmatrix|bmatrix|vmatrix|Vmatrix)\*?\}/.test(text);
+  const text2 = line.trim();
+  return text2.startsWith("$$") || text2.startsWith("\\[") || /^\\begin\{(?:equation|align|alignat|gather|multline|flalign|split|aligned|cases|matrix|pmatrix|bmatrix|vmatrix|Vmatrix)\*?\}/.test(text2);
 }
 function updateDisplayMathState(line, inDisplayMath) {
-  const text = line.trim();
-  const dollarCount = (text.match(/\$\$/g) || []).length;
+  const text2 = line.trim();
+  const dollarCount = (text2.match(/\$\$/g) || []).length;
   if (dollarCount % 2 === 1) return !inDisplayMath;
-  if (text.startsWith("\\[")) return true;
-  if (text.startsWith("\\]")) return false;
-  if (/^\\begin\{(?:equation|align|alignat|gather|multline|flalign|split|aligned|cases|matrix|pmatrix|bmatrix|vmatrix|Vmatrix)\*?\}/.test(text)) return true;
-  if (/^\\end\{(?:equation|align|alignat|gather|multline|flalign|split|aligned|cases|matrix|pmatrix|bmatrix|vmatrix|Vmatrix)\*?\}/.test(text)) return false;
+  if (text2.startsWith("\\[")) return true;
+  if (text2.startsWith("\\]")) return false;
+  if (/^\\begin\{(?:equation|align|alignat|gather|multline|flalign|split|aligned|cases|matrix|pmatrix|bmatrix|vmatrix|Vmatrix)\*?\}/.test(text2)) return true;
+  if (/^\\end\{(?:equation|align|alignat|gather|multline|flalign|split|aligned|cases|matrix|pmatrix|bmatrix|vmatrix|Vmatrix)\*?\}/.test(text2)) return false;
   return inDisplayMath;
 }
 function trimTrailingBlankLines(lines) {
@@ -1669,13 +1745,13 @@ function isMarkdownImageLine(line) {
   return /!\[[^\]\n]*\]\([^)]+\)/.test(line.trim());
 }
 function isMarkdownTableRow(line) {
-  const text = line.trim();
-  return text.includes("|") && text.split("|").filter((part) => part.trim()).length >= 2;
+  const text2 = line.trim();
+  return text2.includes("|") && text2.split("|").filter((part) => part.trim()).length >= 2;
 }
 function isMarkdownTableDelimiter(line) {
-  const text = line.trim();
-  if (!text.includes("|")) return false;
-  const cells = text.replace(/^\|/, "").replace(/\|$/, "").split("|").map((cell) => cell.trim());
+  const text2 = line.trim();
+  if (!text2.includes("|")) return false;
+  const cells = text2.replace(/^\|/, "").replace(/\|$/, "").split("|").map((cell) => cell.trim());
   return cells.length >= 2 && cells.every((cell) => /^:?-{3,}:?$/.test(cell));
 }
 function isMarkdownTableStart(lines, lineIndex) {
@@ -3074,7 +3150,8 @@ function renderAgentGuide(state) {
     "# Agent Guide",
     "",
     "Generated by `prepare`. This is the compact workflow card for AI agents.",
-    "Command examples use an existing project `workspace` script. Prefer the exact Node/CLI entry and working directory supplied by the Reader, or the project's verified CLI; do not silently change scripts, replace native AI rules, or install a global command to match an example.",
+    "Choose one tool provider: projects installed through Codex use the installed plugin's CLI, Reader and generic skills; independent environments use their selected standalone CLI/npm installation. Keep project configuration, source, review/build evidence and project-specific rules in the project. Do not copy runtime or generic rules merely for Codex integration.",
+    "Command examples use `math-workspace` as shorthand for that selected CLI. Prefer the exact Node/CLI entry and working directory supplied by the Reader, or a verified project wrapper; do not silently add another installation, rewrite scripts, or replace native AI rules.",
     "",
     `Current index: ${Object.keys(state.labels).length} formal entries, ${state.pages.length} pages, ${(state.symbols || []).length} symbols, ${errors} errors, ${warnings} warnings.`,
     "",
@@ -3083,7 +3160,7 @@ function renderAgentGuide(state) {
     "1. Read the target Markdown source. For an existing target outside current context, retrieve only its matching row from `.math-workspace/reference-map.md`.",
     "2. Declare new numbered objects with `#tmp-*`; reference existing objects and pages with `@h-...`, `@h-....title`, or `@h-....full`. Definitions never receive hashes or refs.",
     "3. Preserve Markdown and LaTeX. Do not write display numbers as references or hand-edit generated artifacts.",
-    "4. Run `npm run workspace -- finish <file-or-dir>` after editing. It finalizes temporary IDs and verifies the workspace. Use a separate `verify` only after direct `finalize`, migration, or as an explicit release gate.",
+    "4. Run `math-workspace finish <file-or-dir>` after editing. It finalizes temporary IDs and verifies the workspace. Use a separate `verify` only after direct `finalize`, migration, or as an explicit release gate.",
     "5. Read `project-analysis.md` only for terminology, concept appendices, or notation work. It is derived context, not a source to maintain.",
     "",
     "## Create a Manuscript Page",
@@ -3102,14 +3179,16 @@ function renderAgentGuide(state) {
     "- Chapter/page anchors: put `#h-...` / `#tmp-*` on the file's unique highest-level heading when the page needs stable refs. The hash is hidden in preview and does not create a section number. Use `@h-...`, `@h-....title`, or `@h-....full` from `reference-map.md` to reference the page.",
     "- Compatibility chapter/page refs: `@chapter:book1/02-main.md`, `@chapter:book1/02-main.md.title`, or `@chapter:book1/02-main.md.full` still work; paths are relative to the formal root that owns `.math-workspace/`. `@page:path.md` is for unnumbered pages (including front matter, back matter, continued, intro, and summary) and appendix pages. Prefer page hashes when available. `finish` normalizes `./` and `../` input sugar to root-relative paths.",
     "- Theorem-like recall captures the statement before `证明` / `Proof`; keep proofs after an explicit proof marker.",
-    "- Dependency graph: `.math-workspace/dependency-graph.json` is the canonical explicit reference graph. It uses only `@h-...` references between mainline claims, proof-backed hash remarks, exercises and solutions; pedagogical references carry `layer: pedagogical`, while `pedagogicalLinks` keeps solution ownership separate from proof cycles, and marks edges as `statement`, `proof`, or `body`. Edges introduced as explanatory navigation (`见 @h-...`, `参见 @h-...`, or `see @h-...`) are preserved with relation `explanatory`; the Reader relation map excludes them, body references, and self-references from its strict dependency view. `.math-workspace/dependency-report.md` separates mainline theorem-like and supplemental remark statistics. Use `npm run workspace -- graph summary`, `graph impact <h-id>`, `graph upstream <h-id>`, `graph focus <h-id> --depth 2`, `graph bridges`, `graph isolated`, `graph cycles`, or `graph matrix chapter|volume|book` for Markdown analysis. Add `--where statement|proof|body` to filter edge placement. These are structural graph tools, not domain interpretation.",
+    "- Dependency graph: `.math-workspace/dependency-graph.json` is the canonical explicit reference graph. It uses only `@h-...` references between mainline claims, proof-backed hash remarks, exercises and solutions; pedagogical references carry `layer: pedagogical`, while `pedagogicalLinks` keeps solution ownership separate from proof cycles, and marks edges as `statement`, `proof`, or `body`. Edges introduced as explanatory navigation (`见 @h-...`, `参见 @h-...`, or `see @h-...`) are preserved with relation `explanatory`; the Reader relation map excludes them, body references, and self-references from its strict dependency view. `.math-workspace/dependency-report.md` separates mainline theorem-like and supplemental remark statistics. Use `math-workspace graph summary`, `graph impact <h-id>`, `graph upstream <h-id>`, `graph focus <h-id> --depth 2`, `graph bridges`, `graph isolated`, `graph cycles`, or `graph matrix chapter|volume|book` for Markdown analysis. Add `--where statement|proof|body` to filter edge placement. These are structural graph tools, not domain interpretation.",
     "- Definitions and project knowledge: lookup is a tool-first, AI-exception workflow. The tool scans standard `定义（Term）：...` / `Definition (Term): ...` definitions and dedicated concept/glossary pages named by filename or main title; `.math-workspace/project-analysis.md` records detected concept, notation, and summary roles, including combined pages. Prefer the book’s final appendix for concept and notation summaries; reuse existing dedicated pages and follow the book’s appendix order without reserving fixed letters. This placement guidance does not change lookup priority. Do not refresh `.math-workspace/definitions.json` after ordinary edits. Use it only for nonstandard phrases, aliases/bilingual lookup, stable multi-paragraph previews, or a boundary the deterministic extractor cannot represent; include Markdown `content` for those entries. Codex MCP queries return narrow source locators and previews, including all detected roles for a source. Full rendered lookup previews are only guaranteed for definitions in the currently previewed file; cross-file search is primarily for locating and jumping.",
     "- Exercises use `习题 #tmp-e（Title）：...` / `Exercise #tmp-e (Title): ...`, with an independent chapter counter. Solutions use a separate ID and `解答 #tmp-s（对应 @tmp-e）：...` / `Solution #tmp-s (for @tmp-e): ...`; they may live in an appendix near the end of the same book and retain the original exercise number. Order solutions and concept/notation summaries according to the book’s structure. Separate hint/answer paragraphs from the prompt with a blank line. Prompt recall excludes hints and answers; exports include them. Keep stable IDs and Lean declarations when converting existing results; required mainline claims and proofs stay in the main text.",
     "- Explanatory remarks stay plain: `注（Title）：...` / `Remark (Title): ...`, without hash. Non-mainline fact remarks that need a proof or later citation use `注 #tmp-*（Title）：...`; `> 注 #tmp-*（Title）：...` is also recognized inside standard blockquotes. A hash remark is an unnumbered supplemental dependency node and supports recall; a plain remark never enters the dependency graph or Reader dependency markers.",
     "- Independent examples and counterexamples may use `例 #tmp-*` / `Example #tmp-*` and `反例 #tmp-*` / `Counterexample #tmp-*` even without later citations. They share a separate chapter/appendix example counter and never consume theorem numbers. Incidental in-text examples stay plain. Their recall includes all paragraphs, calculations and proof text up to the next formal object, Markdown heading or thematic break; fenced code stays literal. Separate following ordinary prose with a thematic break when needed.",
     "- Symbols: maintain only project-specific `source`, `pattern`, and `meaning` entries in `.math-workspace/symbols.json` when explicit notation semantics change; patterns describe the notation itself with balanced delimiters, not whole equations or open-ended formula fragments. Dedicated notation pages are recognized by filename or main title and supply context only; they do not infer symbol meanings. The navigation symbol table lists symbols matched in the current preview file. Symbols are not inline formula refs and are not searched through the definition search box.",
     "- Appendices use the appendix file prefix, so markers in `appendix-a-*.md` render as `A.1`, `A.2`, etc. `00-introduction.md`, `intro.md`, and `introduction.md` are intro pages, not chapter 0.",
-    "- Export: do not compile formal source Markdown directly. Use `npm run workspace -- export-md <file-or-dir> --out dist/book.md` to produce one portable Markdown file, `npm run workspace -- export-md-split <file-or-dir> --out dist/public` to produce compiled Markdown files while preserving the source tree, `npm run workspace -- export-pdf <file-or-dir> --out dist/book.pdf` to call local pandoc after Markdown export, or `npm run workspace -- render-pdf dist/book.md --out dist/book.pdf` when a project release flow has already postprocessed the compiled Markdown. PDF rendering reads `.math-workspace/config.json` `pdf` defaults when present: A4, 2.5cm margins, TOC depth 2, language-aware TOC title, separate TOC page, optional title page metadata, optional publication metadata page, and optional front matter pages. `author` is the cover/PDF metadata author; fuller identity fields are `authorNative`, `authorAliases`, `orcid`, `repository`, `license`, `licenseUrl`, `preferredCitation`, `releaseTag`, `releaseCommit`, and `doi`. When `metadataPage` is true, the generated metadata page is unnumbered, unlisted, and placed after the title page but before the table of contents. Longer AI, license, citation, or provenance statements belong in `frontMatter`, placed after metadata and before the TOC; front matter entries use `source` or `content`, default to `toc: false`, and default to page breaks. Override with `--title`, `--subtitle`, `--author`, `--author-native`, `--author-alias`, `--orcid`, `--repository`, `--license`, `--license-url`, `--preferred-citation`, `--date`, `--release-version`, `--release-tag`, `--release-commit`, `--doi`, `--metadata-page`, `--front-matter`, `--front-matter-title`, `--front-matter-toc`, `--documentclass`, `--title-page`, `--margin`, `--no-toc`, `--toc-depth`, `--paper`, or Pandoc `-V key:value`. No PDF engine is bundled.",
+    "- Shared publication metadata belongs in `.math-workspace/config.json.metadata`: work title, structured authors with ORCID/affiliation, website, repository, license and work DOI. Read with `publication metadata`, save with `publication save-metadata <metadata.json> --expected-revision SHA256`, or edit in Reader. Edition profiles store only explicit overrides plus edition version/date/DOI; missing fields inherit, old PDF identity fields are a compatibility fallback. Review and rebuild after metadata changes; frozen PDF, citation and Zenodo values stay bound to that edition.",
+    "- New Reader publication plans automatically include matching structural front/back matter and appendices; CLI profiles use `matter.automatic: true` and optional `matter.exclude` paths. Existing plans keep their selection until enabled. Keep volume matter in its volume, preserve appendix numbering and author titles, and review the resolved selection rather than guessing roles from arbitrary prose. Page creation does not rewrite a saved plan; automatic discovery runs during planning.",
+    "- Export: do not compile formal source Markdown directly. Use `math-workspace export-md <file-or-dir> --out dist/book.md` to produce one portable Markdown file, `math-workspace export-md-split <file-or-dir> --out dist/public` to produce compiled Markdown files while preserving the source tree, `math-workspace export-pdf <file-or-dir> --out dist/book.pdf` to call local pandoc after Markdown export, or `math-workspace render-pdf dist/book.md --out dist/book.pdf` when a project release flow has already postprocessed the compiled Markdown. PDF rendering reads `.math-workspace/config.json` `pdf` defaults when present: A4, 2.5cm margins, TOC depth 2, language-aware TOC title, separate TOC page, optional title page metadata, optional publication metadata page, and optional front matter pages. `author` is the cover/PDF metadata author; fuller identity fields are `authorNative`, `authorAliases`, `orcid`, `repository`, `license`, `licenseUrl`, `preferredCitation`, `releaseTag`, `releaseCommit`, and `doi`. When `metadataPage` is true, the generated metadata page is unnumbered, unlisted, and placed after the title page but before the table of contents. Longer AI, license, citation, or provenance statements belong in `frontMatter`, placed after metadata and before the TOC; front matter entries use `source` or `content`, default to `toc: false`, and default to page breaks. Override with `--title`, `--subtitle`, `--author`, `--author-native`, `--author-alias`, `--orcid`, `--repository`, `--license`, `--license-url`, `--preferred-citation`, `--date`, `--release-version`, `--release-tag`, `--release-commit`, `--doi`, `--metadata-page`, `--front-matter`, `--front-matter-title`, `--front-matter-toc`, `--documentclass`, `--title-page`, `--margin`, `--no-toc`, `--toc-depth`, `--paper`, or Pandoc `-V key:value`. No PDF engine is bundled.",
     "",
     "## Generated Files",
     "",
@@ -3126,7 +3205,7 @@ function renderAgentGuide(state) {
     "",
     "## Migration",
     "",
-    "- Use `npm run workspace -- migrate-text-refs <file-or-dir>` before applying old numbered prose migration; migration commands are dry-run by default.",
+    "- Use `math-workspace migrate-text-refs <file-or-dir>` before applying old numbered prose migration; migration commands are dry-run by default.",
     "- `migrate-text-refs` rewrites typed old references such as `定理 2.1`, `命题2.2`, `Theorem 2.1`, `公式 (2.1)`, `Figure 2.1`, `表 2.1`, `§2.1`, or `第 2.1 节`. It intentionally does not rewrite bare `2.1`, bare `(2.1)`, or handwritten chapter refs such as `第 2 章`; decide those by reading context and convert chapter refs to page hashes `@h-...` when available, otherwise to compatibility `@chapter:path.md`. Matching is bounded so `2.1` is not replaced inside `2.12`, `2.1.3`, or `22.1`.",
     "- Scoped migrations update target files plus incoming references by default. Use `--target-only` only when intentionally restricting rewrites to the target files.",
     ""
@@ -3170,7 +3249,7 @@ function formatIssue(issue) {
   const location = issue.line ? `${issue.file}:${issue.line}` : issue.file || "workspace";
   return `- [${issue.code}] ${location}: ${issue.message}`;
 }
-const fs$1 = require("node:fs/promises");
+const fs$2 = require("node:fs/promises");
 const sha256 = (value) => crypto__namespace.createHash("sha256").update(value).digest("hex");
 function canonical(value) {
   const sort = (item) => Array.isArray(item) ? item.map(sort) : item && typeof item === "object" ? Object.fromEntries(Object.keys(item).sort().filter((key) => item[key] !== void 0).map((key) => [key, sort(item[key])])) : item;
@@ -3195,7 +3274,7 @@ async function safePath(root, relative) {
   for (const component of relative.split("/")) {
     current = path__namespace.join(current, component);
     try {
-      if ((await fs$1.lstat(current)).isSymbolicLink()) throw new Error("Publication paths cannot follow symbolic links.");
+      if ((await fs$2.lstat(current)).isSymbolicLink()) throw new Error("Publication paths cannot follow symbolic links.");
     } catch (error) {
       if (error.code !== "ENOENT") throw error;
     }
@@ -3204,7 +3283,7 @@ async function safePath(root, relative) {
 }
 async function optionalJson(file) {
   try {
-    return JSON.parse(await fs$1.readFile(file, "utf8"));
+    return JSON.parse(await fs$2.readFile(file, "utf8"));
   } catch (error) {
     if (error.code === "ENOENT") return null;
     throw error;
@@ -3212,14 +3291,14 @@ async function optionalJson(file) {
 }
 async function atomicJson(root, relative, value) {
   const destination = await safePath(root, relative);
-  await fs$1.mkdir(path__namespace.dirname(destination), { recursive: true });
+  await fs$2.mkdir(path__namespace.dirname(destination), { recursive: true });
   await safePath(root, relative);
   const temporary = `${destination}.tmp-${crypto__namespace.randomBytes(12).toString("hex")}`;
   try {
-    await fs$1.writeFile(temporary, canonical(value), { flag: "wx", mode: 384 });
-    await fs$1.rename(temporary, destination);
+    await fs$2.writeFile(temporary, canonical(value), { flag: "wx", mode: 384 });
+    await fs$2.rename(temporary, destination);
   } finally {
-    await fs$1.rm(temporary, { force: true });
+    await fs$2.rm(temporary, { force: true });
   }
 }
 class PublicationStore {
@@ -3233,16 +3312,16 @@ class PublicationStore {
   async locked(id, action, namespace = "profile") {
     publicationId(id);
     const parent = await this.directory(`locks/${namespace}`);
-    await fs$1.mkdir(parent, { recursive: true });
+    await fs$2.mkdir(parent, { recursive: true });
     const lock = await this.directory(`locks/${namespace}/${id}`);
     try {
-      await fs$1.mkdir(lock);
+      await fs$2.mkdir(lock);
     } catch (error) {
       if (error.code !== "EEXIST") throw error;
       const recovery = await this.directory(`lock-recovery/${namespace}/${id}`);
-      await fs$1.mkdir(path__namespace.dirname(recovery), { recursive: true });
+      await fs$2.mkdir(path__namespace.dirname(recovery), { recursive: true });
       try {
-        await fs$1.mkdir(recovery);
+        await fs$2.mkdir(recovery);
       } catch {
         throw new Error("This publication has an active operation or lock recovery. Retry after it finishes.");
       }
@@ -3257,22 +3336,22 @@ class PublicationStore {
           if (probe.code !== "ESRCH") throw probe;
         }
         stale = `${lock}.stale-${crypto__namespace.randomBytes(12).toString("hex")}`;
-        await fs$1.rename(lock, stale);
+        await fs$2.rename(lock, stale);
         try {
-          await fs$1.mkdir(lock);
+          await fs$2.mkdir(lock);
         } catch {
           throw new Error("Another publication operation acquired the recovered lock. Retry after it finishes.");
         }
       } finally {
-        if (stale) await fs$1.rm(stale, { recursive: true, force: true });
-        await fs$1.rm(recovery, { recursive: true, force: true });
+        if (stale) await fs$2.rm(stale, { recursive: true, force: true });
+        await fs$2.rm(recovery, { recursive: true, force: true });
       }
     }
     try {
-      await fs$1.writeFile(path__namespace.join(lock, "owner.json"), canonical({ pid: process.pid, startedAt: (/* @__PURE__ */ new Date()).toISOString() }), { flag: "wx", mode: 384 });
+      await fs$2.writeFile(path__namespace.join(lock, "owner.json"), canonical({ pid: process.pid, startedAt: (/* @__PURE__ */ new Date()).toISOString() }), { flag: "wx", mode: 384 });
       return await action();
     } finally {
-      await fs$1.rm(lock, { recursive: true, force: true });
+      await fs$2.rm(lock, { recursive: true, force: true });
     }
   }
   async profile(id) {
@@ -3284,7 +3363,7 @@ class PublicationStore {
     const directory = await this.directory("profiles");
     let names;
     try {
-      names = await fs$1.readdir(directory);
+      names = await fs$2.readdir(directory);
     } catch (error) {
       if (error.code === "ENOENT") return [];
       throw error;
@@ -3321,11 +3400,31 @@ class PublicationStore {
     await atomicJson(this.root, `${this.relativeDirectory}/remote/${publicationId(id)}.json`, next);
     return next;
   }
+  async verifications(id) {
+    const directory = await this.directory(`verifications/${publicationId(id)}`);
+    let names;
+    try {
+      names = await fs$2.readdir(directory);
+    } catch (error) {
+      if (error.code === "ENOENT") return [];
+      throw error;
+    }
+    const values = [];
+    for (const name of names.sort()) if (/^[a-f0-9]{32}\.json$/.test(name)) {
+      const value = await optionalJson(await safePath(directory, name));
+      if (value?.schema !== "math-workspace.publication-verification/v1" || value.profileId !== id || value.buildId !== name.slice(0, -5)) throw new Error("Invalid publication verification record.");
+      values.push(value);
+    }
+    return values.sort((a, b) => b.checkedAt.localeCompare(a.checkedAt));
+  }
+  async writeVerification(value) {
+    await atomicJson(this.root, `${this.relativeDirectory}/verifications/${publicationId(value.profileId)}/${buildId(value.buildId)}.json`, value);
+  }
   async builds(id) {
     const directory = await this.directory(`builds/${publicationId(id)}`);
     let names;
     try {
-      names = await fs$1.readdir(directory);
+      names = await fs$2.readdir(directory);
     } catch (error) {
       if (error.code === "ENOENT") return [];
       throw error;
@@ -3343,7 +3442,7 @@ class PublicationStore {
   async artifact(id, release, name) {
     if (!["publication.pdf", "compiled.md", "manifest.json", "citation.json"].includes(name)) throw new Error("Unknown publication artifact.");
     const build = await this.build(id, release);
-    const bytes = await fs$1.readFile(await this.directory(`builds/${publicationId(id)}/${buildId(release)}/${name}`));
+    const bytes = await fs$2.readFile(await this.directory(`builds/${publicationId(id)}/${buildId(release)}/${name}`));
     const expected = name === "publication.pdf" ? build.pdfSha256 : name === "compiled.md" ? build.markdownSha256 : name === "manifest.json" ? build.manifestSha256 : void 0;
     if (expected && sha256(bytes) !== expected) throw new Error("The immutable publication artifact changed.");
     if (name === "citation.json") {
@@ -3352,6 +3451,72 @@ class PublicationStore {
     }
     return bytes;
   }
+}
+const fs$1 = require("node:fs/promises");
+const configPath = ".math-workspace/config.json";
+async function readPublicationMetadata(root) {
+  let bytes;
+  try {
+    bytes = await fs$1.readFile(await safePath(root, configPath));
+  } catch (error) {
+    if (error.code !== "ENOENT") throw error;
+  }
+  const config = bytes ? JSON.parse(bytes.toString("utf8")) : {};
+  if (!config || typeof config !== "object" || Array.isArray(config)) throw new Error("Invalid project configuration.");
+  return { config, record: { value: projectMetadata(config), revision: sha256(bytes || "") } };
+}
+function resolvePublicationMetadata(profile, config) {
+  const value = mergeWorkMetadata(projectMetadata(config), normalizeWorkMetadata(profile));
+  if (!value.title) throw new Error("Publication title is required in project metadata or this edition.");
+  return { ...profile, ...value, authors: value.authors || [], language: value.language || (config.language === "en" ? "en-US" : "zh-CN"), license: value.license || "cc-by-4.0", doi: { ...value.doi, ...profile.doi } };
+}
+async function savePublicationMetadata(store, input, expectedRevision) {
+  const value = normalizeWorkMetadata(input);
+  return store.locked("project-metadata", async () => {
+    const { config, record } = await readPublicationMetadata(store.root);
+    if (record.revision !== expectedRevision) throw new Error("Project metadata changed. Reload it before saving.");
+    await atomicJson(store.root, configPath, { ...config, metadata: value });
+    return (await readPublicationMetadata(store.root)).record;
+  }, "metadata");
+}
+function discoverPublicationMatter(profile, pages) {
+  const chosen = pages.filter((page) => profile.chapters.includes(page.path) && page.kind !== "appendix");
+  const anchors = chosen.length ? chosen : pages.filter((page) => profile.chapters.includes(page.path));
+  const excluded = new Set(profile.matter?.exclude || []);
+  const manual = profile.matter?.automatic ? [] : [...profile.frontMatter || [], ...profile.backMatter || []];
+  const explicit = new Set(manual.map((entry) => entry.file).filter(Boolean));
+  if (!profile.matter?.automatic && profile.continued?.file) explicit.add(profile.continued.file);
+  const inScope = (page) => {
+    if (!anchors.length || explicit.has(page.path) || excluded.has(page.path)) return false;
+    const scope = profile.scope;
+    if (scope && (scope.books?.length || scope.volumes?.length || scope.paths?.length)) {
+      if (!(scope.books?.includes(page.book) || scope.volumes?.includes(page.volume) || scope.paths?.some((name) => page.path === name || page.path.startsWith(`${name}/`)))) return false;
+    }
+    return anchors.some((anchor) => page.book === anchor.book && (page.volume === void 0 || page.volume === anchor.volume));
+  };
+  const found = pages.filter(inScope);
+  return {
+    frontMatter: found.filter((page) => page.volume === void 0 && ["front-matter", "intro"].includes(page.kind)),
+    backMatter: found.filter((page) => page.volume === void 0 && ["back-matter", "summary", "continued"].includes(page.kind)),
+    volumeMatter: found.filter((page) => page.volume !== void 0 && ["front-matter", "intro", "back-matter", "summary", "continued"].includes(page.kind)),
+    appendices: found.filter((page) => page.kind === "appendix"),
+    continued: found.filter((page) => page.kind === "continued")
+  };
+}
+function hasPublicationContinuedManuscript(profile, pages) {
+  if (profile.matter?.automatic) return discoverPublicationMatter({ ...profile, matter: { ...profile.matter, exclude: [] } }, pages).continued.length > 0;
+  const manuscripts = /* @__PURE__ */ new Set([...profile.chapters, ...(profile.backMatter || []).map((entry) => entry.file)]);
+  return !profile.continued?.file && pages.some((page) => page.kind === "continued" && manuscripts.has(page.path));
+}
+function resolvePublicationMatter(profile, pages) {
+  if (!profile.matter?.automatic) return profile;
+  const found = discoverPublicationMatter(profile, pages);
+  const entry = (page) => ({ file: page.path, includeInToc: true });
+  const available = profile.matter.exclude?.length ? discoverPublicationMatter({ ...profile, matter: { ...profile.matter, exclude: [] } }, pages) : found;
+  const included = (page) => page.kind !== "continued" || profile.continued?.enabled !== false;
+  const assigned = new Set([...available.frontMatter, ...available.backMatter, ...available.volumeMatter].map((page) => page.path));
+  const continued = { enabled: profile.continued?.enabled };
+  return { ...profile, frontMatter: found.frontMatter.map(entry), backMatter: found.backMatter.filter(included).map(entry), chapters: [.../* @__PURE__ */ new Set([...profile.chapters.filter((file) => !assigned.has(file)), ...found.volumeMatter.filter(included).map((page) => page.path), ...found.appendices.map((page) => page.path)])], continued };
 }
 const fs = require("node:fs/promises");
 const childProcess = require("node:child_process");
@@ -3366,29 +3531,24 @@ const list = (value, name, limit = 1e3) => {
   return value;
 };
 function normalizeDoi(value) {
-  const text = optionalText(value, "DOI", 300)?.replace(/^https?:\/\/(?:dx\.)?doi\.org\//i, "");
-  if (text && !/^10\.\d{4,9}\/[^\s<>]+$/i.test(text)) throw new Error("Enter a DOI such as 10.1234/example.");
-  return text;
+  return metadataDoi(value) || void 0;
 }
 function normalizeProfile(input) {
   if (!input || typeof input !== "object") throw new Error("A publication profile is required.");
+  const automatic = input.matter?.automatic === true;
   const matter = (items, role) => list(items, role, 100).map((item) => {
     if (!item || typeof item !== "object") throw new Error(`Invalid ${role} entry.`);
     const value = { title: optionalText(item.title, `${role} title`, 1e3), file: item.file === void 0 ? void 0 : relativeInput(item.file), content: optionalText(item.content, `${role} content`, 1e6), includeInToc: item.includeInToc === true };
     if (value.file && !/\.md$/i.test(value.file)) throw new Error("Publication matter files must be Markdown files.");
-    if (!value.file && !value.content && !value.title) throw new Error(`An empty ${role} entry cannot be published.`);
+    if (!automatic && !value.file && !value.content && !value.title) throw new Error(`An empty ${role} entry cannot be published.`);
     return value;
   });
-  const authors = list(input.authors, "authors", 100).map((item) => {
-    const name = optionalText(item?.name, "author name", 1e3);
-    if (!name) throw new Error("Every publication author needs a name.");
-    return { name, orcid: optionalText(item.orcid, "ORCID", 1e3), affiliation: optionalText(item.affiliation, "affiliation", 3e3) };
-  });
+  const metadata = normalizeWorkMetadata(input);
   const chapters = [...new Set(list(input.chapters, "chapter selection", 1e4).map(relativeInput))];
   if (!chapters.length) throw new Error("Select at least one chapter or page.");
   if (chapters.some((file) => !/\.md$/i.test(file))) throw new Error("Publication chapters must be Markdown files.");
-  const title = optionalText(input.title, "title", 3e3), version = optionalText(input.version, "version", 200);
-  if (!title || !version) throw new Error("Publication title and version are required.");
+  const version = optionalText(input.version, "version", 200);
+  if (!version) throw new Error("Publication version is required.");
   const engine = input.pdf?.engine || "xelatex";
   if (!["xelatex", "lualatex", "pdflatex", "tectonic"].includes(engine)) throw new Error("Unsupported publication PDF engine.");
   const paper = input.pdf?.paper || "a4", margin = input.pdf?.margin || "2.5cm";
@@ -3409,30 +3569,27 @@ function normalizeProfile(input) {
   const continuedFile = input.continued?.file ? relativeInput(input.continued.file) : void 0;
   if (continuedFile && !/\.md$/i.test(continuedFile)) throw new Error("Publication continued notice files must be Markdown files.");
   const frontMatter = matter(input.frontMatter, "front matter"), backMatter = matter(input.backMatter, "back matter");
-  const matterFiles = [...frontMatter, ...backMatter, ...input.continued?.enabled === false || !continuedFile ? [] : [{ file: continuedFile }]].map((entry) => entry.file).filter(Boolean);
+  const matterFiles = [...automatic ? [] : [...frontMatter, ...backMatter], ...input.continued?.enabled === false || !continuedFile ? [] : [{ file: continuedFile }]].map((entry) => entry.file).filter(Boolean);
   if (new Set(matterFiles).size !== matterFiles.length) throw new Error("A publication file can only fill one matter role.");
   return JSON.parse(canonical({
+    ...metadata,
     id: publicationId(input.id),
     workId: publicationId(input.workId),
-    title,
     version,
-    authors,
     chapters,
     scope,
-    subtitle: optionalText(input.subtitle, "subtitle", 3e3),
     edition: optionalText(input.edition, "edition", 300),
-    language: optionalText(input.language, "language", 80),
-    license: optionalText(input.license, "license", 200),
-    description: optionalText(input.description, "description", 1e5),
     publicationDate: optionalText(input.publicationDate, "publication date", 100),
-    repository: optionalText(input.repository, "repository", 3e3),
+    releaseTag: optionalText(input.releaseTag, "release tag", 300),
+    releaseCommit: optionalText(input.releaseCommit, "release commit", 300),
     cover: { image: input.cover?.image ? relativeInput(input.cover.image) : void 0, showVersion: input.cover?.showVersion !== false },
     frontMatter,
     backMatter,
+    matter: input.matter ? { automatic: input.matter.automatic === true, exclude: [...new Set(list(input.matter.exclude, "excluded matter", 1e4).map(relativeInput))] } : void 0,
     toc: { enabled: input.toc?.enabled !== false, depth, title: optionalText(input.toc?.title, "contents title", 500) },
     continued: { enabled: typeof input.continued?.enabled === "boolean" ? input.continued.enabled : void 0, file: continuedFile, title: optionalText(input.continued?.title, "continued title", 1e3), text: optionalText(input.continued?.text, "continued notice", 1e5) },
     pdf: { engine, paper, margin, documentClass },
-    doi: { versionDoi: normalizeDoi(input.doi?.versionDoi), conceptDoi: normalizeDoi(input.doi?.conceptDoi), provenance: optionalText(input.doi?.provenance, "DOI provenance", 3e3) },
+    doi: { ...metadata.doi, versionDoi: input.doi?.versionDoi === "" ? "" : normalizeDoi(input.doi?.versionDoi) },
     zenodo: { environment, tokenEnv }
   }));
 }
@@ -3466,7 +3623,17 @@ async function probeTool(command) {
 async function publicationTools(profile, options = {}) {
   const probe = options.toolProbe || probeTool, engineName = profile?.pdf?.engine || "xelatex";
   const [pandoc, engine] = await Promise.all([probe("pandoc"), probe(engineName)]);
-  return { pandoc, engine, engineName };
+  const tools = { pandoc, engine, engineName };
+  if (process.platform === "darwin" && profile?.language?.toLowerCase().startsWith("zh") && !profile.pdf?.documentClass) {
+    const file = "/System/Library/Fonts/Supplemental/Songti.ttc";
+    try {
+      await fs.access(file, require("node:fs").constants.R_OK);
+      const stat = await fs.stat(file);
+      if (stat.isFile()) tools.chineseFonts = { family: "Songti SC", source: "macos", bytes: stat.size, modifiedAt: stat.mtime.toISOString() };
+    } catch {
+    }
+  }
+  return tools;
 }
 async function readSnapshot(root) {
   const files = /* @__PURE__ */ new Map(), inputs = [];
@@ -3525,8 +3692,10 @@ function resourceTargets(content) {
   for (const match of content.matchAll(/<img\b[^>]*\bsrc=["']([^"']+)["']/gi)) targets.push({ target: match[1], image: true });
   return targets;
 }
-async function makePublicationPlan(root, input, doi, options = {}) {
-  const profile = normalizeProfile(input), snapshot = await readSnapshot(root), selectedPaths = new Set(profile.chapters);
+async function makePublicationPlan(root, input, doiInput, options = {}) {
+  const profileOverrides = normalizeProfile(input), snapshot = await readSnapshot(root);
+  const profile = normalizeProfile(resolvePublicationMatter(resolvePublicationMetadata(profileOverrides, snapshot.config), snapshot.pages)), selectedPaths = new Set(profile.chapters);
+  const doi = typeof doiInput === "function" ? await doiInput(profile) : doiInput;
   for (const name of selectedPaths) if (!snapshot.files.has(name) || !snapshot.pages.some((page) => page.path === name)) throw new Error(`Selected publication page is unavailable or excluded: ${name}`);
   const matters = /* @__PURE__ */ new Set();
   const resolveMatter = async (entry, role) => {
@@ -3547,7 +3716,7 @@ async function makePublicationPlan(root, input, doi, options = {}) {
   const frontMatter = [], backMatter = [];
   for (const entry of profile.frontMatter) frontMatter.push(await resolveMatter(entry, "front-matter"));
   for (const entry of profile.backMatter) backMatter.push(await resolveMatter(entry, "back-matter"));
-  const continuedFile = profile.continued.file && profile.continued.enabled !== false ? await resolveMatter({ file: profile.continued.file, title: profile.continued.title }, "continued") : void 0;
+  const continuedFile = profile.continued.file && profile.continued.enabled !== false ? await resolveMatter({ file: profile.continued.file }, "continued") : void 0;
   const selected = snapshot.pages.filter((page) => selectedPaths.has(page.path));
   if (!selected.length) throw new Error("Select at least one chapter or page outside the referenced front matter, back matter, and continued notice.");
   const selectedBooks = new Set(selected.map((page) => page.book).filter(Boolean));
@@ -3643,10 +3812,10 @@ async function makePublicationPlan(root, input, doi, options = {}) {
   }
   if (profile.cover.image) await addInput(profile.cover.image, "asset");
   const english = (profile.language || snapshot.config.language).startsWith("en");
-  const continuedNotice = { enabled: profile.continued.enabled ?? (!!continuedFile || omitted.length > 0), file: continuedFile?.file, title: profile.continued.title || continuedFile?.title || (english ? "To be continued" : "未完待续"), text: continuedFile?.content ?? (profile.continued.text || (english ? "This is a partial edition of a continuing work. Further chapters and revisions will appear in later versions of the same work." : "本版为持续更新作品的部分内容。后续章节与修订将在同一作品的后续版本中继续发布。")) };
+  const continuedNotice = { enabled: !hasPublicationContinuedManuscript(profile, snapshot.pages) && (profile.continued.enabled ?? (!!continuedFile || omitted.length > 0)), file: continuedFile?.file, title: continuedFile?.title || profile.continued.title || (english ? "To be continued" : "未完待续"), text: continuedFile?.content ?? (profile.continued.text || (english ? "This is a partial edition of a continuing work. Further chapters and revisions will appear in later versions of the same work." : "本版为持续更新作品的部分内容。后续章节与修订将在同一作品的后续版本中继续发布。")) };
   const warnings = externalReferences.length ? [`${externalReferences.length} reference(s) point outside this edition; omitted pages are not added automatically.`] : [];
   const tools = await publicationTools(profile, options);
-  const content = { schema: "math-workspace.publication-plan/v1", profile, selected, omitted, externalReferences, partial: omitted.length > 0, frontMatter, backMatter, continuedNotice, doi, inputs: snapshot.inputs.sort((a, b) => a.path.localeCompare(b.path)), tools, warnings };
+  const content = { schema: "math-workspace.publication-plan/v1", profile, profileOverrides, projectMetadata: projectMetadata(snapshot.config), selected, omitted, externalReferences, partial: omitted.length > 0, frontMatter, backMatter, continuedNotice, doi, inputs: snapshot.inputs.sort((a, b) => a.path.localeCompare(b.path)), tools, warnings };
   return { plan: { ...content, fingerprint: sha256(canonical(content)) }, snapshot };
 }
 function firstHeadingTitle(content) {
@@ -3777,7 +3946,7 @@ ${title}${await matterContent(entry, `back-${index}`, void 0, !title)}
       }
       if (plan.continuedNotice.enabled) {
         const notice = plan.continuedNotice;
-        const content = notice.file ? await matterContent({ file: notice.file, title: profile.continued.title, includeInToc: false }, "continued", notice.title) : `# ${notice.title} {.unnumbered .unlisted}
+        const content = notice.file ? await matterContent({ file: notice.file, includeInToc: false }, "continued", notice.title) : `# ${notice.title} {.unnumbered .unlisted}
 
 ${notice.text}`;
         markdown += `
@@ -3793,20 +3962,33 @@ ${content}
       const defaultChineseClass = !profile.pdf.documentClass && language.toLowerCase().startsWith("zh");
       const documentClass = profile.pdf.documentClass || (defaultChineseClass ? "ctexart" : void 0);
       const args = ["render-pdf", "../compiled.md", "--out=../publication.pdf", "--no-project-pdf-defaults", "--title-page", "--metadata-page", "--toc-page-break", `--title=${profile.title}`, `--release-version=${profile.version}`, `--author=${profile.authors.map((author) => author.name).join("; ")}`, `--pdf-engine=${profile.pdf.engine}`, `--paper=${profile.pdf.paper}`, `--margin=${profile.pdf.margin}`, `--lang=${language}`, `--toc-depth=${profile.toc.depth}`, `--toc-title=${profile.toc.title || (snapshot.config.language === "en" ? "Contents" : "目录")}`];
+      args.push(`--authors-json=${JSON.stringify(profile.authors)}`);
       args.push(profile.toc.enabled ? "--toc" : "--no-toc", profile.cover.showVersion ? "--show-version-on-cover" : "--no-show-version-on-cover");
       if (profile.subtitle || profile.edition) args.push(`--subtitle=${[profile.subtitle, profile.edition].filter(Boolean).join(" · ")}`);
       if (profile.cover.image) args.push(`--cover-image=${profile.cover.image}`);
       if (documentClass) args.push(`--documentclass=${documentClass}`);
-      if (defaultChineseClass) args.push("--variable=classoption:fontset=fandol");
+      if (defaultChineseClass) {
+        const family = plan.tools.chineseFonts?.family;
+        if (family) args.push("--variable=classoption:fontset=none", `--variable=CJKmainfont:${family}`, `--variable=CJKsansfont:${family}`, `--variable=CJKmonofont:${family}`);
+        else args.push("--variable=classoption:fontset=fandol");
+      }
       if (profile.license) args.push(`--license=${profile.license}`);
       if (profile.repository) args.push(`--repository=${profile.repository}`);
-      if (profile.publicationDate) args.push(`--date=${profile.publicationDate}`);
+      if (profile.website) args.push(`--website=${profile.website}`);
+      if (profile.licenseUrl) args.push(`--license-url=${profile.licenseUrl}`);
+      if (profile.preferredCitation) args.push(`--preferred-citation=${profile.preferredCitation}`);
+      if (profile.releaseTag) args.push(`--release-tag=${profile.releaseTag}`);
+      if (profile.releaseCommit) args.push(`--release-commit=${profile.releaseCommit}`);
+      if (profile.description) args.push(`--description=${profile.description}`);
+      for (const keyword of profile.keywords || []) args.push(`--keyword=${keyword}`);
+      const publicationDate = profile.publicationDate || createdAt.slice(0, 10);
+      args.push(`--date=${publicationDate}`);
       if (plan.doi.versionDoi) args.push(`--doi=${plan.doi.versionDoi}`);
       if (plan.doi.conceptDoi) args.push(`--work-doi=${plan.doi.conceptDoi}`);
       if (plan.doi.versionDoi || plan.doi.conceptDoi) {
         const chinese = (profile.language || snapshot.config.language).toLowerCase().startsWith("zh");
         const note = plan.doi.source === "manual" ? chinese ? "DOI 由作者提供；注册信息以 DOI 服务平台记录为准。" : "DOI supplied by the author; registration details follow the DOI provider record." : plan.doi.source === "zenodo" ? chinese ? "DOI 由 Zenodo 分配；注册信息以 DOI 服务平台记录为准。" : "DOI assigned through Zenodo; registration details follow the DOI provider record." : chinese ? "DOI 信息以 DOI 服务平台记录为准。" : "DOI information follows the DOI provider record.";
-        args.push(`--doi-state=${note}`);
+        args.push(`--doi-state=${[note, profile.doi?.provenance].filter(Boolean).join(" ")}`);
       }
       for (let index = 0; index < profile.frontMatter.length; index++) {
         const entry = profile.frontMatter[index], name = `.math-workspace/publication-front-${index}.md`;
@@ -3821,7 +4003,33 @@ ${content}
       const pdf = await fs.readFile(path__namespace.join(temporary, "publication.pdf"));
       if (!pdf.subarray(0, 5).equals(Buffer.from("%PDF-"))) throw new Error("The PDF renderer did not produce a valid PDF file.");
       if ((await recheck().catch(() => null))?.fingerprint !== plan.fingerprint) throw new Error("Publication sources changed during PDF rendering. This build was not saved.");
-      const pdfSha256 = sha256(pdf), markdownBytes = Buffer.from(markdown), citation = { type: "book", title: profile.title, author: profile.authors.map((author) => ({ literal: author.name, ORCID: author.orcid })), version: profile.version, edition: profile.edition, DOI: plan.doi.versionDoi, conceptDOI: plan.doi.conceptDoi, doiProvenance: plan.doi, workId: profile.workId, partial: plan.partial, selectedPages: plan.selected.map((page) => page.path) };
+      const pdfSha256 = sha256(pdf), markdownBytes = Buffer.from(markdown);
+      const citation = {
+        type: "book",
+        title: profile.title,
+        subtitle: profile.subtitle,
+        author: profile.authors.map((author) => ({ literal: author.name, ORCID: author.orcid, affiliation: author.affiliation, nativeName: author.nativeName, aliases: author.aliases })),
+        language: profile.language,
+        abstract: profile.description,
+        URL: profile.website || profile.repository,
+        website: profile.website,
+        repository: profile.repository,
+        license: profile.license,
+        licenseUrl: profile.licenseUrl,
+        keyword: profile.keywords?.join(", "),
+        note: profile.preferredCitation,
+        .../^\d{4}-\d{2}-\d{2}$/.test(publicationDate) ? { issued: { "date-parts": [publicationDate.split("-").map(Number)] } } : {},
+        version: profile.version,
+        edition: profile.edition,
+        sourceTag: profile.releaseTag,
+        sourceCommit: profile.releaseCommit,
+        DOI: plan.doi.versionDoi,
+        conceptDOI: plan.doi.conceptDoi,
+        doiProvenance: plan.doi,
+        workId: profile.workId,
+        partial: plan.partial,
+        selectedPages: plan.selected.map((page) => page.path)
+      };
       await fs.writeFile(path__namespace.join(temporary, "citation.json"), canonical(citation), { flag: "wx" });
       const citationBytes = await fs.readFile(path__namespace.join(temporary, "citation.json"));
       const manifest = { schema: "math-workspace.publication-manifest/v1", buildId: id, createdAt, plan, artifacts: { "publication.pdf": { sha256: pdfSha256, bytes: pdf.length }, "compiled.md": { sha256: sha256(markdownBytes), bytes: markdownBytes.length }, "citation.json": { sha256: sha256(citationBytes), bytes: citationBytes.length } }, layout: ["cover", "publication metadata", "front matter", ...profile.toc.enabled ? ["generated table of contents"] : [], "selected chapters in original order and numbering", "back matter", ...plan.continuedNotice.enabled ? ["to be continued"] : []], mathematicalCorrectnessAssessed: false, sourceArchiveSignatureAsserted: false };
@@ -3848,11 +4056,18 @@ const numericId = (value) => {
 };
 const submitted = (record) => record?.submitted === true || record?.state === "done";
 const md5 = (bytes) => crypto__namespace.createHash("md5").update(bytes).digest("hex");
-const checksumMatches = (value, bytes) => {
-  const text = String(value || "").toLowerCase();
-  return text === `md5:${md5(bytes)}` || text === md5(bytes) || text === `sha256:${sha256(bytes)}` || text === sha256(bytes);
+const checksumIdentity = (value) => {
+  const text2 = String(value || "").toLowerCase();
+  if (/^(?:md5:)?[a-f0-9]{32}$/.test(text2)) return `md5:${text2.replace(/^md5:/, "")}`;
+  if (/^(?:sha256:)?[a-f0-9]{64}$/.test(text2)) return `sha256:${text2.replace(/^sha256:/, "")}`;
+  return void 0;
 };
-function fileName(profile) {
+const sameChecksum = (left, right) => !!checksumIdentity(left) && checksumIdentity(left) === checksumIdentity(right);
+const checksumMatches = (value, bytes) => {
+  const text2 = String(value || "").toLowerCase();
+  return text2 === `md5:${md5(bytes)}` || text2 === md5(bytes) || text2 === `sha256:${sha256(bytes)}` || text2 === sha256(bytes);
+};
+function zenodoFileName(profile) {
   return `${profile.id}-${profile.version.replace(/[^a-zA-Z0-9._-]/g, "_")}.pdf`;
 }
 function zenodoLanguage(value) {
@@ -3863,6 +4078,47 @@ function zenodoLanguage(value) {
   const result = known[language.split("-")[0]];
   if (!result) throw new Error("Zenodo language must be a supported language tag or an ISO 639-2/639-3 three-letter code.");
   return result;
+}
+function zenodoPublicationMetadata(profile, build) {
+  if (!profile.authors?.length) throw new Error("Zenodo publication requires at least one named author.");
+  if (!profile.description) throw new Error("Zenodo publication requires a description in the saved profile.");
+  const date = profile.publicationDate || build?.createdAt.slice(0, 10) || (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error("Zenodo publication date must use YYYY-MM-DD.");
+  const language = zenodoLanguage(profile.language);
+  const related = [profile.website ? { identifier: profile.website, relation: "isDescribedBy", scheme: "url" } : void 0, profile.repository ? { identifier: profile.repository, relation: "isDerivedFrom", scheme: "url" } : void 0].filter(Boolean);
+  const notes = [
+    profile.subtitle ? `Subtitle: ${profile.subtitle}` : "",
+    profile.edition ? `Edition: ${profile.edition}` : "",
+    profile.licenseUrl ? `License URL: ${profile.licenseUrl}` : "",
+    profile.preferredCitation ? `Preferred citation: ${profile.preferredCitation}` : "",
+    profile.releaseTag ? `Source tag: ${profile.releaseTag}` : "",
+    profile.releaseCommit ? `Source commit: ${profile.releaseCommit}` : "",
+    profile.doi?.provenance ? `DOI source note: ${profile.doi.provenance}` : "",
+    ...profile.authors.flatMap((author) => [author.nativeName ? `${author.name} — native name: ${author.nativeName}` : "", author.aliases?.length ? `${author.name} — aliases: ${author.aliases.join("; ")}` : ""])
+  ].filter(Boolean);
+  const escape = (value) => value.replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character]);
+  return { upload_type: "publication", publication_type: "book", title: profile.title, creators: profile.authors.map((author) => ({ name: author.name, ...author.orcid ? { orcid: author.orcid.replace(/^https?:\/\/orcid.org\//i, "") } : {}, ...author.affiliation ? { affiliation: author.affiliation } : {} })), description: profile.description, version: profile.version, publication_date: date, access_right: "open", license: profile.license || "cc-by-4.0", ...language ? { language } : {}, keywords: profile.keywords || [], related_identifiers: related, notes: notes.map((note) => `<p>${escape(note)}</p>`).join(""), ...profile.doi?.versionDoi ? { doi: profile.doi.versionDoi } : {} };
+}
+function zenodoMetadataMatches(record, expected) {
+  const metadata = record?.metadata || {}, native = !!metadata.resource_type || metadata.creators?.some((author) => author.person_or_org);
+  const actual = {
+    ...metadata,
+    license: typeof metadata.license === "string" ? metadata.license : metadata.license?.id || metadata.rights?.[0]?.id,
+    creators: (metadata.creators || []).map((author) => native ? { name: author.person_or_org?.name, orcid: author.person_or_org?.identifiers?.find((item) => item.scheme === "orcid")?.identifier, affiliation: author.affiliations?.map((item) => item.name).join("; ") || void 0 } : author),
+    keywords: metadata.keywords || metadata.subjects?.map((item) => item.subject) || [],
+    related_identifiers: (metadata.related_identifiers || []).map((item) => ({ identifier: item.identifier, scheme: item.scheme, relation: (item.relation || item.relation_type?.id || "").toLowerCase() })),
+    notes: metadata.notes || metadata.additional_descriptions?.filter((item) => item.type?.id === "notes").map((item) => item.description).join("") || "",
+    ...native ? {
+      upload_type: "publication",
+      publication_type: metadata.resource_type?.id === "publication-book" ? "book" : void 0,
+      access_right: record.access?.record === "public" || record.access?.status === "open" ? "open" : void 0,
+      language: metadata.languages?.[0]?.id,
+      license: metadata.rights?.[0]?.id
+    } : {}
+  };
+  const value = (input) => Array.isArray(input) ? input.map(value) : input && typeof input === "object" ? Object.fromEntries(Object.entries(input).filter(([, item]) => item !== null && item !== void 0).map(([key, item]) => [key, value(item)])) : input;
+  const ordered = (key, input) => key === "keywords" || key === "related_identifiers" ? (input || []).map((item) => key === "related_identifiers" ? { identifier: item.identifier, scheme: item.scheme, relation: (item.relation || item.relation_type?.id || "").toLowerCase() } : item).sort((a, b) => canonical(a).localeCompare(canonical(b))) : input;
+  return Object.entries(expected).every(([key, item]) => canonical(value(ordered(key, actual[key]))) === canonical(value(ordered(key, item))));
 }
 class ZenodoHttpError extends Error {
   constructor(status) {
@@ -3885,16 +4141,16 @@ class ZenodoPublication {
     const token = (this.options.environment || process.env)[profile.zenodo?.tokenEnv || "ZENODO_TOKEN"];
     if (!token) throw new Error(`Zenodo credential is unavailable in the server process environment (${profile.zenodo?.tokenEnv || "ZENODO_TOKEN"}).`);
     const secureUrl = (input) => {
-      const URLConstructor = require("node:url").URL, url = new URLConstructor(input, origin);
-      if (url.origin !== origin || url.protocol !== "https:" || url.username || url.password || url.search || url.hash || !url.pathname.startsWith("/api/")) throw new Error("Zenodo returned an untrusted API URL.");
-      return url.toString();
+      const URLConstructor2 = require("node:url").URL, url2 = new URLConstructor2(input, origin);
+      if (url2.origin !== origin || url2.protocol !== "https:" || url2.username || url2.password || url2.search || url2.hash || !url2.pathname.startsWith("/api/")) throw new Error("Zenodo returned an untrusted API URL.");
+      return url2.toString();
     };
-    const request = async (input, method = "GET", body, binary = false) => {
-      const url = secureUrl(input), fetcher = this.options.fetch || globalThis.fetch;
+    const request = async (input, method = "GET", body, binary = false, native = false) => {
+      const url2 = secureUrl(input), fetcher = this.options.fetch || globalThis.fetch;
       if (!fetcher) throw new Error("This Node.js runtime does not provide fetch for Zenodo.");
       let response;
       try {
-        response = await fetcher(url, { method, redirect: "error", headers: { Authorization: `Bearer ${token}`, ...body !== void 0 ? { "Content-Type": binary ? "application/octet-stream" : "application/json" } : {} }, ...body !== void 0 ? { body: binary ? body : JSON.stringify(body) } : {} });
+        response = await fetcher(url2, { method, redirect: "error", headers: { Authorization: `Bearer ${token}`, ...native ? { Accept: "application/vnd.inveniordm.v1+json" } : {}, ...body !== void 0 ? { "Content-Type": binary ? "application/octet-stream" : "application/json" } : {} }, ...body !== void 0 ? { body: binary ? body : JSON.stringify(body) } : {} });
       } catch {
         throw new Error("Zenodo request result is unknown. Reconcile the existing draft or record before retrying a creation or publication.");
       }
@@ -3908,8 +4164,17 @@ class ZenodoPublication {
     };
     return { environment, origin, secureUrl, request };
   }
+  async nativeDraft(client, id) {
+    const draft = await client.request(`/api/records/${numericId(id)}/draft`, "GET", void 0, false, true);
+    if (String(draft?.id) !== id || draft.is_published === true || draft.is_draft !== true) throw new Error("Zenodo did not return the expected editable native draft.");
+    return draft;
+  }
+  authoritativeDraft(record, native) {
+    const doi = normalizeDoi(native.pids?.doi?.identifier);
+    return { ...record, doi, metadata: { ...record.metadata, doi, prereserve_doi: doi ? { doi, recid: String(record.id) } : void 0 } };
+  }
   nextState(profile, record, previous) {
-    const id = numericId(record.id), published = submitted(record), doi = normalizeDoi(record.doi || record.metadata?.doi || record.metadata?.prereserve_doi?.doi), conceptDoi = normalizeDoi(record.conceptdoi || record.concept_doi || previous?.conceptDoi);
+    const id = numericId(record.id), published = submitted(record), doi = normalizeDoi(record.doi || record.metadata?.doi || (published ? record.metadata?.prereserve_doi?.doi : previous?.versionDoi)), conceptDoi = normalizeDoi(record.conceptdoi || record.concept_doi || previous?.conceptDoi);
     const conceptRecordId = record.conceptrecid ? numericId(record.conceptrecid) : previous?.conceptRecordId;
     if (previous?.conceptRecordId && conceptRecordId && previous.conceptRecordId !== conceptRecordId) throw new Error("Zenodo returned a different work record identity. The existing binding is retained.");
     if (previous?.conceptDoi && conceptDoi && previous.conceptDoi !== conceptDoi) throw new Error("Zenodo returned a different work DOI. The existing work binding is retained.");
@@ -3918,17 +4183,41 @@ class ZenodoPublication {
     const origin = profile.zenodo?.environment === "production" ? "https://zenodo.org" : "https://sandbox.zenodo.org";
     const ownedFiles = (previous?.ownedFiles || []).filter((file) => file.draftId === id);
     const owned = [previous?.upload, ...previous?.history || [], ...ownedFiles].filter(Boolean);
-    const draftFiles = (record.files || []).map((file) => ({ name: String(file.filename || file.key || ""), checksum: String(file.checksum || ""), bytes: Number(file.filesize || file.size) || void 0, owned: owned.some((item) => item.fileName === (file.filename || file.key) && item.remoteChecksum === String(file.checksum || "")) }));
-    const uploadMatches = previous?.upload && (previous.draftId === id || previous.recordId === id) && draftFiles.length === 1 && draftFiles[0].name === previous.upload.fileName && draftFiles[0].checksum === previous.upload.remoteChecksum;
+    const draftFiles = (record.files || []).map((file) => ({ name: String(file.filename || file.key || ""), checksum: String(file.checksum || ""), bytes: Number(file.filesize || file.size) || void 0, owned: owned.some((item) => item.fileName === (file.filename || file.key) && sameChecksum(item.remoteChecksum, file.checksum)) }));
+    const uploadMatches = previous?.upload && (previous.draftId === id || previous.recordId === id) && draftFiles.length === 1 && draftFiles[0].name === previous.upload.fileName && sameChecksum(draftFiles[0].checksum, previous.upload.remoteChecksum);
     return { schema: "math-workspace.publication-zenodo/v1", environment: profile.zenodo?.environment || "sandbox", status: published ? "published" : "draft", ...published ? { recordId: id } : { draftId: id }, conceptRecordId, versionDoi: doi, conceptDoi, recordUrl: `${origin}/${published ? "records" : "deposit"}/${id}`, history: previous?.history || [], draftFiles, ownedFiles, ...uploadMatches ? { upload: previous.upload } : {} };
   }
   metadata(profile, build) {
-    if (!profile.authors.length) throw new Error("Zenodo publication requires at least one named author.");
-    if (!profile.description) throw new Error("Zenodo publication requires a description in the saved profile.");
-    const date = profile.publicationDate || build?.createdAt.slice(0, 10) || (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error("Zenodo publication date must use YYYY-MM-DD.");
-    const language = zenodoLanguage(profile.language);
-    return { upload_type: "publication", publication_type: "book", title: profile.title, creators: profile.authors.map((author) => ({ name: author.name, ...author.orcid ? { orcid: author.orcid.replace(/^https?:\/\/orcid.org\//i, "") } : {}, ...author.affiliation ? { affiliation: author.affiliation } : {} })), description: profile.description, version: profile.version, publication_date: date, access_right: "open", license: profile.license || "cc-by-4.0", ...language ? { language } : {}, ...profile.doi?.versionDoi ? { doi: profile.doi.versionDoi } : {} };
+    return zenodoPublicationMetadata(profile, build);
+  }
+  metadataMatches(record, expected) {
+    return zenodoMetadataMatches(record, expected);
+  }
+  nativeMetadata(native, expected) {
+    const creators = expected.creators.map((author) => {
+      const [family, ...given] = author.name.split(",");
+      return { person_or_org: { type: "personal", name: author.name, family_name: family.trim(), ...given.length ? { given_name: given.join(",").trim() } : {}, ...author.orcid ? { identifiers: [{ scheme: "orcid", identifier: author.orcid }] } : {} }, ...author.affiliation ? { affiliations: [{ name: author.affiliation }] } : {} };
+    });
+    return {
+      metadata: {
+        ...native.metadata,
+        resource_type: { id: "publication-book" },
+        title: expected.title,
+        creators,
+        description: expected.description,
+        version: expected.version,
+        publication_date: expected.publication_date,
+        publisher: native.metadata?.publisher || "Zenodo",
+        rights: [{ id: expected.license }],
+        subjects: (expected.keywords || []).map((subject) => ({ subject })),
+        related_identifiers: (expected.related_identifiers || []).map((item) => ({ identifier: item.identifier, scheme: item.scheme, relation_type: { id: item.relation.toLowerCase() } })),
+        languages: expected.language ? [{ id: expected.language }] : [],
+        additional_descriptions: [...(native.metadata?.additional_descriptions || []).filter((item) => item.type?.id !== "notes"), ...expected.notes ? [{ description: expected.notes, type: { id: "notes" } }] : []]
+      },
+      pids: native.pids,
+      access: { record: "public", files: "public" },
+      ...native.custom_fields ? { custom_fields: native.custom_fields } : {}
+    };
   }
   checkBinding(profile, remote) {
     if (remote && remote.environment !== (profile.zenodo?.environment || "sandbox")) throw new Error("This publication is already bound to a different Zenodo environment.");
@@ -3944,7 +4233,7 @@ class ZenodoPublication {
   }
   async reserve(profileId, expectedRevision, options) {
     return this.store.locked(profileId, async () => {
-      const { profile: raw } = await this.store.expectProfile(profileId, expectedRevision), profile = normalizeProfile(raw), client = this.client(profile);
+      const { profile: raw } = await this.store.expectProfile(profileId, expectedRevision), profile = resolvePublicationMetadata(normalizeProfile(raw), (await readPublicationMetadata(this.store.root)).config), client = this.client(profile);
       let remote = await this.store.remote(profileId);
       this.checkBinding(profile, remote);
       if (remote?.pending) throw new Error("A previous Zenodo operation has an unresolved result. Attach its existing draft or record to reconcile it before continuing.");
@@ -3992,21 +4281,26 @@ class ZenodoPublication {
       if (!remote.draftId || remote.status !== "draft") throw new Error("Attach a known editable Zenodo draft before reserving a DOI.");
       const draft = await client.request(`/api/deposit/depositions/${numericId(remote.draftId)}`);
       if (submitted(draft)) throw new Error("Published Zenodo files and metadata cannot be overwritten. Reconcile the record and create a new version.");
-      if (!draft.metadata?.prereserve_doi?.doi && !draft.doi && !draft.metadata?.doi) {
-        const updated = await client.request(`/api/deposit/depositions/${remote.draftId}`, "PUT", { metadata: { ...draft.metadata, ...this.metadata(profile), prereserve_doi: true } });
-        remote = await this.store.writeRemote(profileId, this.nextState(profile, updated, remote));
-      } else remote = await this.store.writeRemote(profileId, this.nextState(profile, draft, remote));
+      let native = await this.nativeDraft(client, remote.draftId);
+      if (!native.pids?.doi?.identifier) {
+        if (profile.doi?.versionDoi) throw new Error("The existing Zenodo draft has no native DOI binding matching the manually supplied DOI. Reconcile it in Zenodo before continuing.");
+        await this.store.writeRemote(profileId, { ...remote, status: "unknown", pending: { action: "reserve-doi", startedAt: (/* @__PURE__ */ new Date()).toISOString(), recordId: remote.draftId } });
+        await client.request(`/api/records/${remote.draftId}/draft/pids/doi`, "POST", void 0, false, true);
+        native = await this.nativeDraft(client, remote.draftId);
+      }
+      remote = await this.store.writeRemote(profileId, this.nextState(profile, this.authoritativeDraft(draft, native), remote));
       if (!remote.versionDoi) throw new Error("Zenodo has not acknowledged a reserved version DOI. The draft is retained for reconciliation.");
       return remote;
     });
   }
   async attach(profileId, expectedRevision, options) {
     return this.store.locked(profileId, async () => {
-      const { profile: raw } = await this.store.expectProfile(profileId, expectedRevision), profile = normalizeProfile(raw), client = this.client(profile), previous = await this.store.remote(profileId);
+      const { profile: raw } = await this.store.expectProfile(profileId, expectedRevision), profile = resolvePublicationMetadata(normalizeProfile(raw), (await readPublicationMetadata(this.store.root)).config), client = this.client(profile), previous = await this.store.remote(profileId);
       this.checkBinding(profile, previous);
       if (!["draft", "record"].includes(options.kind)) throw new Error("Choose draft or published record.");
-      const record = await client.request(`/api/deposit/depositions/${numericId(options.id)}`);
+      let record = await client.request(`/api/deposit/depositions/${numericId(options.id)}`);
       if (submitted(record) !== (options.kind === "record")) throw new Error("The selected Zenodo identity has a different publication status.");
+      if (!submitted(record)) record = this.authoritativeDraft(record, await this.nativeDraft(client, String(record.id)));
       const sameKnownRecord = previous && [previous.draftId, previous.recordId, ...(previous.history || []).map((item) => item.recordId)].includes(String(record.id));
       if (previous && !sameKnownRecord && (previous.conceptRecordId || previous.conceptDoi) && !record.conceptrecid && !record.conceptdoi && !record.concept_doi) throw new Error("Zenodo did not provide the work identity needed to reconcile this different record.");
       let recovered = previous;
@@ -4015,7 +4309,7 @@ class ZenodoPublication {
         const manifest = JSON.parse((await this.store.artifact(profileId, build.id, "manifest.json")).toString("utf8"));
         const builtProfile = normalizeProfile(manifest.plan.profile);
         if (build.workId !== profile.workId || builtProfile.id !== profile.id || builtProfile.workId !== profile.workId) throw new Error("The interrupted upload build belongs to a different work.");
-        const name = fileName(builtProfile), file = (record.files || []).find((file2) => (file2.filename || file2.key) === name && checksumMatches(file2.checksum, bytes) && (!(file2.filesize || file2.size) || Number(file2.filesize || file2.size) === bytes.length));
+        const name = zenodoFileName(builtProfile), file = (record.files || []).find((file2) => (file2.filename || file2.key) === name && checksumMatches(file2.checksum, bytes) && (!(file2.filesize || file2.size) || Number(file2.filesize || file2.size) === bytes.length));
         if (file) recovered = { ...previous, ownedFiles: [...(previous.ownedFiles || []).filter((item) => item.draftId !== String(record.id) || item.fileName !== name), { draftId: String(record.id), buildId: build.id, pdfSha256: build.pdfSha256, fileName: name, remoteChecksum: String(file.checksum) }] };
       }
       const next = this.nextState(profile, record, recovered);
@@ -4029,24 +4323,28 @@ class ZenodoPublication {
   async reviewed(profileId, buildId2, review) {
     const saved = await this.store.profile(profileId);
     if (!saved) throw new Error("Save the publication profile first.");
-    const profile = normalizeProfile(saved.profile), build = await this.store.build(profileId, buildId2), remote = await this.store.remote(profileId);
+    const currentPlan = await this.plan(saved.profile).catch(() => null);
+    if (!currentPlan) throw new Error("The selected sources, profile, or DOI binding changed. Build and review a fresh edition before uploading or publishing.");
+    const profile = currentPlan.profile, build = await this.store.build(profileId, buildId2), remote = await this.store.remote(profileId);
     this.checkBinding(profile, remote);
     if (!remote || remote.revision !== review.remoteRevision) throw new Error("The Zenodo draft state changed. Reload and review it again.");
     if (remote.pending) throw new Error("Reconcile the unresolved Zenodo operation before continuing.");
     if (remote.status !== "draft" || !remote.draftId) throw new Error("Only an editable Zenodo draft can receive this edition; published records are immutable.");
     if (build.pdfSha256 !== review.pdfSha256) throw new Error("The reviewed PDF digest does not match this build.");
     const manifest = JSON.parse((await this.store.artifact(profileId, buildId2, "manifest.json")).toString("utf8"));
-    if (canonical(normalizeProfile(manifest.plan.profile)) !== canonical(profile) || (await this.plan(profile).catch(() => null))?.fingerprint !== build.fingerprint) throw new Error("The selected sources, profile, or DOI binding changed. Build and review a fresh edition before uploading or publishing.");
+    if (canonical(normalizeProfile(manifest.plan.profile)) !== canonical(profile) || currentPlan.fingerprint !== build.fingerprint) throw new Error("The selected sources, profile, or DOI binding changed. Build and review a fresh edition before uploading or publishing.");
+    const client = this.client(profile), native = await this.nativeDraft(client, remote.draftId);
+    if (!native.pids?.doi?.identifier || normalizeDoi(native.pids.doi.identifier) !== manifest.plan.doi.versionDoi || manifest.plan.doi.source === "zenodo" && native.pids.doi.provider !== "datacite") throw new Error("The native Zenodo DOI reservation differs from this PDF or lost its registration provider. Reconcile the actual DOI before uploading or publishing.");
     const bytes = await this.store.artifact(profileId, buildId2, "publication.pdf");
-    return { profile, build, remote, bytes, client: this.client(profile), metadata: this.metadata(profile, build) };
+    return { profile, profileInput: saved.profile, build, remote, bytes, client, native, metadata: this.metadata(profile, build) };
   }
   exactFiles(record, name, bytes) {
     return Array.isArray(record?.files) && record.files.length === 1 && (record.files[0].filename || record.files[0].key) === name && checksumMatches(record.files[0].checksum, bytes) && (!record.files[0].filesize || Number(record.files[0].filesize) === bytes.length);
   }
   uploadPlan(profile, build, remote, record, metadata) {
     if (submitted(record)) throw new Error("The Zenodo draft was already published. Its files cannot be overwritten.");
-    const name = fileName(profile), owned = [remote.upload, ...remote.history || [], ...(remote.ownedFiles || []).filter((file) => file.draftId === remote.draftId)].filter(Boolean);
-    const files = (record.files || []).map((file) => ({ id: String(file.id || ""), name: String(file.filename || file.key || ""), checksum: String(file.checksum || ""), bytes: Number(file.filesize || file.size) || void 0, owned: owned.some((item) => item.fileName === (file.filename || file.key) && item.remoteChecksum === String(file.checksum || "")) })).sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
+    const name = zenodoFileName(profile), owned = [remote.upload, ...remote.history || [], ...(remote.ownedFiles || []).filter((file) => file.draftId === remote.draftId)].filter(Boolean);
+    const files = (record.files || []).map((file) => ({ id: String(file.id || ""), name: String(file.filename || file.key || ""), checksum: String(file.checksum || ""), bytes: Number(file.filesize || file.size) || void 0, owned: owned.some((item) => item.fileName === (file.filename || file.key) && sameChecksum(item.remoteChecksum, file.checksum)) })).sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
     const content = { profileId: profile.id, buildId: build.id, draftId: remote.draftId, remoteRevision: remote.revision, pdfSha256: build.pdfSha256, files, metadataSha256: sha256(canonical(metadata)), target: name, bucket: String(record.links?.bucket || "") };
     return { profileId: profile.id, buildId: build.id, draftId: remote.draftId, remoteRevision: remote.revision, pdfSha256: build.pdfSha256, fingerprint: sha256(canonical(content)), files: files.map(({ id, ...file }) => file), add: files.some((file) => file.name === name) ? [] : [name], replace: files.filter((file) => file.name === name && file.owned).map((file) => file.name), remove: files.filter((file) => file.name !== name && file.owned).map((file) => file.name), blocked: files.filter((file) => !file.owned).map((file) => file.name) };
   }
@@ -4058,7 +4356,7 @@ class ZenodoPublication {
   }
   async upload(profileId, buildId2, review) {
     return this.store.locked(profileId, async () => {
-      const { profile, build, remote, bytes, client, metadata } = await this.reviewed(profileId, buildId2, review), name = fileName(profile);
+      const { profile, profileInput, build, remote, bytes, client, native, metadata } = await this.reviewed(profileId, buildId2, review), name = zenodoFileName(profile);
       const draft = await client.request(`/api/deposit/depositions/${remote.draftId}`);
       const bucket = this.bucket(client, draft);
       const preflight = this.uploadPlan(profile, build, remote, draft, metadata);
@@ -4072,29 +4370,265 @@ class ZenodoPublication {
       }
       const acknowledgement = await client.request(`${bucket}/${encodeURIComponent(name)}`, "PUT", bytes, true);
       if (!checksumMatches(acknowledgement?.checksum, bytes)) throw new Error("Zenodo did not acknowledge the exact PDF checksum. Reconcile the draft before publishing.");
-      await client.request(`/api/deposit/depositions/${remote.draftId}`, "PUT", { metadata: { ...draft.metadata, ...metadata, ...profile.doi?.versionDoi ? {} : { prereserve_doi: true } } });
+      await client.request(`/api/records/${remote.draftId}/draft`, "PUT", this.nativeMetadata(native, metadata), false, true);
       const observed = await client.request(`/api/deposit/depositions/${remote.draftId}`);
       if (submitted(observed) || !this.exactFiles(observed, name, bytes)) throw new Error("The Zenodo draft file set differs from this exact edition.");
-      if ((await this.plan(profile)).fingerprint !== build.fingerprint) throw new Error("Publication inputs changed during upload. The draft remains unpublished; build and review a fresh edition.");
-      return this.store.writeRemote(profileId, { ...this.nextState(profile, observed, remote), upload: { buildId: buildId2, pdfSha256: build.pdfSha256, metadataSha256: sha256(canonical(metadata)), fileName: name, remoteChecksum: String(acknowledgement.checksum), uploadedAt: (/* @__PURE__ */ new Date()).toISOString() } });
+      if ((await this.plan(profileInput)).fingerprint !== build.fingerprint) throw new Error("Publication inputs changed during upload. The draft remains unpublished; build and review a fresh edition.");
+      const upload = { buildId: buildId2, pdfSha256: build.pdfSha256, metadataSha256: sha256(canonical(metadata)), fileName: name, remoteChecksum: String(acknowledgement.checksum), uploadedAt: (/* @__PURE__ */ new Date()).toISOString() };
+      return this.store.writeRemote(profileId, this.nextState(profile, observed, { ...remote, upload }));
     });
   }
   async publish(profileId, buildId2, review) {
     return this.store.locked(profileId, async () => {
-      const { profile, build, remote, bytes, client, metadata } = await this.reviewed(profileId, buildId2, review);
+      const { profile, profileInput, build, remote, bytes, client, metadata } = await this.reviewed(profileId, buildId2, review);
       if (remote.draftId !== numericId(review.recordId) || remote.upload?.buildId !== buildId2 || remote.upload?.pdfSha256 !== build.pdfSha256 || remote.upload?.metadataSha256 !== sha256(canonical(metadata))) throw new Error("Publication requires the reviewed record identity and the exact uploaded edition.");
       const draft = await client.request(`/api/deposit/depositions/${remote.draftId}`);
       if (submitted(draft) || !this.exactFiles(draft, remote.upload.fileName, bytes)) throw new Error("The Zenodo draft changed after upload. Review and upload the exact edition again.");
-      for (const [key, value] of Object.entries(metadata)) if (canonical(draft.metadata?.[key]) !== canonical(value)) throw new Error("The Zenodo publication metadata changed after review. Upload the reviewed edition again.");
+      if (!this.metadataMatches(draft, metadata)) throw new Error("The Zenodo publication metadata changed after review. Upload the reviewed edition again.");
+      if ((await this.plan(profileInput).catch(() => null))?.fingerprint !== build.fingerprint) throw new Error("Publication inputs changed before publication. Build and review a fresh edition; the draft remains unpublished.");
       await this.store.writeRemote(profileId, { ...remote, status: "unknown", pending: { action: "publish", startedAt: (/* @__PURE__ */ new Date()).toISOString(), recordId: remote.draftId, buildId: buildId2 } });
       const result = await client.request(`/api/deposit/depositions/${remote.draftId}/actions/publish`, "POST");
       if (!submitted(result)) throw new Error("Zenodo has not confirmed publication. Attach the existing record to reconcile the result.");
       const returnedDoi = normalizeDoi(result.doi || result.metadata?.doi || result.metadata?.prereserve_doi?.doi);
-      const metadataMatches = Object.entries(metadata).every(([key, value]) => canonical(result.metadata?.[key]) === canonical(value));
+      const metadataMatches = this.metadataMatches(result, metadata);
       if (String(result.id) !== remote.draftId || !this.exactFiles(result, remote.upload.fileName, bytes) || !metadataMatches || returnedDoi !== remote.versionDoi) throw new Error("Zenodo publication acknowledgement differs from the reviewed edition. The remote result requires reconciliation before claiming publication success.");
       return this.store.writeRemote(profileId, this.nextState(profile, result, remote));
     });
   }
+}
+const URLConstructor = require("node:url").URL;
+class VerificationProblem extends Error {
+  constructor(status, message, httpStatus) {
+    super(message);
+    this.status = status;
+    this.httpStatus = httpStatus;
+  }
+}
+const problem = (message) => {
+  throw new VerificationProblem("failed", message);
+};
+const observation = (error, url2) => error instanceof VerificationProblem ? { status: error.status, detail: error.message, url: url2, ...error.httpStatus ? { httpStatus: error.httpStatus } : {} } : { status: "pending", detail: "The public request could not be completed. Retry verification; publication is not repeated.", url: url2 };
+class PublicReader {
+  constructor(options, origin) {
+    this.options = options;
+    this.origin = origin;
+  }
+  url(value, kind) {
+    let url2;
+    try {
+      url2 = new URLConstructor(value);
+    } catch {
+      return problem("The public service returned an invalid URL.");
+    }
+    const resolver = kind === "doi" && ["https://doi.org", "https://handle.test.datacite.org"].includes(url2.origin);
+    if (url2.protocol !== "https:" || url2.username || url2.password || url2.hash || url2.origin !== this.origin && !resolver) problem("The public service returned an untrusted URL.");
+    if (url2.search && !(kind === "file" && url2.search === "?download=1")) problem("The public service returned an untrusted URL query.");
+    if (kind === "record" && !/^\/api\/records\/[1-9][0-9]*$/.test(url2.pathname)) problem("Invalid public record URL.");
+    if (kind === "file" && !/^\/(?:api\/files\/[a-zA-Z0-9-]+\/[^/]+|api\/records\/[1-9][0-9]*\/files\/[^/]+\/content|records?\/[1-9][0-9]*\/files\/[^/]+)$/.test(url2.pathname)) problem("Invalid public file URL.");
+    return url2;
+  }
+  async open(value, kind) {
+    const url2 = this.url(value, kind).toString(), controller = new globalThis.AbortController();
+    const timer = setTimeout(() => controller.abort(), 3e4), close = () => clearTimeout(timer);
+    try {
+      const response = await (this.options.fetch || globalThis.fetch)(url2, {
+        method: "GET",
+        redirect: "manual",
+        credentials: "omit",
+        cache: "no-store",
+        referrerPolicy: "no-referrer",
+        signal: controller.signal,
+        headers: { Accept: kind === "record" ? "application/json" : kind === "file" ? "*/*" : "text/html", "User-Agent": "math-workspace publication verification (https://github.com/glenzli/math-workspace)" }
+      });
+      return { response, url: url2, close };
+    } catch {
+      close();
+      throw new VerificationProblem("pending", "The public request could not be completed. Retry verification; publication is not repeated.");
+    }
+  }
+  async bytes(response, limit, consume) {
+    const length = response.headers.get("content-length");
+    if (length && (!/^\d+$/.test(length) || Number(length) > limit)) problem("The public response exceeded the expected size.");
+    const reader = response.body?.getReader();
+    if (!reader) problem("The public response did not provide a readable body.");
+    let size = 0;
+    try {
+      for (; ; ) {
+        const item = await reader.read();
+        if (item.done) break;
+        const bytes = Buffer.from(item.value);
+        size += bytes.length;
+        if (size > limit) problem("The public response exceeded the expected size.");
+        consume(bytes);
+      }
+    } finally {
+      await reader.cancel().catch(() => void 0);
+      reader.releaseLock();
+    }
+    return size;
+  }
+  checkHttp(response) {
+    if (response.status !== 200) throw new VerificationProblem([404, 408, 409, 425, 429].includes(response.status) || response.status >= 500 ? "pending" : "failed", "The public endpoint is not available with HTTP 200. Retry after checking its public availability.", response.status);
+  }
+  async record(id) {
+    const opened = await this.open(`${this.origin}/api/records/${id}`, "record");
+    try {
+      this.checkHttp(opened.response);
+      const parts = [];
+      await this.bytes(opened.response, 2 * 1024 * 1024, (bytes) => parts.push(bytes));
+      try {
+        return JSON.parse(Buffer.concat(parts).toString("utf8"));
+      } catch {
+        return problem("The public record response is not valid JSON.");
+      }
+    } finally {
+      await opened.response.body?.cancel().catch(() => void 0);
+      opened.close();
+    }
+  }
+  async download(value, expectedBytes) {
+    for (let hop = 0; hop < 6; hop++) {
+      const opened = await this.open(value, "file");
+      try {
+        if ([301, 302, 303, 307, 308].includes(opened.response.status)) {
+          const next = opened.response.headers.get("location");
+          if (!next) problem("The public file redirect has no destination.");
+          value = this.url(new URLConstructor(next, opened.url).toString(), "file").toString();
+          continue;
+        }
+        this.checkHttp(opened.response);
+        const digest = crypto__namespace.createHash("sha256");
+        const bytes = await this.bytes(opened.response, expectedBytes, (part) => digest.update(part));
+        return { bytes, sha256: digest.digest("hex"), url: opened.url };
+      } finally {
+        await opened.response.body?.cancel().catch(() => void 0);
+        opened.close();
+      }
+    }
+    return problem("The public file has too many redirects.");
+  }
+  async resolve(value, recordId) {
+    for (let hop = 0; hop < 6; hop++) {
+      const opened = await this.open(value, "doi");
+      try {
+        if ([301, 302, 303, 307, 308].includes(opened.response.status)) {
+          const next = opened.response.headers.get("location");
+          if (!next) problem("The DOI redirect has no destination.");
+          value = this.url(new URLConstructor(next, opened.url).toString(), "doi").toString();
+          continue;
+        }
+        this.checkHttp(opened.response);
+        const url2 = this.url(opened.url, "doi");
+        if (url2.origin !== this.origin || !new RegExp(`^/records?/${recordId}/?$`).test(url2.pathname)) problem("The DOI does not resolve to this exact published edition.");
+        return opened.url;
+      } finally {
+        await opened.response.body?.cancel().catch(() => void 0);
+        opened.close();
+      }
+    }
+    return problem("The DOI has too many redirects.");
+  }
+}
+function publicRecord(record, profile, id, doi, conceptDoi, name, bytes, expectedMetadata) {
+  if (String(record?.id) !== id || record.is_published === false || ["draft", "unsubmitted"].includes(record.status || record.state)) problem("The public record identity or publication status differs from this edition.");
+  const metadata = record.metadata || {};
+  const recordDoi = (value) => {
+    try {
+      return normalizeDoi(value);
+    } catch {
+      return problem("The public record contains an invalid DOI.");
+    }
+  };
+  const actualDoi = recordDoi(record.doi || record.pids?.doi?.identifier || metadata.doi);
+  let parentDoi;
+  if (record.links?.parent_doi) {
+    let link;
+    try {
+      link = new URLConstructor(record.links.parent_doi);
+    } catch {
+      return problem("The public work DOI link is invalid.");
+    }
+    if (!["https://doi.org", "https://handle.test.datacite.org"].includes(link.origin) || link.username || link.password || link.search || link.hash) problem("The public work DOI link is untrusted.");
+    parentDoi = decodeURIComponent(link.pathname.slice(1));
+  }
+  const actualConcept = recordDoi(record.conceptdoi || record.concept_doi || record.parent?.pids?.doi?.identifier || parentDoi);
+  if (actualDoi !== doi || conceptDoi && actualConcept !== conceptDoi) problem("The public record DOI differs from the bound edition or work.");
+  if (!Array.isArray(metadata.creators)) problem("The public creators are invalid.");
+  const authors = metadata.creators.map((author) => author?.name || author?.person_or_org?.name);
+  const license = typeof metadata.license === "string" ? metadata.license : metadata.license?.id || metadata.rights?.[0]?.id;
+  if (metadata.title !== profile.title || metadata.version !== profile.version || canonical(authors) !== canonical(profile.authors.map((author) => author.name)) || license !== (profile.license || "cc-by-4.0")) problem("The public title, version, creators or license differs from the frozen edition.");
+  if (expectedMetadata && !zenodoMetadataMatches(record, expectedMetadata)) problem("The public author identities, source links or publication metadata differ from the frozen edition.");
+  const files = Array.isArray(record.files) ? record.files : Object.entries(record.files?.entries || {}).map(([key, file2]) => ({ ...file2, key }));
+  if (files.length !== 1) problem("The public file set differs from this PDF edition.");
+  const file = files[0], checksum = String(file.checksum || "").toLowerCase();
+  const md52 = crypto__namespace.createHash("md5").update(bytes).digest("hex"), expectedSha = sha256(bytes);
+  if ((file.key || file.filename) !== name || Number(file.size ?? file.filesize) !== bytes.length || ![md52, `md5:${md52}`, expectedSha, `sha256:${expectedSha}`].includes(checksum)) problem("The public filename, size or checksum differs from the frozen PDF.");
+  return { snapshot: { id, doi: actualDoi, conceptDoi: actualConcept, title: metadata.title, version: metadata.version, authors, license, ...expectedMetadata ? { expectedMetadata } : {}, name, size: bytes.length, checksum }, fileUrl: file.links?.content || file.links?.download || file.links?.self };
+}
+async function verifyPublishedEdition(store, options, profileId, buildId2, request) {
+  return store.locked(profileId, async () => {
+    const id = String(request.recordId || "");
+    if (!/^[1-9][0-9]{0,24}$/.test(id)) throw new Error("Invalid published record identity.");
+    const saved = await store.profile(profileId), build = await store.build(profileId, buildId2), remote = await store.remote(profileId);
+    if (!saved || build.workId !== saved.profile.workId || build.pdfSha256 !== request.pdfSha256) throw new Error("The verification request does not match the frozen PDF and work.");
+    const binding = remote?.status === "published" && remote.recordId === id ? { ...remote.upload, versionDoi: remote.versionDoi } : remote?.history?.find((item) => item.recordId === id);
+    if (!remote || !binding || binding.buildId && binding.buildId !== buildId2 || binding.pdfSha256 && binding.pdfSha256 !== build.pdfSha256) throw new Error("Verify a published record bound to this exact edition, or attach the existing published record first.");
+    const bytes = await store.artifact(profileId, buildId2, "publication.pdf"), manifest = JSON.parse((await store.artifact(profileId, buildId2, "manifest.json")).toString("utf8"));
+    const profile = normalizeProfile(manifest.plan.profile), doi = normalizeDoi(manifest.plan.doi.versionDoi), conceptDoi = normalizeDoi(manifest.plan.doi.conceptDoi || remote.conceptDoi);
+    if (profile.id !== profileId || profile.workId !== build.workId || profile.version !== build.version || !doi || binding.versionDoi !== doi) throw new Error("The frozen edition DOI does not match the bound published record.");
+    const origin = remote.environment === "production" ? "https://zenodo.org" : "https://sandbox.zenodo.org";
+    const resolver = remote.environment === "production" ? "doi.org" : "handle.test.datacite.org";
+    const recordUrl = `${origin}/api/records/${id}`, doiUrl = `https://${resolver}/${doi.split("/").map(encodeURIComponent).join("/")}`;
+    const notChecked = { status: "pending", detail: "Not yet checked." };
+    const result = {
+      schema: "math-workspace.publication-verification/v1",
+      profileId,
+      workId: build.workId,
+      buildId: buildId2,
+      recordId: id,
+      environment: remote.environment,
+      checkedAt: (/* @__PURE__ */ new Date()).toISOString(),
+      status: "pending",
+      versionDoi: doi,
+      pdfSha256: build.pdfSha256,
+      record: { ...notChecked, url: recordUrl },
+      file: { ...notChecked, expectedBytes: bytes.length },
+      doi: { ...notChecked, url: doiUrl, resolver }
+    };
+    const client = new PublicReader(options, origin);
+    const expectedMetadata = manifest.plan.projectMetadata !== void 0 ? zenodoPublicationMetadata(profile, build) : void 0;
+    try {
+      const first = publicRecord(await client.record(id), profile, id, doi, conceptDoi, zenodoFileName(profile), bytes, expectedMetadata);
+      result.record = { status: "passed", detail: "The anonymous public record matches the edition DOI, work DOI, title, version, creators, license and PDF file metadata.", url: recordUrl, httpStatus: 200 };
+      try {
+        const fileUrl = first.fileUrl || `${origin}/records/${id}/files/${encodeURIComponent(zenodoFileName(profile))}`;
+        const downloaded = await client.download(fileUrl, bytes.length);
+        result.file = { status: downloaded.sha256 === build.pdfSha256 && downloaded.bytes === bytes.length ? "passed" : "failed", detail: downloaded.sha256 === build.pdfSha256 && downloaded.bytes === bytes.length ? "The anonymously downloaded PDF matches the frozen PDF byte count and SHA-256." : "The anonymously downloaded PDF differs from the frozen edition.", url: downloaded.url, expectedBytes: bytes.length, observedBytes: downloaded.bytes, observedSha256: downloaded.sha256, httpStatus: 200 };
+      } catch (error) {
+        result.file = { ...result.file, ...observation(error, result.file.url), expectedBytes: bytes.length };
+      }
+      if (result.file.status === "passed") try {
+        const after = publicRecord(await client.record(id), profile, id, doi, conceptDoi, zenodoFileName(profile), bytes, expectedMetadata);
+        if (canonical(first.snapshot) !== canonical(after.snapshot)) problem("The public record changed during the PDF download. Retry verification.");
+      } catch (error) {
+        result.record = observation(error, recordUrl);
+      }
+      try {
+        const target = await client.resolve(doiUrl, id);
+        result.doi = { status: "passed", detail: "The DOI resolver reaches this exact public edition.", url: target, resolver, httpStatus: 200 };
+      } catch (error) {
+        result.doi = { ...observation(error, doiUrl), resolver };
+      }
+      if (remote.environment === "sandbox" && result.doi.httpStatus === 404) result.doi.detail = "Zenodo sandbox states that test DOIs are not real and do not resolve. This test DOI does not establish production DOI registration or resolution.";
+    } catch (error) {
+      result.record = observation(error, recordUrl);
+    }
+    const states = [result.record, result.file, result.doi].map((item) => item.status);
+    result.status = states.includes("failed") ? "failed" : states.every((state) => state === "passed") ? "verified" : "pending";
+    result.checkedAt = (/* @__PURE__ */ new Date()).toISOString();
+    await store.writeVerification(result);
+    return result;
+  });
 }
 class PublicationService {
   constructor(root, options = {}) {
@@ -4103,32 +4637,41 @@ class PublicationService {
     this.zenodo = new ZenodoPublication(this.store, options, (profile) => this.plan(profile));
   }
   async inspect() {
-    const catalog = await publicationCatalog(this.store.root), profiles = await this.store.profiles();
-    const defaultProfile = { id: "publication", workId: path__namespace.basename(this.store.root).replace(/[^a-zA-Z0-9._-]/g, "-").replace(/^[^a-zA-Z0-9]+/, "").slice(0, 79) || "work", title: "", version: "0.1.0", authors: [], language: catalog.language, license: "cc-by-4.0", chapters: [], frontMatter: [], backMatter: [], toc: { enabled: true, depth: 2 }, cover: { showVersion: true }, zenodo: { environment: "sandbox", tokenEnv: "ZENODO_TOKEN" } };
-    return { ...catalog, profiles, tools: await publicationTools(void 0, this.options), defaultProfile, credentialStatus: profiles.map(({ profile }) => ({ profileId: profile.id, environment: profile.zenodo?.environment || "sandbox", ...this.zenodo.credential(profile) })) };
+    const catalog = await publicationCatalog(this.store.root), profiles = await this.store.profiles(), { record: metadata } = await readPublicationMetadata(this.store.root);
+    const defaultProfile = { id: "publication", workId: path__namespace.basename(this.store.root).replace(/[^a-zA-Z0-9._-]/g, "-").replace(/^[^a-zA-Z0-9]+/, "").slice(0, 79) || "work", version: "0.1.0", chapters: [], frontMatter: [], backMatter: [], matter: { automatic: true }, toc: { enabled: true, depth: 2 }, cover: { showVersion: true }, zenodo: { environment: "sandbox", tokenEnv: "ZENODO_TOKEN" } };
+    return { ...catalog, metadata, profiles, tools: await publicationTools(void 0, this.options), defaultProfile, credentialStatus: profiles.map(({ profile }) => ({ profileId: profile.id, environment: profile.zenodo?.environment || "sandbox", ...this.zenodo.credential(profile) })) };
   }
   async save(input, expectedRevision) {
-    return this.store.save(normalizeProfile(input), expectedRevision);
+    const profile = normalizeProfile(input), { config } = await readPublicationMetadata(this.store.root);
+    resolvePublicationMetadata(profile, config);
+    return this.store.save(profile, expectedRevision);
+  }
+  async metadata() {
+    return (await readPublicationMetadata(this.store.root)).record;
+  }
+  saveMetadata(input, expectedRevision) {
+    return savePublicationMetadata(this.store, input, expectedRevision);
   }
   async doi(profile) {
     const remote = await this.store.remote(profile.id);
+    if (remote?.conceptDoi && profile.doi?.conceptDoi && remote.conceptDoi !== profile.doi.conceptDoi) throw new Error("The project or edition work DOI differs from the bound Zenodo work. Reconcile it before continuing.");
     if (profile.doi?.versionDoi || !remote?.versionDoi && profile.doi?.conceptDoi) return { source: "manual", state: "unverified", versionDoi: profile.doi.versionDoi, conceptDoi: profile.doi.conceptDoi, provenance: profile.doi.provenance || "Manually entered in the publication profile; provider registration is not asserted." };
     if (remote?.versionDoi) return { source: "zenodo", state: remote.status === "published" ? "published" : "reserved", versionDoi: remote.versionDoi, conceptDoi: remote.conceptDoi || profile.doi?.conceptDoi, recordId: remote.draftId || remote.recordId, provenance: remote.status === "published" ? "Zenodo publication acknowledgement" : "Zenodo draft DOI reservation; not registered until publication" };
     return { source: "none", state: "none", conceptDoi: profile.doi?.conceptDoi };
   }
   async plan(input) {
     const profile = normalizeProfile(input);
-    return (await makePublicationPlan(this.store.root, profile, await this.doi(profile), this.options)).plan;
+    return (await makePublicationPlan(this.store.root, profile, (value) => this.doi(value), this.options)).plan;
   }
   async build(input, expectedFingerprint, options = {}) {
-    const profile = normalizeProfile(input), result = await makePublicationPlan(this.store.root, profile, await this.doi(profile), this.options);
+    const profile = normalizeProfile(input), result = await makePublicationPlan(this.store.root, profile, (value) => this.doi(value), this.options);
     if (!/^[a-f0-9]{64}$/.test(expectedFingerprint) || result.plan.fingerprint !== expectedFingerprint) throw new Error("The publication plan changed. Review a fresh plan before building.");
     return renderPublication(this.store, result.plan, result.snapshot, () => this.plan(profile), this.options, options);
   }
   async status(profileId) {
     const profile = await this.store.profile(profileId);
     if (!profile) throw new Error("Publication profile not found.");
-    return { profile, builds: await this.store.builds(profileId), remote: await this.store.remote(profileId), credential: this.zenodo.credential(profile.profile) };
+    return { profile, metadata: await this.metadata(), builds: await this.store.builds(profileId), remote: await this.store.remote(profileId), credential: this.zenodo.credential(profile.profile), verifications: await this.store.verifications(profileId) };
   }
   async readArtifact(profileId, buildId2, artifact) {
     const bytes = await this.store.artifact(profileId, buildId2, artifact);
@@ -4148,6 +4691,9 @@ class PublicationService {
   }
   publish(profileId, buildId2, review) {
     return this.zenodo.publish(profileId, buildId2, review);
+  }
+  verifyPublished(profileId, buildId2, request) {
+    return verifyPublishedEdition(this.store, this.options, profileId, buildId2, request);
   }
 }
 exports.DEFAULT_CONFIG = DEFAULT_CONFIG;
@@ -4170,11 +4716,14 @@ exports.formatPageHeading = formatPageHeading;
 exports.formatPageReference = formatPageReference;
 exports.isPageLabelType = isPageLabelType;
 exports.isPedagogicalKind = isPedagogicalKind;
+exports.maskFencedMarkdown = maskFencedMarkdown;
 exports.mergeConfig = mergeConfig;
 exports.normalizeFormalPagePath = normalizeFormalPagePath;
 exports.normalizeLatexSymbol = normalizeLatexSymbol;
+exports.normalizeWorkMetadata = normalizeWorkMetadata;
 exports.parseFormalMarkerLine = parseFormalMarkerLine;
 exports.pathPatternMatches = pathPatternMatches;
+exports.projectMetadata = projectMetadata;
 exports.relativeInput = relativeInput;
 exports.renderAgentGuide = renderAgentGuide;
 exports.renderDependencyGraphBridges = renderDependencyGraphBridges;
