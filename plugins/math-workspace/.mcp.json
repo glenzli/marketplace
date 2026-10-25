@@ -11,7 +11,9 @@
         "CODEX_ELECTRON_RESOURCES_PATH",
         "CODEX_CLI_PATH",
         "XDG_CACHE_HOME",
-        "ZENODO_TOKEN"
+        "ZENODO_TOKEN",
+        "GITHUB_TOKEN",
+        "GITLAB_TOKEN"
       ]
     }
   }
