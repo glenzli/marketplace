@@ -51,6 +51,9 @@ overview; root `--verbose` is for exact evidence or recovery, not routine pollin
 
 3. Claim the likely write paths:
 
+For broad `git-tree` changes, use directory scopes matching ownership. The 128-path declaration
+limit does not cap changed files in ordinary managed commits or require splitting a cohesive change.
+
 ```bash
 python3 <skill>/scripts/coord.py --root ROOT claim \
   --scope SCOPE --owner OWNER --run-id RUN --task "bounded change" \

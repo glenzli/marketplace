@@ -10,6 +10,11 @@ ignored local file. Ordinary local edits need only exact paths and focused valid
 - `semantic-edit`: same-file edits whose semantic independence may matter to overlap routing.
 - `exclusive-refactor`: moves, deletion, generation, or broad restructuring.
 
+The 128-path limit counts declared files or directories. For broad `git-tree` edits, declare the
+smallest directories that match the work's ownership; their expanded changed-file count may exceed
+128. Do not broaden into another owner's work just to reduce the declaration count. `workspace-bytes`
+still requires exact file paths.
+
 A same-Run Claim covering the entire request is reused. Extend a narrower Claim with `claim-update`.
 The supplied path and semantic lists replace those fields, so include the complete intended scope:
 

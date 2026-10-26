@@ -22,10 +22,21 @@ shared index/branch with transaction publication. Verify the resulting Git revis
 and remaining dirty state. A completed coordination record alone is not proof of source coverage.
 Commit authorization does not authorize a push.
 
-The 128-path Claim limit counts declared files or directories, not the changed files inside a
-declared directory. Ordinary direct commits and Work Result publication can include larger file
-sets without splitting the commit. Choose directory scopes that match ownership; microtransactions
-retain their separate 128 changed-file limit.
+Integrate independently complete, validated results promptly. A long session or a high file count
+alone does not require splitting a commit. Keep a cohesive refactor, reference update, or generated
+change together when intermediate commits would be incomplete or inconsistent.
+
+The 128-path Claim limit counts declared files or directories, not changed files inside a declared
+directory. `publish-results` has the same limit on the union of declared result paths. Ordinary
+direct commits and Work Result publication can include larger changed-file sets. Choose directory
+scopes that match ownership without broadening into another owner's work.
+
+If existing Work Results together exceed that declaration limit, use the existing `direct-commit`
+path under a directory-scoped active Claim after reviewing inherited dirty work and resolving any
+overlap. Preserve the immutable Work Results; the limit does not require splitting a cohesive commit.
+Microtransactions retain their separate 128 changed-path cap; use the existing waiting, handoff, or
+exclusive route for a larger cohesive change, as described in
+[contention-and-transactions.md](contention-and-transactions.md).
 
 ## Git metadata permissions and recovery
 

@@ -67,7 +67,10 @@ def _bounded_actual_paths(root: Path, base: str, candidate: str) -> list[str]:
     actual = git.changed_paths(root, base, candidate)
     if len(actual) > MAX_TRANSACTION_CHANGED_PATHS:
         raise ValueError(
-            f"microtransaction changes more than {MAX_TRANSACTION_CHANGED_PATHS} paths; decompose it"
+            f"microtransaction changes more than {MAX_TRANSACTION_CHANGED_PATHS} paths "
+            f"({len(actual)} changed paths); this cap applies only to parallel-tx; "
+            "preserve the checkout and coordinate an active shared-workspace Claim "
+            "for direct-commit; keep cohesive changes together"
         )
     return actual
 

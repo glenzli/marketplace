@@ -235,7 +235,12 @@ def normalize_paths(root: Path, values: list[str]) -> list[str]:
     if not normalized:
         raise ValueError("at least one path is required")
     if len(normalized) > MAX_CLAIM_PATHS:
-        raise ValueError(f"a Claim may declare at most {MAX_CLAIM_PATHS} paths")
+        raise ValueError(
+            f"a Claim may declare at most {MAX_CLAIM_PATHS} paths "
+            f"({len(normalized)} declared); this bounds declarations, not changed files; "
+            "for git-tree work, use directory scopes matching ownership; "
+            "ordinary managed commits can include more changed files"
+        )
     return normalized
 
 

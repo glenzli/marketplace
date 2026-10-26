@@ -597,7 +597,10 @@ def commit_results(
                         declared.append(path)
             if len(declared) > MAX_CLAIM_PATHS:
                 raise ValueError(
-                    f"published Work Results exceed the {MAX_CLAIM_PATHS}-path direct boundary"
+                    f"publish-results combines at most {MAX_CLAIM_PATHS} declared paths "
+                    f"({len(declared)} declared); this bounds declarations, not changed files; "
+                    "keep cohesive changes together and use direct-commit under an active "
+                    "directory-scoped Claim after reviewing inherited work and resolving overlaps"
                 )
             blockers = _result_publication_blockers(plane, declared)
             if blockers:

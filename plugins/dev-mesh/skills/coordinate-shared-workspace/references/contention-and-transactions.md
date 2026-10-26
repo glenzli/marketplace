@@ -19,22 +19,23 @@ not appropriate.
 
 ## Route an overlap
 
-Use this order; choose the least expensive safe option:
+Choose the least expensive safe option that preserves a complete change:
 
 Read the compact Claim's `conflicts` first. Zero `physical_overlap_count` with nonempty
 `semantic_resources` means path narrowing alone cannot remove the blocker. Review the dependency
 with the active owner; preserve genuine blocking constraints. Use exact verbose state only if the
 bounded sample is insufficient.
 
-1. Decompose this Agent's own scope or semantic resources so a replacement Claim no longer
-   overlaps. This is a local release-and-reclaim action, not a shared contention decision.
+1. Narrow this Agent's own scope only when a complete, independently valid part can proceed without
+   overlap. This is an optional local release-and-reclaim action, not a shared contention decision.
 2. Wait when the active owner will finish soon.
 3. Handoff when responsibility, context, or validation should move.
-4. Use `parallel-tx` only for a clean, bounded, independently testable overlap.
-5. Serialize an `exclusive-refactor` that cannot be decomposed safely.
+4. Use `parallel-tx` only for a clean, independently testable overlap within its 128 changed-path cap.
+5. Serialize a cohesive `exclusive-refactor` when the change requires coordinated exclusive work.
 
-Do not create a transaction merely because two Agents exist. No overlap means no contention,
-checkout, or transaction.
+File count alone does not require narrowing scope or splitting commits. Preserve genuine semantic
+constraints and keep cohesive changes together. Do not create a transaction merely because two
+Agents exist. No overlap means no contention, checkout, or transaction.
 
 To decompose after a pending Claim already opened contention, end only that pending intent and then
 declare the narrower scope; do not ask the active owner to approve your smaller scope:
@@ -180,6 +181,13 @@ the responsibility transfer will not occur.
 Use this only after a `parallel-tx` branch-offload decision for the pending writable Claim. The
 producer creates one short-lived transaction branch and checkout for that Claim; the established
 owner stays on the canonical workspace. Edit only the returned checkout.
+
+The 128 changed-path cap belongs to this isolated transaction, not to ordinary managed commits.
+For a larger cohesive change, choose the existing wait, handoff, or exclusive route before starting
+a transaction. If preparation or refresh already exceeds the cap, preserve the checkout and any
+candidate commit. Coordinate a return to an active shared-workspace Claim before moving or committing
+the change there; the rejected transaction grants no canonical write authority. Retire the isolated
+transaction through its existing lifecycle only after its needed work is preserved.
 
 ```bash
 python3 <skill>/scripts/coord.py --root ROOT tx-begin \

@@ -1,8 +1,8 @@
 {
   "schema": 1,
   "plugin": "dev-mesh",
-  "source_revision": "019a968006a0ef2e1a96355c3ca46d16f410a2e4",
-  "version": "0.2.8",
-  "tree_sha256": "d0516ff2c78527f44c431e8cb9d4e3dc03789c59adcfcc48b5418fc4f966affa",
+  "source_revision": "08dfc4d51b0ef9783d9eb4630f6c7193aab994a4",
+  "version": "0.2.9",
+  "tree_sha256": "22a4726d2ff31021d2aa0ab0a5a2f413980749f507d75aa33befd36c7da531cb",
   "file_count": 80
 }
