@@ -1,16 +1,17 @@
 ---
 name: open-math-workspace
-description: Open the local Math Workspace for a prepared formal Markdown project, or start creating chapters, front matter, back matter, and continued pages.
+description: Open local Markdown with mathematical formulas in reading mode, use a prepared Math Workspace project, or create manuscript pages.
 ---
 
 # Open Math Workspace
 
 Use this installed Codex plugin as the runtime and generic-skill provider for Codex projects. Reuse its CLI/launcher for initialization, preparation, finalization, export, and Lean commands. Keep project configuration, manuscripts, review records, and project-specific rules in the project; do not copy the runtime into `tools/math-workspace`, add a second npm installation, or embed generic skill copies merely to use this plugin. Independent non-Codex users can use the standalone CLI/npm path described in the installation guide.
 
-Use `open_reader` to read, inspect, or navigate a prepared Math Workspace project beside the current conversation. Use `open_workspace` for the standalone project entry. When discussing a quoted selection, read the inline Markdown attachment and its source location; use the original file when more context is needed.
-- Pass the current project root when it contains `.math-workspace/config.json`.
+Use `open_reader` to read, inspect, or navigate local Markdown or a prepared Math Workspace project beside the current conversation. Use `open_workspace` for the standalone project entry. When discussing a quoted selection, read the inline Markdown attachment and its source location; use the original file when more context is needed.
+- The plugin also registers the native Markdown file viewer: choosing Math Workspace from a file context menu or preview viewer menu opens the current conversation's side panel. Do not install the legacy external `codex-handler` unless the user requests a browser or an older host requires it.
+- Pass the explicitly chosen Markdown file or current local project folder. Valid `.math-workspace/config.json` enables workspace tools; without it, the Reader uses lightweight reading mode.
 - Pass a project-relative `pagePath` when the user identified a chapter to open.
-- If no prepared project is available, call the tool without a root so the local Math Workspace launcher can select a recent or local project.
+- If no current local context is available, call the tool without a root to use the local chooser. Reading mode never initializes a project, scans formal objects or starts Lean, audit, Git-diff or publication operations. A damaged configuration is shown explicitly; the user can choose reading-only fallback.
 - The tool opens a local, read-only Math Workspace. Use its UI for source selection, definitions, and formulas.
 - Text selections and formula popovers can add source attachments to the current conversation input. This does not automatically send a message. Selections are temporary; ongoing discussion, edits, and approvals stay in the native conversation.
 - Prefer narrow tools over broad pasted context: `lookup_formal_object` for one stable object, `inspect_dependencies` for explicit strict relations, `lookup_knowledge` for maintained terms and notation, `inspect_lean_alignment` for observed Lean evidence, and `verify` for deterministic validation.

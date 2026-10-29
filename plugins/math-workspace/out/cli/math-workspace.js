@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 "use strict";
-const fs$6 = require("node:fs/promises");
-const path$1 = require("node:path");
+const fs$7 = require("node:fs/promises");
+const path$2 = require("node:path");
 const crypto$1 = require("node:crypto");
-const publication = require("./index-C_JCQOvD.js");
+const publication = require("./index-DcNU1SXc.js");
+const documentHistorySources = require("./document-history-sources-LN5AmIT4.js");
 const oetConverter = require("./oet-converter-BK6U8GSY.js");
 const process$1 = require("node:process");
 function _interopNamespaceDefault(e) {
@@ -22,5309 +23,19 @@ function _interopNamespaceDefault(e) {
   n.default = e;
   return Object.freeze(n);
 }
-const fs__namespace = /* @__PURE__ */ _interopNamespaceDefault(fs$6);
-const path__namespace = /* @__PURE__ */ _interopNamespaceDefault(path$1);
+const fs__namespace = /* @__PURE__ */ _interopNamespaceDefault(fs$7);
+const path__namespace = /* @__PURE__ */ _interopNamespaceDefault(path$2);
 const crypto__namespace = /* @__PURE__ */ _interopNamespaceDefault(crypto$1);
-const decodeCache = {};
-function getDecodeCache(exclude) {
-  let cache2 = decodeCache[exclude];
-  if (cache2) {
-    return cache2;
-  }
-  cache2 = decodeCache[exclude] = [];
-  for (let i = 0; i < 128; i++) {
-    const ch = String.fromCharCode(i);
-    cache2.push(ch);
-  }
-  for (let i = 0; i < exclude.length; i++) {
-    const ch = exclude.charCodeAt(i);
-    cache2[ch] = "%" + ("0" + ch.toString(16).toUpperCase()).slice(-2);
-  }
-  return cache2;
-}
-function decode$1(string2, exclude) {
-  if (typeof exclude !== "string") {
-    exclude = decode$1.defaultChars;
-  }
-  const cache2 = getDecodeCache(exclude);
-  return string2.replace(/(%[a-f0-9]{2})+/gi, function(seq) {
-    let result = "";
-    for (let i = 0, l = seq.length; i < l; i += 3) {
-      const b1 = parseInt(seq.slice(i + 1, i + 3), 16);
-      if (b1 < 128) {
-        result += cache2[b1];
-        continue;
-      }
-      if ((b1 & 224) === 192 && i + 3 < l) {
-        const b2 = parseInt(seq.slice(i + 4, i + 6), 16);
-        if ((b2 & 192) === 128) {
-          const chr = b1 << 6 & 1984 | b2 & 63;
-          if (chr < 128) {
-            result += "��";
-          } else {
-            result += String.fromCharCode(chr);
-          }
-          i += 3;
-          continue;
-        }
-      }
-      if ((b1 & 240) === 224 && i + 6 < l) {
-        const b2 = parseInt(seq.slice(i + 4, i + 6), 16);
-        const b3 = parseInt(seq.slice(i + 7, i + 9), 16);
-        if ((b2 & 192) === 128 && (b3 & 192) === 128) {
-          const chr = b1 << 12 & 61440 | b2 << 6 & 4032 | b3 & 63;
-          if (chr < 2048 || chr >= 55296 && chr <= 57343) {
-            result += "���";
-          } else {
-            result += String.fromCharCode(chr);
-          }
-          i += 6;
-          continue;
-        }
-      }
-      if ((b1 & 248) === 240 && i + 9 < l) {
-        const b2 = parseInt(seq.slice(i + 4, i + 6), 16);
-        const b3 = parseInt(seq.slice(i + 7, i + 9), 16);
-        const b4 = parseInt(seq.slice(i + 10, i + 12), 16);
-        if ((b2 & 192) === 128 && (b3 & 192) === 128 && (b4 & 192) === 128) {
-          let chr = b1 << 18 & 1835008 | b2 << 12 & 258048 | b3 << 6 & 4032 | b4 & 63;
-          if (chr < 65536 || chr > 1114111) {
-            result += "����";
-          } else {
-            chr -= 65536;
-            result += String.fromCharCode(55296 + (chr >> 10), 56320 + (chr & 1023));
-          }
-          i += 9;
-          continue;
-        }
-      }
-      result += "�";
-    }
-    return result;
-  });
-}
-decode$1.defaultChars = ";/?:@&=+$,#";
-decode$1.componentChars = "";
-const encodeCache = {};
-function getEncodeCache(exclude) {
-  let cache2 = encodeCache[exclude];
-  if (cache2) {
-    return cache2;
-  }
-  cache2 = encodeCache[exclude] = [];
-  for (let i = 0; i < 128; i++) {
-    const ch = String.fromCharCode(i);
-    if (/^[0-9a-z]$/i.test(ch)) {
-      cache2.push(ch);
-    } else {
-      cache2.push("%" + ("0" + i.toString(16).toUpperCase()).slice(-2));
-    }
-  }
-  for (let i = 0; i < exclude.length; i++) {
-    cache2[exclude.charCodeAt(i)] = exclude[i];
-  }
-  return cache2;
-}
-function encode$1(string2, exclude, keepEscaped) {
-  if (typeof exclude !== "string") {
-    keepEscaped = exclude;
-    exclude = encode$1.defaultChars;
-  }
-  if (typeof keepEscaped === "undefined") {
-    keepEscaped = true;
-  }
-  const cache2 = getEncodeCache(exclude);
-  let result = "";
-  for (let i = 0, l = string2.length; i < l; i++) {
-    const code2 = string2.charCodeAt(i);
-    if (keepEscaped && code2 === 37 && i + 2 < l) {
-      if (/^[0-9a-f]{2}$/i.test(string2.slice(i + 1, i + 3))) {
-        result += string2.slice(i, i + 3);
-        i += 2;
-        continue;
-      }
-    }
-    if (code2 < 128) {
-      result += cache2[code2];
-      continue;
-    }
-    if (code2 >= 55296 && code2 <= 57343) {
-      if (code2 >= 55296 && code2 <= 56319 && i + 1 < l) {
-        const nextCode = string2.charCodeAt(i + 1);
-        if (nextCode >= 56320 && nextCode <= 57343) {
-          result += encodeURIComponent(string2[i] + string2[i + 1]);
-          i++;
-          continue;
-        }
-      }
-      result += "%EF%BF%BD";
-      continue;
-    }
-    result += encodeURIComponent(string2[i]);
-  }
-  return result;
-}
-encode$1.defaultChars = ";/?:@&=+$,-_.!~*'()#";
-encode$1.componentChars = "-_.!~*'()";
-function format$2(url) {
-  let result = "";
-  result += url.protocol || "";
-  result += url.slashes ? "//" : "";
-  result += url.auth ? url.auth + "@" : "";
-  if (url.hostname && url.hostname.indexOf(":") !== -1) {
-    result += "[" + url.hostname + "]";
-  } else {
-    result += url.hostname || "";
-  }
-  result += url.port ? ":" + url.port : "";
-  result += url.pathname || "";
-  result += url.search || "";
-  result += url.hash || "";
-  return result;
-}
-function Url() {
-  this.protocol = null;
-  this.slashes = null;
-  this.auth = null;
-  this.port = null;
-  this.hostname = null;
-  this.hash = null;
-  this.search = null;
-  this.pathname = null;
-}
-const protocolPattern = /^([a-z0-9.+-]+:)/i;
-const portPattern = /:[0-9]*$/;
-const simplePathPattern = /^(\/\/?(?!\/)[^\?\s]*)(\?[^\s]*)?$/;
-const delims = ["<", ">", '"', "`", " ", "\r", "\n", "	"];
-const unwise = ["{", "}", "|", "\\", "^", "`"].concat(delims);
-const autoEscape = ["'"].concat(unwise);
-const nonHostChars = ["%", "/", "?", ";", "#"].concat(autoEscape);
-const hostEndingChars = ["/", "?", "#"];
-const hostnameMaxLen = 255;
-const hostnamePartPattern = /^[+a-z0-9A-Z_-]{0,63}$/;
-const hostnamePartStart = /^([+a-z0-9A-Z_-]{0,63})(.*)$/;
-const hostlessProtocol = {
-  javascript: true,
-  "javascript:": true
-};
-const slashedProtocol = {
-  http: true,
-  https: true,
-  ftp: true,
-  gopher: true,
-  file: true,
-  "http:": true,
-  "https:": true,
-  "ftp:": true,
-  "gopher:": true,
-  "file:": true
-};
-function urlParse(url, slashesDenoteHost) {
-  if (url && url instanceof Url) return url;
-  const u = new Url();
-  u.parse(url, slashesDenoteHost);
-  return u;
-}
-Url.prototype.parse = function(url, slashesDenoteHost) {
-  let lowerProto, hec, slashes;
-  let rest = url;
-  rest = rest.trim();
-  if (!slashesDenoteHost && url.split("#").length === 1) {
-    const simplePath = simplePathPattern.exec(rest);
-    if (simplePath) {
-      this.pathname = simplePath[1];
-      if (simplePath[2]) {
-        this.search = simplePath[2];
-      }
-      return this;
-    }
-  }
-  let proto = protocolPattern.exec(rest);
-  if (proto) {
-    proto = proto[0];
-    lowerProto = proto.toLowerCase();
-    this.protocol = proto;
-    rest = rest.substr(proto.length);
-  }
-  if (slashesDenoteHost || proto || rest.match(/^\/\/[^@\/]+@[^@\/]+/)) {
-    slashes = rest.substr(0, 2) === "//";
-    if (slashes && !(proto && hostlessProtocol[proto])) {
-      rest = rest.substr(2);
-      this.slashes = true;
-    }
-  }
-  if (!hostlessProtocol[proto] && (slashes || proto && !slashedProtocol[proto])) {
-    let hostEnd = -1;
-    for (let i = 0; i < hostEndingChars.length; i++) {
-      hec = rest.indexOf(hostEndingChars[i]);
-      if (hec !== -1 && (hostEnd === -1 || hec < hostEnd)) {
-        hostEnd = hec;
-      }
-    }
-    let auth, atSign;
-    if (hostEnd === -1) {
-      atSign = rest.lastIndexOf("@");
-    } else {
-      atSign = rest.lastIndexOf("@", hostEnd);
-    }
-    if (atSign !== -1) {
-      auth = rest.slice(0, atSign);
-      rest = rest.slice(atSign + 1);
-      this.auth = auth;
-    }
-    hostEnd = -1;
-    for (let i = 0; i < nonHostChars.length; i++) {
-      hec = rest.indexOf(nonHostChars[i]);
-      if (hec !== -1 && (hostEnd === -1 || hec < hostEnd)) {
-        hostEnd = hec;
-      }
-    }
-    if (hostEnd === -1) {
-      hostEnd = rest.length;
-    }
-    if (rest[hostEnd - 1] === ":") {
-      hostEnd--;
-    }
-    const host = rest.slice(0, hostEnd);
-    rest = rest.slice(hostEnd);
-    this.parseHost(host);
-    this.hostname = this.hostname || "";
-    const ipv6Hostname = this.hostname[0] === "[" && this.hostname[this.hostname.length - 1] === "]";
-    if (!ipv6Hostname) {
-      const hostparts = this.hostname.split(/\./);
-      for (let i = 0, l = hostparts.length; i < l; i++) {
-        const part = hostparts[i];
-        if (!part) {
-          continue;
-        }
-        if (!part.match(hostnamePartPattern)) {
-          let newpart = "";
-          for (let j = 0, k = part.length; j < k; j++) {
-            if (part.charCodeAt(j) > 127) {
-              newpart += "x";
-            } else {
-              newpart += part[j];
-            }
-          }
-          if (!newpart.match(hostnamePartPattern)) {
-            const validParts = hostparts.slice(0, i);
-            const notHost = hostparts.slice(i + 1);
-            const bit = part.match(hostnamePartStart);
-            if (bit) {
-              validParts.push(bit[1]);
-              notHost.unshift(bit[2]);
-            }
-            if (notHost.length) {
-              rest = notHost.join(".") + rest;
-            }
-            this.hostname = validParts.join(".");
-            break;
-          }
-        }
-      }
-    }
-    if (this.hostname.length > hostnameMaxLen) {
-      this.hostname = "";
-    }
-    if (ipv6Hostname) {
-      this.hostname = this.hostname.substr(1, this.hostname.length - 2);
-    }
-  }
-  const hash2 = rest.indexOf("#");
-  if (hash2 !== -1) {
-    this.hash = rest.substr(hash2);
-    rest = rest.slice(0, hash2);
-  }
-  const qm = rest.indexOf("?");
-  if (qm !== -1) {
-    this.search = rest.substr(qm);
-    rest = rest.slice(0, qm);
-  }
-  if (rest) {
-    this.pathname = rest;
-  }
-  if (slashedProtocol[lowerProto] && this.hostname && !this.pathname) {
-    this.pathname = "";
-  }
-  return this;
-};
-Url.prototype.parseHost = function(host) {
-  let port = portPattern.exec(host);
-  if (port) {
-    port = port[0];
-    if (port !== ":") {
-      this.port = port.substr(1);
-    }
-    host = host.substr(0, host.length - port.length);
-  }
-  if (host) {
-    this.hostname = host;
-  }
-};
-const mdurl = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
-  __proto__: null,
-  decode: decode$1,
-  encode: encode$1,
-  format: format$2,
-  parse: urlParse
-}, Symbol.toStringTag, { value: "Module" }));
-const Any = /[\0-\uD7FF\uE000-\uFFFF]|[\uD800-\uDBFF][\uDC00-\uDFFF]|[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?:[^\uD800-\uDBFF]|^)[\uDC00-\uDFFF]/;
-const Cc = /[\0-\x1F\x7F-\x9F]/;
-const regex$1 = /[\xAD\u0600-\u0605\u061C\u06DD\u070F\u0890\u0891\u08E2\u180E\u200B-\u200F\u202A-\u202E\u2060-\u2064\u2066-\u206F\uFEFF\uFFF9-\uFFFB]|\uD804[\uDCBD\uDCCD]|\uD80D[\uDC30-\uDC3F]|\uD82F[\uDCA0-\uDCA3]|\uD834[\uDD73-\uDD7A]|\uDB40[\uDC01\uDC20-\uDC7F]/;
-const P = /[!-#%-\*,-\/:;\?@\[-\]_\{\}\xA1\xA7\xAB\xB6\xB7\xBB\xBF\u037E\u0387\u055A-\u055F\u0589\u058A\u05BE\u05C0\u05C3\u05C6\u05F3\u05F4\u0609\u060A\u060C\u060D\u061B\u061D-\u061F\u066A-\u066D\u06D4\u0700-\u070D\u07F7-\u07F9\u0830-\u083E\u085E\u0964\u0965\u0970\u09FD\u0A76\u0AF0\u0C77\u0C84\u0DF4\u0E4F\u0E5A\u0E5B\u0F04-\u0F12\u0F14\u0F3A-\u0F3D\u0F85\u0FD0-\u0FD4\u0FD9\u0FDA\u104A-\u104F\u10FB\u1360-\u1368\u1400\u166E\u169B\u169C\u16EB-\u16ED\u1735\u1736\u17D4-\u17D6\u17D8-\u17DA\u1800-\u180A\u1944\u1945\u1A1E\u1A1F\u1AA0-\u1AA6\u1AA8-\u1AAD\u1B5A-\u1B60\u1B7D\u1B7E\u1BFC-\u1BFF\u1C3B-\u1C3F\u1C7E\u1C7F\u1CC0-\u1CC7\u1CD3\u2010-\u2027\u2030-\u2043\u2045-\u2051\u2053-\u205E\u207D\u207E\u208D\u208E\u2308-\u230B\u2329\u232A\u2768-\u2775\u27C5\u27C6\u27E6-\u27EF\u2983-\u2998\u29D8-\u29DB\u29FC\u29FD\u2CF9-\u2CFC\u2CFE\u2CFF\u2D70\u2E00-\u2E2E\u2E30-\u2E4F\u2E52-\u2E5D\u3001-\u3003\u3008-\u3011\u3014-\u301F\u3030\u303D\u30A0\u30FB\uA4FE\uA4FF\uA60D-\uA60F\uA673\uA67E\uA6F2-\uA6F7\uA874-\uA877\uA8CE\uA8CF\uA8F8-\uA8FA\uA8FC\uA92E\uA92F\uA95F\uA9C1-\uA9CD\uA9DE\uA9DF\uAA5C-\uAA5F\uAADE\uAADF\uAAF0\uAAF1\uABEB\uFD3E\uFD3F\uFE10-\uFE19\uFE30-\uFE52\uFE54-\uFE61\uFE63\uFE68\uFE6A\uFE6B\uFF01-\uFF03\uFF05-\uFF0A\uFF0C-\uFF0F\uFF1A\uFF1B\uFF1F\uFF20\uFF3B-\uFF3D\uFF3F\uFF5B\uFF5D\uFF5F-\uFF65]|\uD800[\uDD00-\uDD02\uDF9F\uDFD0]|\uD801\uDD6F|\uD802[\uDC57\uDD1F\uDD3F\uDE50-\uDE58\uDE7F\uDEF0-\uDEF6\uDF39-\uDF3F\uDF99-\uDF9C]|\uD803[\uDEAD\uDF55-\uDF59\uDF86-\uDF89]|\uD804[\uDC47-\uDC4D\uDCBB\uDCBC\uDCBE-\uDCC1\uDD40-\uDD43\uDD74\uDD75\uDDC5-\uDDC8\uDDCD\uDDDB\uDDDD-\uDDDF\uDE38-\uDE3D\uDEA9]|\uD805[\uDC4B-\uDC4F\uDC5A\uDC5B\uDC5D\uDCC6\uDDC1-\uDDD7\uDE41-\uDE43\uDE60-\uDE6C\uDEB9\uDF3C-\uDF3E]|\uD806[\uDC3B\uDD44-\uDD46\uDDE2\uDE3F-\uDE46\uDE9A-\uDE9C\uDE9E-\uDEA2\uDF00-\uDF09]|\uD807[\uDC41-\uDC45\uDC70\uDC71\uDEF7\uDEF8\uDF43-\uDF4F\uDFFF]|\uD809[\uDC70-\uDC74]|\uD80B[\uDFF1\uDFF2]|\uD81A[\uDE6E\uDE6F\uDEF5\uDF37-\uDF3B\uDF44]|\uD81B[\uDE97-\uDE9A\uDFE2]|\uD82F\uDC9F|\uD836[\uDE87-\uDE8B]|\uD83A[\uDD5E\uDD5F]/;
-const regex = /[\$\+<->\^`\|~\xA2-\xA6\xA8\xA9\xAC\xAE-\xB1\xB4\xB8\xD7\xF7\u02C2-\u02C5\u02D2-\u02DF\u02E5-\u02EB\u02ED\u02EF-\u02FF\u0375\u0384\u0385\u03F6\u0482\u058D-\u058F\u0606-\u0608\u060B\u060E\u060F\u06DE\u06E9\u06FD\u06FE\u07F6\u07FE\u07FF\u0888\u09F2\u09F3\u09FA\u09FB\u0AF1\u0B70\u0BF3-\u0BFA\u0C7F\u0D4F\u0D79\u0E3F\u0F01-\u0F03\u0F13\u0F15-\u0F17\u0F1A-\u0F1F\u0F34\u0F36\u0F38\u0FBE-\u0FC5\u0FC7-\u0FCC\u0FCE\u0FCF\u0FD5-\u0FD8\u109E\u109F\u1390-\u1399\u166D\u17DB\u1940\u19DE-\u19FF\u1B61-\u1B6A\u1B74-\u1B7C\u1FBD\u1FBF-\u1FC1\u1FCD-\u1FCF\u1FDD-\u1FDF\u1FED-\u1FEF\u1FFD\u1FFE\u2044\u2052\u207A-\u207C\u208A-\u208C\u20A0-\u20C0\u2100\u2101\u2103-\u2106\u2108\u2109\u2114\u2116-\u2118\u211E-\u2123\u2125\u2127\u2129\u212E\u213A\u213B\u2140-\u2144\u214A-\u214D\u214F\u218A\u218B\u2190-\u2307\u230C-\u2328\u232B-\u2426\u2440-\u244A\u249C-\u24E9\u2500-\u2767\u2794-\u27C4\u27C7-\u27E5\u27F0-\u2982\u2999-\u29D7\u29DC-\u29FB\u29FE-\u2B73\u2B76-\u2B95\u2B97-\u2BFF\u2CE5-\u2CEA\u2E50\u2E51\u2E80-\u2E99\u2E9B-\u2EF3\u2F00-\u2FD5\u2FF0-\u2FFF\u3004\u3012\u3013\u3020\u3036\u3037\u303E\u303F\u309B\u309C\u3190\u3191\u3196-\u319F\u31C0-\u31E3\u31EF\u3200-\u321E\u322A-\u3247\u3250\u3260-\u327F\u328A-\u32B0\u32C0-\u33FF\u4DC0-\u4DFF\uA490-\uA4C6\uA700-\uA716\uA720\uA721\uA789\uA78A\uA828-\uA82B\uA836-\uA839\uAA77-\uAA79\uAB5B\uAB6A\uAB6B\uFB29\uFBB2-\uFBC2\uFD40-\uFD4F\uFDCF\uFDFC-\uFDFF\uFE62\uFE64-\uFE66\uFE69\uFF04\uFF0B\uFF1C-\uFF1E\uFF3E\uFF40\uFF5C\uFF5E\uFFE0-\uFFE6\uFFE8-\uFFEE\uFFFC\uFFFD]|\uD800[\uDD37-\uDD3F\uDD79-\uDD89\uDD8C-\uDD8E\uDD90-\uDD9C\uDDA0\uDDD0-\uDDFC]|\uD802[\uDC77\uDC78\uDEC8]|\uD805\uDF3F|\uD807[\uDFD5-\uDFF1]|\uD81A[\uDF3C-\uDF3F\uDF45]|\uD82F\uDC9C|\uD833[\uDF50-\uDFC3]|\uD834[\uDC00-\uDCF5\uDD00-\uDD26\uDD29-\uDD64\uDD6A-\uDD6C\uDD83\uDD84\uDD8C-\uDDA9\uDDAE-\uDDEA\uDE00-\uDE41\uDE45\uDF00-\uDF56]|\uD835[\uDEC1\uDEDB\uDEFB\uDF15\uDF35\uDF4F\uDF6F\uDF89\uDFA9\uDFC3]|\uD836[\uDC00-\uDDFF\uDE37-\uDE3A\uDE6D-\uDE74\uDE76-\uDE83\uDE85\uDE86]|\uD838[\uDD4F\uDEFF]|\uD83B[\uDCAC\uDCB0\uDD2E\uDEF0\uDEF1]|\uD83C[\uDC00-\uDC2B\uDC30-\uDC93\uDCA0-\uDCAE\uDCB1-\uDCBF\uDCC1-\uDCCF\uDCD1-\uDCF5\uDD0D-\uDDAD\uDDE6-\uDE02\uDE10-\uDE3B\uDE40-\uDE48\uDE50\uDE51\uDE60-\uDE65\uDF00-\uDFFF]|\uD83D[\uDC00-\uDED7\uDEDC-\uDEEC\uDEF0-\uDEFC\uDF00-\uDF76\uDF7B-\uDFD9\uDFE0-\uDFEB\uDFF0]|\uD83E[\uDC00-\uDC0B\uDC10-\uDC47\uDC50-\uDC59\uDC60-\uDC87\uDC90-\uDCAD\uDCB0\uDCB1\uDD00-\uDE53\uDE60-\uDE6D\uDE70-\uDE7C\uDE80-\uDE88\uDE90-\uDEBD\uDEBF-\uDEC5\uDECE-\uDEDB\uDEE0-\uDEE8\uDEF0-\uDEF8\uDF00-\uDF92\uDF94-\uDFCA]/;
-const Z = /[ \xA0\u1680\u2000-\u200A\u2028\u2029\u202F\u205F\u3000]/;
-const ucmicro = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
-  __proto__: null,
-  Any,
-  Cc,
-  Cf: regex$1,
-  P,
-  S: regex,
-  Z
-}, Symbol.toStringTag, { value: "Module" }));
-const htmlDecodeTree = new Uint16Array(
-  // prettier-ignore
-  'ᵁ<Õıʊҝջאٵ۞ޢߖࠏ੊ઑඡ๭༉༦჊ረዡᐕᒝᓃᓟᔥ\0\0\0\0\0\0ᕫᛍᦍᰒᷝ὾⁠↰⊍⏀⏻⑂⠤⤒ⴈ⹈⿎〖㊺㘹㞬㣾㨨㩱㫠㬮ࠀEMabcfglmnoprstu\\bfms¦³¹ÈÏlig耻Æ䃆P耻&䀦cute耻Á䃁reve;䄂Āiyx}rc耻Â䃂;䐐r;쀀𝔄rave耻À䃀pha;䎑acr;䄀d;橓Āgp¡on;䄄f;쀀𝔸plyFunction;恡ing耻Å䃅Ācs¾Ãr;쀀𝒜ign;扔ilde耻Ã䃃ml耻Ä䃄ЀaceforsuåûþėĜĢħĪĀcrêòkslash;或Ŷöø;櫧ed;挆y;䐑ƀcrtąċĔause;戵noullis;愬a;䎒r;쀀𝔅pf;쀀𝔹eve;䋘còēmpeq;扎܀HOacdefhilorsuōőŖƀƞƢƵƷƺǜȕɳɸɾcy;䐧PY耻©䂩ƀcpyŝŢźute;䄆Ā;iŧŨ拒talDifferentialD;慅leys;愭ȀaeioƉƎƔƘron;䄌dil耻Ç䃇rc;䄈nint;戰ot;䄊ĀdnƧƭilla;䂸terDot;䂷òſi;䎧rcleȀDMPTǇǋǑǖot;抙inus;抖lus;投imes;抗oĀcsǢǸkwiseContourIntegral;戲eCurlyĀDQȃȏoubleQuote;思uote;怙ȀlnpuȞȨɇɕonĀ;eȥȦ户;橴ƀgitȯȶȺruent;扡nt;戯ourIntegral;戮ĀfrɌɎ;愂oduct;成nterClockwiseContourIntegral;戳oss;樯cr;쀀𝒞pĀ;Cʄʅ拓ap;才րDJSZacefiosʠʬʰʴʸˋ˗ˡ˦̳ҍĀ;oŹʥtrahd;椑cy;䐂cy;䐅cy;䐏ƀgrsʿ˄ˇger;怡r;憡hv;櫤Āayː˕ron;䄎;䐔lĀ;t˝˞戇a;䎔r;쀀𝔇Āaf˫̧Ācm˰̢riticalȀADGT̖̜̀̆cute;䂴oŴ̋̍;䋙bleAcute;䋝rave;䁠ilde;䋜ond;拄ferentialD;慆Ѱ̽\0\0\0͔͂\0Ѕf;쀀𝔻ƀ;DE͈͉͍䂨ot;惜qual;扐blèCDLRUVͣͲ΂ϏϢϸontourIntegraìȹoɴ͹\0\0ͻ»͉nArrow;懓Āeo·ΤftƀARTΐΖΡrrow;懐ightArrow;懔eåˊngĀLRΫτeftĀARγιrrow;柸ightArrow;柺ightArrow;柹ightĀATϘϞrrow;懒ee;抨pɁϩ\0\0ϯrrow;懑ownArrow;懕erticalBar;戥ǹABLRTaВЪаўѿͼrrowƀ;BUНОТ憓ar;椓pArrow;懵reve;䌑eft˒к\0ц\0ѐightVector;楐eeVector;楞ectorĀ;Bљњ憽ar;楖ightǔѧ\0ѱeeVector;楟ectorĀ;BѺѻ懁ar;楗eeĀ;A҆҇护rrow;憧ĀctҒҗr;쀀𝒟rok;䄐ࠀNTacdfglmopqstuxҽӀӄӋӞӢӧӮӵԡԯԶՒ՝ՠեG;䅊H耻Ð䃐cute耻É䃉ƀaiyӒӗӜron;䄚rc耻Ê䃊;䐭ot;䄖r;쀀𝔈rave耻È䃈ement;戈ĀapӺӾcr;䄒tyɓԆ\0\0ԒmallSquare;旻erySmallSquare;斫ĀgpԦԪon;䄘f;쀀𝔼silon;䎕uĀaiԼՉlĀ;TՂՃ橵ilde;扂librium;懌Āci՗՚r;愰m;橳a;䎗ml耻Ë䃋Āipժկsts;戃onentialE;慇ʀcfiosօֈ֍ֲ׌y;䐤r;쀀𝔉lledɓ֗\0\0֣mallSquare;旼erySmallSquare;斪Ͱֺ\0ֿ\0\0ׄf;쀀𝔽All;戀riertrf;愱cò׋؀JTabcdfgorstר׬ׯ׺؀ؒؖ؛؝أ٬ٲcy;䐃耻>䀾mmaĀ;d׷׸䎓;䏜reve;䄞ƀeiy؇،ؐdil;䄢rc;䄜;䐓ot;䄠r;쀀𝔊;拙pf;쀀𝔾eater̀EFGLSTصلَٖٛ٦qualĀ;Lؾؿ扥ess;招ullEqual;执reater;檢ess;扷lantEqual;橾ilde;扳cr;쀀𝒢;扫ЀAacfiosuڅڋږڛڞڪھۊRDcy;䐪Āctڐڔek;䋇;䁞irc;䄤r;愌lbertSpace;愋ǰگ\0ڲf;愍izontalLine;攀Āctۃۅòکrok;䄦mpńېۘownHumðįqual;扏܀EJOacdfgmnostuۺ۾܃܇܎ܚܞܡܨ݄ݸދޏޕcy;䐕lig;䄲cy;䐁cute耻Í䃍Āiyܓܘrc耻Î䃎;䐘ot;䄰r;愑rave耻Ì䃌ƀ;apܠܯܿĀcgܴܷr;䄪inaryI;慈lieóϝǴ݉\0ݢĀ;eݍݎ戬Āgrݓݘral;戫section;拂isibleĀCTݬݲomma;恣imes;恢ƀgptݿރވon;䄮f;쀀𝕀a;䎙cr;愐ilde;䄨ǫޚ\0ޞcy;䐆l耻Ï䃏ʀcfosuެ޷޼߂ߐĀiyޱ޵rc;䄴;䐙r;쀀𝔍pf;쀀𝕁ǣ߇\0ߌr;쀀𝒥rcy;䐈kcy;䐄΀HJacfosߤߨ߽߬߱ࠂࠈcy;䐥cy;䐌ppa;䎚Āey߶߻dil;䄶;䐚r;쀀𝔎pf;쀀𝕂cr;쀀𝒦րJTaceflmostࠥࠩࠬࡐࡣ঳সে্਷ੇcy;䐉耻<䀼ʀcmnpr࠷࠼ࡁࡄࡍute;䄹bda;䎛g;柪lacetrf;愒r;憞ƀaeyࡗ࡜ࡡron;䄽dil;䄻;䐛Āfsࡨ॰tԀACDFRTUVarࡾࢩࢱࣦ࣠ࣼयज़ΐ४Ānrࢃ࢏gleBracket;柨rowƀ;BR࢙࢚࢞憐ar;懤ightArrow;懆eiling;挈oǵࢷ\0ࣃbleBracket;柦nǔࣈ\0࣒eeVector;楡ectorĀ;Bࣛࣜ懃ar;楙loor;挊ightĀAV࣯ࣵrrow;憔ector;楎Āerँगeƀ;AVउऊऐ抣rrow;憤ector;楚iangleƀ;BEतथऩ抲ar;槏qual;抴pƀDTVषूौownVector;楑eeVector;楠ectorĀ;Bॖॗ憿ar;楘ectorĀ;B॥०憼ar;楒ightáΜs̀EFGLSTॾঋকঝঢভqualGreater;拚ullEqual;扦reater;扶ess;檡lantEqual;橽ilde;扲r;쀀𝔏Ā;eঽা拘ftarrow;懚idot;䄿ƀnpw৔ਖਛgȀLRlr৞৷ਂਐeftĀAR০৬rrow;柵ightArrow;柷ightArrow;柶eftĀarγਊightáοightáϊf;쀀𝕃erĀLRਢਬeftArrow;憙ightArrow;憘ƀchtਾੀੂòࡌ;憰rok;䅁;扪Ѐacefiosuਗ਼੝੠੷੼અઋ઎p;椅y;䐜Ādl੥੯iumSpace;恟lintrf;愳r;쀀𝔐nusPlus;戓pf;쀀𝕄cò੶;䎜ҀJacefostuણધભીଔଙඑ඗ඞcy;䐊cute;䅃ƀaey઴હાron;䅇dil;䅅;䐝ƀgswે૰଎ativeƀMTV૓૟૨ediumSpace;怋hiĀcn૦૘ë૙eryThiî૙tedĀGL૸ଆreaterGreateòٳessLesóੈLine;䀊r;쀀𝔑ȀBnptଢନଷ଺reak;恠BreakingSpace;䂠f;愕ڀ;CDEGHLNPRSTV୕ୖ୪୼஡௫ఄ౞಄ದ೘ൡඅ櫬Āou୛୤ngruent;扢pCap;扭oubleVerticalBar;戦ƀlqxஃஊ஛ement;戉ualĀ;Tஒஓ扠ilde;쀀≂̸ists;戄reater΀;EFGLSTஶஷ஽௉௓௘௥扯qual;扱ullEqual;쀀≧̸reater;쀀≫̸ess;批lantEqual;쀀⩾̸ilde;扵umpń௲௽ownHump;쀀≎̸qual;쀀≏̸eĀfsఊధtTriangleƀ;BEచఛడ拪ar;쀀⧏̸qual;括s̀;EGLSTవశ఼ౄోౘ扮qual;扰reater;扸ess;쀀≪̸lantEqual;쀀⩽̸ilde;扴estedĀGL౨౹reaterGreater;쀀⪢̸essLess;쀀⪡̸recedesƀ;ESಒಓಛ技qual;쀀⪯̸lantEqual;拠ĀeiಫಹverseElement;戌ghtTriangleƀ;BEೋೌ೒拫ar;쀀⧐̸qual;拭ĀquೝഌuareSuĀbp೨೹setĀ;E೰ೳ쀀⊏̸qual;拢ersetĀ;Eഃആ쀀⊐̸qual;拣ƀbcpഓതൎsetĀ;Eഛഞ쀀⊂⃒qual;抈ceedsȀ;ESTലള഻െ抁qual;쀀⪰̸lantEqual;拡ilde;쀀≿̸ersetĀ;E൘൛쀀⊃⃒qual;抉ildeȀ;EFT൮൯൵ൿ扁qual;扄ullEqual;扇ilde;扉erticalBar;戤cr;쀀𝒩ilde耻Ñ䃑;䎝܀Eacdfgmoprstuvලෂ෉෕ෛ෠෧෼ขภยา฿ไlig;䅒cute耻Ó䃓Āiy෎ීrc耻Ô䃔;䐞blac;䅐r;쀀𝔒rave耻Ò䃒ƀaei෮ෲ෶cr;䅌ga;䎩cron;䎟pf;쀀𝕆enCurlyĀDQฎบoubleQuote;怜uote;怘;橔Āclวฬr;쀀𝒪ash耻Ø䃘iŬื฼de耻Õ䃕es;樷ml耻Ö䃖erĀBP๋๠Āar๐๓r;怾acĀek๚๜;揞et;掴arenthesis;揜Ҁacfhilors๿ງຊຏຒດຝະ໼rtialD;戂y;䐟r;쀀𝔓i;䎦;䎠usMinus;䂱Āipຢອncareplanåڝf;愙Ȁ;eio຺ູ໠໤檻cedesȀ;EST່້໏໚扺qual;檯lantEqual;扼ilde;找me;怳Ādp໩໮uct;戏ortionĀ;aȥ໹l;戝Āci༁༆r;쀀𝒫;䎨ȀUfos༑༖༛༟OT耻"䀢r;쀀𝔔pf;愚cr;쀀𝒬؀BEacefhiorsu༾གྷཇའཱིྦྷྪྭ႖ႩႴႾarr;椐G耻®䂮ƀcnrཎནབute;䅔g;柫rĀ;tཛྷཝ憠l;椖ƀaeyཧཬཱron;䅘dil;䅖;䐠Ā;vླྀཹ愜erseĀEUྂྙĀlq྇ྎement;戋uilibrium;懋pEquilibrium;楯r»ཹo;䎡ghtЀACDFTUVa࿁࿫࿳ဢဨၛႇϘĀnr࿆࿒gleBracket;柩rowƀ;BL࿜࿝࿡憒ar;懥eftArrow;懄eiling;按oǵ࿹\0စbleBracket;柧nǔည\0နeeVector;楝ectorĀ;Bဝသ懂ar;楕loor;挋Āerိ၃eƀ;AVဵံြ抢rrow;憦ector;楛iangleƀ;BEၐၑၕ抳ar;槐qual;抵pƀDTVၣၮၸownVector;楏eeVector;楜ectorĀ;Bႂႃ憾ar;楔ectorĀ;B႑႒懀ar;楓Āpuႛ႞f;愝ndImplies;楰ightarrow;懛ĀchႹႼr;愛;憱leDelayed;槴ڀHOacfhimoqstuფჱჷჽᄙᄞᅑᅖᅡᅧᆵᆻᆿĀCcჩხHcy;䐩y;䐨FTcy;䐬cute;䅚ʀ;aeiyᄈᄉᄎᄓᄗ檼ron;䅠dil;䅞rc;䅜;䐡r;쀀𝔖ortȀDLRUᄪᄴᄾᅉownArrow»ОeftArrow»࢚ightArrow»࿝pArrow;憑gma;䎣allCircle;战pf;쀀𝕊ɲᅭ\0\0ᅰt;戚areȀ;ISUᅻᅼᆉᆯ斡ntersection;抓uĀbpᆏᆞsetĀ;Eᆗᆘ抏qual;抑ersetĀ;Eᆨᆩ抐qual;抒nion;抔cr;쀀𝒮ar;拆ȀbcmpᇈᇛሉላĀ;sᇍᇎ拐etĀ;Eᇍᇕqual;抆ĀchᇠህeedsȀ;ESTᇭᇮᇴᇿ扻qual;檰lantEqual;扽ilde;承Tháྌ;我ƀ;esሒሓሣ拑rsetĀ;Eሜም抃qual;抇et»ሓրHRSacfhiorsሾቄ቉ቕ቞ቱቶኟዂወዑORN耻Þ䃞ADE;愢ĀHc቎ቒcy;䐋y;䐦Ābuቚቜ;䀉;䎤ƀaeyብቪቯron;䅤dil;䅢;䐢r;쀀𝔗Āeiቻ኉ǲኀ\0ኇefore;戴a;䎘Ācn኎ኘkSpace;쀀  Space;怉ldeȀ;EFTካኬኲኼ戼qual;扃ullEqual;扅ilde;扈pf;쀀𝕋ipleDot;惛Āctዖዛr;쀀𝒯rok;䅦ૡዷጎጚጦ\0ጬጱ\0\0\0\0\0ጸጽ፷ᎅ\0᏿ᐄᐊᐐĀcrዻጁute耻Ú䃚rĀ;oጇገ憟cir;楉rǣጓ\0጖y;䐎ve;䅬Āiyጞጣrc耻Û䃛;䐣blac;䅰r;쀀𝔘rave耻Ù䃙acr;䅪Ādiፁ፩erĀBPፈ፝Āarፍፐr;䁟acĀekፗፙ;揟et;掵arenthesis;揝onĀ;P፰፱拃lus;抎Āgp፻፿on;䅲f;쀀𝕌ЀADETadps᎕ᎮᎸᏄϨᏒᏗᏳrrowƀ;BDᅐᎠᎤar;椒ownArrow;懅ownArrow;憕quilibrium;楮eeĀ;AᏋᏌ报rrow;憥ownáϳerĀLRᏞᏨeftArrow;憖ightArrow;憗iĀ;lᏹᏺ䏒on;䎥ing;䅮cr;쀀𝒰ilde;䅨ml耻Ü䃜ҀDbcdefosvᐧᐬᐰᐳᐾᒅᒊᒐᒖash;披ar;櫫y;䐒ashĀ;lᐻᐼ抩;櫦Āerᑃᑅ;拁ƀbtyᑌᑐᑺar;怖Ā;iᑏᑕcalȀBLSTᑡᑥᑪᑴar;戣ine;䁼eparator;杘ilde;所ThinSpace;怊r;쀀𝔙pf;쀀𝕍cr;쀀𝒱dash;抪ʀcefosᒧᒬᒱᒶᒼirc;䅴dge;拀r;쀀𝔚pf;쀀𝕎cr;쀀𝒲Ȁfiosᓋᓐᓒᓘr;쀀𝔛;䎞pf;쀀𝕏cr;쀀𝒳ҀAIUacfosuᓱᓵᓹᓽᔄᔏᔔᔚᔠcy;䐯cy;䐇cy;䐮cute耻Ý䃝Āiyᔉᔍrc;䅶;䐫r;쀀𝔜pf;쀀𝕐cr;쀀𝒴ml;䅸ЀHacdefosᔵᔹᔿᕋᕏᕝᕠᕤcy;䐖cute;䅹Āayᕄᕉron;䅽;䐗ot;䅻ǲᕔ\0ᕛoWidtè૙a;䎖r;愨pf;愤cr;쀀𝒵௡ᖃᖊᖐ\0ᖰᖶᖿ\0\0\0\0ᗆᗛᗫᙟ᙭\0ᚕ᚛ᚲᚹ\0ᚾcute耻á䃡reve;䄃̀;Ediuyᖜᖝᖡᖣᖨᖭ戾;쀀∾̳;房rc耻â䃢te肻´̆;䐰lig耻æ䃦Ā;r²ᖺ;쀀𝔞rave耻à䃠ĀepᗊᗖĀfpᗏᗔsym;愵èᗓha;䎱ĀapᗟcĀclᗤᗧr;䄁g;樿ɤᗰ\0\0ᘊʀ;adsvᗺᗻᗿᘁᘇ戧nd;橕;橜lope;橘;橚΀;elmrszᘘᘙᘛᘞᘿᙏᙙ戠;榤e»ᘙsdĀ;aᘥᘦ戡ѡᘰᘲᘴᘶᘸᘺᘼᘾ;榨;榩;榪;榫;榬;榭;榮;榯tĀ;vᙅᙆ戟bĀ;dᙌᙍ抾;榝Āptᙔᙗh;戢»¹arr;捼Āgpᙣᙧon;䄅f;쀀𝕒΀;Eaeiop዁ᙻᙽᚂᚄᚇᚊ;橰cir;橯;扊d;手s;䀧roxĀ;e዁ᚒñᚃing耻å䃥ƀctyᚡᚦᚨr;쀀𝒶;䀪mpĀ;e዁ᚯñʈilde耻ã䃣ml耻ä䃤Āciᛂᛈoninôɲnt;樑ࠀNabcdefiklnoprsu᛭ᛱᜰ᜼ᝃᝈ᝸᝽០៦ᠹᡐᜍ᤽᥈ᥰot;櫭Ācrᛶ᜞kȀcepsᜀᜅᜍᜓong;扌psilon;䏶rime;怵imĀ;e᜚᜛戽q;拍Ŷᜢᜦee;抽edĀ;gᜬᜭ挅e»ᜭrkĀ;t፜᜷brk;掶Āoyᜁᝁ;䐱quo;怞ʀcmprtᝓ᝛ᝡᝤᝨausĀ;eĊĉptyv;榰séᜌnoõēƀahwᝯ᝱ᝳ;䎲;愶een;扬r;쀀𝔟g΀costuvwឍឝឳេ៕៛៞ƀaiuបពរðݠrc;旯p»፱ƀdptឤឨឭot;樀lus;樁imes;樂ɱឹ\0\0ើcup;樆ar;昅riangleĀdu៍្own;施p;斳plus;樄eåᑄåᒭarow;植ƀako៭ᠦᠵĀcn៲ᠣkƀlst៺֫᠂ozenge;槫riangleȀ;dlr᠒᠓᠘᠝斴own;斾eft;旂ight;斸k;搣Ʊᠫ\0ᠳƲᠯ\0ᠱ;斒;斑4;斓ck;斈ĀeoᠾᡍĀ;qᡃᡆ쀀=⃥uiv;쀀≡⃥t;挐Ȁptwxᡙᡞᡧᡬf;쀀𝕓Ā;tᏋᡣom»Ꮜtie;拈؀DHUVbdhmptuvᢅᢖᢪᢻᣗᣛᣬ᣿ᤅᤊᤐᤡȀLRlrᢎᢐᢒᢔ;敗;敔;敖;敓ʀ;DUduᢡᢢᢤᢦᢨ敐;敦;敩;敤;敧ȀLRlrᢳᢵᢷᢹ;敝;敚;敜;教΀;HLRhlrᣊᣋᣍᣏᣑᣓᣕ救;敬;散;敠;敫;敢;敟ox;槉ȀLRlrᣤᣦᣨᣪ;敕;敒;攐;攌ʀ;DUduڽ᣷᣹᣻᣽;敥;敨;攬;攴inus;抟lus;択imes;抠ȀLRlrᤙᤛᤝ᤟;敛;敘;攘;攔΀;HLRhlrᤰᤱᤳᤵᤷ᤻᤹攂;敪;敡;敞;攼;攤;攜Āevģ᥂bar耻¦䂦Ȁceioᥑᥖᥚᥠr;쀀𝒷mi;恏mĀ;e᜚᜜lƀ;bhᥨᥩᥫ䁜;槅sub;柈Ŭᥴ᥾lĀ;e᥹᥺怢t»᥺pƀ;Eeįᦅᦇ;檮Ā;qۜۛೡᦧ\0᧨ᨑᨕᨲ\0ᨷᩐ\0\0᪴\0\0᫁\0\0ᬡᬮ᭍᭒\0᯽\0ᰌƀcpr᦭ᦲ᧝ute;䄇̀;abcdsᦿᧀᧄ᧊᧕᧙戩nd;橄rcup;橉Āau᧏᧒p;橋p;橇ot;橀;쀀∩︀Āeo᧢᧥t;恁îړȀaeiu᧰᧻ᨁᨅǰ᧵\0᧸s;橍on;䄍dil耻ç䃧rc;䄉psĀ;sᨌᨍ橌m;橐ot;䄋ƀdmnᨛᨠᨦil肻¸ƭptyv;榲t脀¢;eᨭᨮ䂢räƲr;쀀𝔠ƀceiᨽᩀᩍy;䑇ckĀ;mᩇᩈ朓ark»ᩈ;䏇r΀;Ecefms᩟᩠ᩢᩫ᪤᪪᪮旋;槃ƀ;elᩩᩪᩭ䋆q;扗eɡᩴ\0\0᪈rrowĀlr᩼᪁eft;憺ight;憻ʀRSacd᪒᪔᪖᪚᪟»ཇ;擈st;抛irc;抚ash;抝nint;樐id;櫯cir;槂ubsĀ;u᪻᪼晣it»᪼ˬ᫇᫔᫺\0ᬊonĀ;eᫍᫎ䀺Ā;qÇÆɭ᫙\0\0᫢aĀ;t᫞᫟䀬;䁀ƀ;fl᫨᫩᫫戁îᅠeĀmx᫱᫶ent»᫩eóɍǧ᫾\0ᬇĀ;dኻᬂot;橭nôɆƀfryᬐᬔᬗ;쀀𝕔oäɔ脀©;sŕᬝr;愗Āaoᬥᬩrr;憵ss;朗Ācuᬲᬷr;쀀𝒸Ābpᬼ᭄Ā;eᭁᭂ櫏;櫑Ā;eᭉᭊ櫐;櫒dot;拯΀delprvw᭠᭬᭷ᮂᮬᯔ᯹arrĀlr᭨᭪;椸;椵ɰ᭲\0\0᭵r;拞c;拟arrĀ;p᭿ᮀ憶;椽̀;bcdosᮏᮐᮖᮡᮥᮨ截rcap;橈Āauᮛᮞp;橆p;橊ot;抍r;橅;쀀∪︀Ȁalrv᮵ᮿᯞᯣrrĀ;mᮼᮽ憷;椼yƀevwᯇᯔᯘqɰᯎ\0\0ᯒreã᭳uã᭵ee;拎edge;拏en耻¤䂤earrowĀlrᯮ᯳eft»ᮀight»ᮽeäᯝĀciᰁᰇoninôǷnt;戱lcty;挭ঀAHabcdefhijlorstuwz᰸᰻᰿ᱝᱩᱵᲊᲞᲬᲷ᳻᳿ᴍᵻᶑᶫᶻ᷆᷍rò΁ar;楥Ȁglrs᱈ᱍ᱒᱔ger;怠eth;愸òᄳhĀ;vᱚᱛ怐»ऊūᱡᱧarow;椏aã̕Āayᱮᱳron;䄏;䐴ƀ;ao̲ᱼᲄĀgrʿᲁr;懊tseq;橷ƀglmᲑᲔᲘ耻°䂰ta;䎴ptyv;榱ĀirᲣᲨsht;楿;쀀𝔡arĀlrᲳᲵ»ࣜ»သʀaegsv᳂͸᳖᳜᳠mƀ;oș᳊᳔ndĀ;ș᳑uit;晦amma;䏝in;拲ƀ;io᳧᳨᳸䃷de脀÷;o᳧ᳰntimes;拇nø᳷cy;䑒cɯᴆ\0\0ᴊrn;挞op;挍ʀlptuwᴘᴝᴢᵉᵕlar;䀤f;쀀𝕕ʀ;emps̋ᴭᴷᴽᵂqĀ;d͒ᴳot;扑inus;戸lus;戔quare;抡blebarwedgåúnƀadhᄮᵝᵧownarrowóᲃarpoonĀlrᵲᵶefôᲴighôᲶŢᵿᶅkaro÷གɯᶊ\0\0ᶎrn;挟op;挌ƀcotᶘᶣᶦĀryᶝᶡ;쀀𝒹;䑕l;槶rok;䄑Ādrᶰᶴot;拱iĀ;fᶺ᠖斿Āah᷀᷃ròЩaòྦangle;榦Āci᷒ᷕy;䑟grarr;柿ऀDacdefglmnopqrstuxḁḉḙḸոḼṉṡṾấắẽỡἪἷὄ὎὚ĀDoḆᴴoôᲉĀcsḎḔute耻é䃩ter;橮ȀaioyḢḧḱḶron;䄛rĀ;cḭḮ扖耻ê䃪lon;払;䑍ot;䄗ĀDrṁṅot;扒;쀀𝔢ƀ;rsṐṑṗ檚ave耻è䃨Ā;dṜṝ檖ot;檘Ȁ;ilsṪṫṲṴ檙nters;揧;愓Ā;dṹṺ檕ot;檗ƀapsẅẉẗcr;䄓tyƀ;svẒẓẕ戅et»ẓpĀ1;ẝẤĳạả;怄;怅怃ĀgsẪẬ;䅋p;怂ĀgpẴẸon;䄙f;쀀𝕖ƀalsỄỎỒrĀ;sỊị拕l;槣us;橱iƀ;lvỚớở䎵on»ớ;䏵ȀcsuvỪỳἋἣĀioữḱrc»Ḯɩỹ\0\0ỻíՈantĀglἂἆtr»ṝess»Ṻƀaeiἒ἖Ἒls;䀽st;扟vĀ;DȵἠD;橸parsl;槥ĀDaἯἳot;打rr;楱ƀcdiἾὁỸr;愯oô͒ĀahὉὋ;䎷耻ð䃰Āmrὓὗl耻ë䃫o;悬ƀcipὡὤὧl;䀡sôծĀeoὬὴctatioîՙnentialåչৡᾒ\0ᾞ\0ᾡᾧ\0\0ῆῌ\0ΐ\0ῦῪ \0 ⁚llingdotseñṄy;䑄male;晀ƀilrᾭᾳ῁lig;耀ﬃɩᾹ\0\0᾽g;耀ﬀig;耀ﬄ;쀀𝔣lig;耀ﬁlig;쀀fjƀaltῙ῜ῡt;晭ig;耀ﬂns;斱of;䆒ǰ΅\0ῳf;쀀𝕗ĀakֿῷĀ;vῼ´拔;櫙artint;樍Āao‌⁕Ācs‑⁒α‚‰‸⁅⁈\0⁐β•‥‧‪‬\0‮耻½䂽;慓耻¼䂼;慕;慙;慛Ƴ‴\0‶;慔;慖ʴ‾⁁\0\0⁃耻¾䂾;慗;慜5;慘ƶ⁌\0⁎;慚;慝8;慞l;恄wn;挢cr;쀀𝒻ࢀEabcdefgijlnorstv₂₉₟₥₰₴⃰⃵⃺⃿℃ℒℸ̗ℾ⅒↞Ā;lٍ₇;檌ƀcmpₐₕ₝ute;䇵maĀ;dₜ᳚䎳;檆reve;䄟Āiy₪₮rc;䄝;䐳ot;䄡Ȁ;lqsؾق₽⃉ƀ;qsؾٌ⃄lanô٥Ȁ;cdl٥⃒⃥⃕c;檩otĀ;o⃜⃝檀Ā;l⃢⃣檂;檄Ā;e⃪⃭쀀⋛︀s;檔r;쀀𝔤Ā;gٳ؛mel;愷cy;䑓Ȁ;Eajٚℌℎℐ;檒;檥;檤ȀEaesℛℝ℩ℴ;扩pĀ;p℣ℤ檊rox»ℤĀ;q℮ℯ檈Ā;q℮ℛim;拧pf;쀀𝕘Āci⅃ⅆr;愊mƀ;el٫ⅎ⅐;檎;檐茀>;cdlqr׮ⅠⅪⅮⅳⅹĀciⅥⅧ;檧r;橺ot;拗Par;榕uest;橼ʀadelsↄⅪ←ٖ↛ǰ↉\0↎proø₞r;楸qĀlqؿ↖lesó₈ií٫Āen↣↭rtneqq;쀀≩︀Å↪ԀAabcefkosy⇄⇇⇱⇵⇺∘∝∯≨≽ròΠȀilmr⇐⇔⇗⇛rsðᒄf»․ilôکĀdr⇠⇤cy;䑊ƀ;cwࣴ⇫⇯ir;楈;憭ar;意irc;䄥ƀalr∁∎∓rtsĀ;u∉∊晥it»∊lip;怦con;抹r;쀀𝔥sĀew∣∩arow;椥arow;椦ʀamopr∺∾≃≞≣rr;懿tht;戻kĀlr≉≓eftarrow;憩ightarrow;憪f;쀀𝕙bar;怕ƀclt≯≴≸r;쀀𝒽asè⇴rok;䄧Ābp⊂⊇ull;恃hen»ᱛૡ⊣\0⊪\0⊸⋅⋎\0⋕⋳\0\0⋸⌢⍧⍢⍿\0⎆⎪⎴cute耻í䃭ƀ;iyݱ⊰⊵rc耻î䃮;䐸Ācx⊼⊿y;䐵cl耻¡䂡ĀfrΟ⋉;쀀𝔦rave耻ì䃬Ȁ;inoܾ⋝⋩⋮Āin⋢⋦nt;樌t;戭fin;槜ta;愩lig;䄳ƀaop⋾⌚⌝ƀcgt⌅⌈⌗r;䄫ƀelpܟ⌏⌓inåގarôܠh;䄱f;抷ed;䆵ʀ;cfotӴ⌬⌱⌽⍁are;愅inĀ;t⌸⌹戞ie;槝doô⌙ʀ;celpݗ⍌⍐⍛⍡al;抺Āgr⍕⍙eróᕣã⍍arhk;樗rod;樼Ȁcgpt⍯⍲⍶⍻y;䑑on;䄯f;쀀𝕚a;䎹uest耻¿䂿Āci⎊⎏r;쀀𝒾nʀ;EdsvӴ⎛⎝⎡ӳ;拹ot;拵Ā;v⎦⎧拴;拳Ā;iݷ⎮lde;䄩ǫ⎸\0⎼cy;䑖l耻ï䃯̀cfmosu⏌⏗⏜⏡⏧⏵Āiy⏑⏕rc;䄵;䐹r;쀀𝔧ath;䈷pf;쀀𝕛ǣ⏬\0⏱r;쀀𝒿rcy;䑘kcy;䑔Ѐacfghjos␋␖␢␧␭␱␵␻ppaĀ;v␓␔䎺;䏰Āey␛␠dil;䄷;䐺r;쀀𝔨reen;䄸cy;䑅cy;䑜pf;쀀𝕜cr;쀀𝓀஀ABEHabcdefghjlmnoprstuv⑰⒁⒆⒍⒑┎┽╚▀♎♞♥♹♽⚚⚲⛘❝❨➋⟀⠁⠒ƀart⑷⑺⑼rò৆òΕail;椛arr;椎Ā;gঔ⒋;檋ar;楢ॣ⒥\0⒪\0⒱\0\0\0\0\0⒵Ⓔ\0ⓆⓈⓍ\0⓹ute;䄺mptyv;榴raîࡌbda;䎻gƀ;dlࢎⓁⓃ;榑åࢎ;檅uo耻«䂫rЀ;bfhlpst࢙ⓞⓦⓩ⓫⓮⓱⓵Ā;f࢝ⓣs;椟s;椝ë≒p;憫l;椹im;楳l;憢ƀ;ae⓿─┄檫il;椙Ā;s┉┊檭;쀀⪭︀ƀabr┕┙┝rr;椌rk;杲Āak┢┬cĀek┨┪;䁻;䁛Āes┱┳;榋lĀdu┹┻;榏;榍Ȁaeuy╆╋╖╘ron;䄾Ādi═╔il;䄼ìࢰâ┩;䐻Ȁcqrs╣╦╭╽a;椶uoĀ;rนᝆĀdu╲╷har;楧shar;楋h;憲ʀ;fgqs▋▌উ◳◿扤tʀahlrt▘▤▷◂◨rrowĀ;t࢙□aé⓶arpoonĀdu▯▴own»њp»०eftarrows;懇ightƀahs◍◖◞rrowĀ;sࣴࢧarpoonó྘quigarro÷⇰hreetimes;拋ƀ;qs▋ও◺lanôবʀ;cdgsব☊☍☝☨c;檨otĀ;o☔☕橿Ā;r☚☛檁;檃Ā;e☢☥쀀⋚︀s;檓ʀadegs☳☹☽♉♋pproøⓆot;拖qĀgq♃♅ôউgtò⒌ôছiíলƀilr♕࣡♚sht;楼;쀀𝔩Ā;Eজ♣;檑š♩♶rĀdu▲♮Ā;l॥♳;楪lk;斄cy;䑙ʀ;achtੈ⚈⚋⚑⚖rò◁orneòᴈard;楫ri;旺Āio⚟⚤dot;䅀ustĀ;a⚬⚭掰che»⚭ȀEaes⚻⚽⛉⛔;扨pĀ;p⛃⛄檉rox»⛄Ā;q⛎⛏檇Ā;q⛎⚻im;拦Ѐabnoptwz⛩⛴⛷✚✯❁❇❐Ānr⛮⛱g;柬r;懽rëࣁgƀlmr⛿✍✔eftĀar০✇ightá৲apsto;柼ightá৽parrowĀlr✥✩efô⓭ight;憬ƀafl✶✹✽r;榅;쀀𝕝us;樭imes;樴š❋❏st;戗áፎƀ;ef❗❘᠀旊nge»❘arĀ;l❤❥䀨t;榓ʀachmt❳❶❼➅➇ròࢨorneòᶌarĀ;d྘➃;業;怎ri;抿̀achiqt➘➝ੀ➢➮➻quo;怹r;쀀𝓁mƀ;egল➪➬;檍;檏Ābu┪➳oĀ;rฟ➹;怚rok;䅂萀<;cdhilqrࠫ⟒☹⟜⟠⟥⟪⟰Āci⟗⟙;檦r;橹reå◲mes;拉arr;楶uest;橻ĀPi⟵⟹ar;榖ƀ;ef⠀भ᠛旃rĀdu⠇⠍shar;楊har;楦Āen⠗⠡rtneqq;쀀≨︀Å⠞܀Dacdefhilnopsu⡀⡅⢂⢎⢓⢠⢥⢨⣚⣢⣤ઃ⣳⤂Dot;戺Ȁclpr⡎⡒⡣⡽r耻¯䂯Āet⡗⡙;時Ā;e⡞⡟朠se»⡟Ā;sျ⡨toȀ;dluျ⡳⡷⡻owîҌefôएðᏑker;斮Āoy⢇⢌mma;権;䐼ash;怔asuredangle»ᘦr;쀀𝔪o;愧ƀcdn⢯⢴⣉ro耻µ䂵Ȁ;acdᑤ⢽⣀⣄sôᚧir;櫰ot肻·Ƶusƀ;bd⣒ᤃ⣓戒Ā;uᴼ⣘;横ţ⣞⣡p;櫛ò−ðઁĀdp⣩⣮els;抧f;쀀𝕞Āct⣸⣽r;쀀𝓂pos»ᖝƀ;lm⤉⤊⤍䎼timap;抸ఀGLRVabcdefghijlmoprstuvw⥂⥓⥾⦉⦘⧚⧩⨕⨚⩘⩝⪃⪕⪤⪨⬄⬇⭄⭿⮮ⰴⱧⱼ⳩Āgt⥇⥋;쀀⋙̸Ā;v⥐௏쀀≫⃒ƀelt⥚⥲⥶ftĀar⥡⥧rrow;懍ightarrow;懎;쀀⋘̸Ā;v⥻ే쀀≪⃒ightarrow;懏ĀDd⦎⦓ash;抯ash;抮ʀbcnpt⦣⦧⦬⦱⧌la»˞ute;䅄g;쀀∠⃒ʀ;Eiop඄⦼⧀⧅⧈;쀀⩰̸d;쀀≋̸s;䅉roø඄urĀ;a⧓⧔普lĀ;s⧓ସǳ⧟\0⧣p肻 ଷmpĀ;e௹ఀʀaeouy⧴⧾⨃⨐⨓ǰ⧹\0⧻;橃on;䅈dil;䅆ngĀ;dൾ⨊ot;쀀⩭̸p;橂;䐽ash;怓΀;Aadqsxஒ⨩⨭⨻⩁⩅⩐rr;懗rĀhr⨳⨶k;椤Ā;oᏲᏰot;쀀≐̸uiöୣĀei⩊⩎ar;椨í஘istĀ;s஠டr;쀀𝔫ȀEest௅⩦⩹⩼ƀ;qs஼⩭௡ƀ;qs஼௅⩴lanô௢ií௪Ā;rஶ⪁»ஷƀAap⪊⪍⪑rò⥱rr;憮ar;櫲ƀ;svྍ⪜ྌĀ;d⪡⪢拼;拺cy;䑚΀AEadest⪷⪺⪾⫂⫅⫶⫹rò⥦;쀀≦̸rr;憚r;急Ȁ;fqs఻⫎⫣⫯tĀar⫔⫙rro÷⫁ightarro÷⪐ƀ;qs఻⪺⫪lanôౕĀ;sౕ⫴»శiíౝĀ;rవ⫾iĀ;eచథiäඐĀpt⬌⬑f;쀀𝕟膀¬;in⬙⬚⬶䂬nȀ;Edvஉ⬤⬨⬮;쀀⋹̸ot;쀀⋵̸ǡஉ⬳⬵;拷;拶iĀ;vಸ⬼ǡಸ⭁⭃;拾;拽ƀaor⭋⭣⭩rȀ;ast୻⭕⭚⭟lleì୻l;쀀⫽⃥;쀀∂̸lint;樔ƀ;ceಒ⭰⭳uåಥĀ;cಘ⭸Ā;eಒ⭽ñಘȀAait⮈⮋⮝⮧rò⦈rrƀ;cw⮔⮕⮙憛;쀀⤳̸;쀀↝̸ghtarrow»⮕riĀ;eೋೖ΀chimpqu⮽⯍⯙⬄୸⯤⯯Ȁ;cerല⯆ഷ⯉uå൅;쀀𝓃ortɭ⬅\0\0⯖ará⭖mĀ;e൮⯟Ā;q൴൳suĀbp⯫⯭å೸åഋƀbcp⯶ⰑⰙȀ;Ees⯿ⰀഢⰄ抄;쀀⫅̸etĀ;eഛⰋqĀ;qണⰀcĀ;eലⰗñസȀ;EesⰢⰣൟⰧ抅;쀀⫆̸etĀ;e൘ⰮqĀ;qൠⰣȀgilrⰽⰿⱅⱇìௗlde耻ñ䃱çృiangleĀlrⱒⱜeftĀ;eచⱚñదightĀ;eೋⱥñ೗Ā;mⱬⱭ䎽ƀ;esⱴⱵⱹ䀣ro;愖p;怇ҀDHadgilrsⲏⲔⲙⲞⲣⲰⲶⳓⳣash;抭arr;椄p;쀀≍⃒ash;抬ĀetⲨⲬ;쀀≥⃒;쀀>⃒nfin;槞ƀAetⲽⳁⳅrr;椂;쀀≤⃒Ā;rⳊⳍ쀀<⃒ie;쀀⊴⃒ĀAtⳘⳜrr;椃rie;쀀⊵⃒im;쀀∼⃒ƀAan⳰⳴ⴂrr;懖rĀhr⳺⳽k;椣Ā;oᏧᏥear;椧ቓ᪕\0\0\0\0\0\0\0\0\0\0\0\0\0ⴭ\0ⴸⵈⵠⵥ⵲ⶄᬇ\0\0ⶍⶫ\0ⷈⷎ\0ⷜ⸙⸫⸾⹃Ācsⴱ᪗ute耻ó䃳ĀiyⴼⵅrĀ;c᪞ⵂ耻ô䃴;䐾ʀabios᪠ⵒⵗǈⵚlac;䅑v;樸old;榼lig;䅓Ācr⵩⵭ir;榿;쀀𝔬ͯ⵹\0\0⵼\0ⶂn;䋛ave耻ò䃲;槁Ābmⶈ෴ar;榵Ȁacitⶕ⶘ⶥⶨrò᪀Āir⶝ⶠr;榾oss;榻nå๒;槀ƀaeiⶱⶵⶹcr;䅍ga;䏉ƀcdnⷀⷅǍron;䎿;榶pf;쀀𝕠ƀaelⷔ⷗ǒr;榷rp;榹΀;adiosvⷪⷫⷮ⸈⸍⸐⸖戨rò᪆Ȁ;efmⷷⷸ⸂⸅橝rĀ;oⷾⷿ愴f»ⷿ耻ª䂪耻º䂺gof;抶r;橖lope;橗;橛ƀclo⸟⸡⸧ò⸁ash耻ø䃸l;折iŬⸯ⸴de耻õ䃵esĀ;aǛ⸺s;樶ml耻ö䃶bar;挽ૡ⹞\0⹽\0⺀⺝\0⺢⺹\0\0⻋ຜ\0⼓\0\0⼫⾼\0⿈rȀ;astЃ⹧⹲຅脀¶;l⹭⹮䂶leìЃɩ⹸\0\0⹻m;櫳;櫽y;䐿rʀcimpt⺋⺏⺓ᡥ⺗nt;䀥od;䀮il;怰enk;怱r;쀀𝔭ƀimo⺨⺰⺴Ā;v⺭⺮䏆;䏕maô੶ne;明ƀ;tv⺿⻀⻈䏀chfork»´;䏖Āau⻏⻟nĀck⻕⻝kĀ;h⇴⻛;愎ö⇴sҀ;abcdemst⻳⻴ᤈ⻹⻽⼄⼆⼊⼎䀫cir;樣ir;樢Āouᵀ⼂;樥;橲n肻±ຝim;樦wo;樧ƀipu⼙⼠⼥ntint;樕f;쀀𝕡nd耻£䂣Ԁ;Eaceinosu່⼿⽁⽄⽇⾁⾉⾒⽾⾶;檳p;檷uå໙Ā;c໎⽌̀;acens່⽙⽟⽦⽨⽾pproø⽃urlyeñ໙ñ໎ƀaes⽯⽶⽺pprox;檹qq;檵im;拨iíໟmeĀ;s⾈ຮ怲ƀEas⽸⾐⽺ð⽵ƀdfp໬⾙⾯ƀals⾠⾥⾪lar;挮ine;挒urf;挓Ā;t໻⾴ï໻rel;抰Āci⿀⿅r;쀀𝓅;䏈ncsp;怈̀fiopsu⿚⋢⿟⿥⿫⿱r;쀀𝔮pf;쀀𝕢rime;恗cr;쀀𝓆ƀaeo⿸〉〓tĀei⿾々rnionóڰnt;樖stĀ;e【】䀿ñἙô༔઀ABHabcdefhilmnoprstux぀けさすムㄎㄫㅇㅢㅲㆎ㈆㈕㈤㈩㉘㉮㉲㊐㊰㊷ƀartぇおがròႳòϝail;検aròᱥar;楤΀cdenqrtとふへみわゔヌĀeuねぱ;쀀∽̱te;䅕iãᅮmptyv;榳gȀ;del࿑らるろ;榒;榥å࿑uo耻»䂻rր;abcfhlpstw࿜ガクシスゼゾダッデナp;極Ā;f࿠ゴs;椠;椳s;椞ë≝ð✮l;楅im;楴l;憣;憝Āaiパフil;椚oĀ;nホボ戶aló༞ƀabrョリヮrò៥rk;杳ĀakンヽcĀekヹ・;䁽;䁝Āes㄂㄄;榌lĀduㄊㄌ;榎;榐Ȁaeuyㄗㄜㄧㄩron;䅙Ādiㄡㄥil;䅗ì࿲âヺ;䑀Ȁclqsㄴㄷㄽㅄa;椷dhar;楩uoĀ;rȎȍh;憳ƀacgㅎㅟངlȀ;ipsླྀㅘㅛႜnåႻarôྩt;断ƀilrㅩဣㅮsht;楽;쀀𝔯ĀaoㅷㆆrĀduㅽㅿ»ѻĀ;l႑ㆄ;楬Ā;vㆋㆌ䏁;䏱ƀgns㆕ㇹㇼht̀ahlrstㆤㆰ㇂㇘㇤㇮rrowĀ;t࿜ㆭaéトarpoonĀduㆻㆿowîㅾp»႒eftĀah㇊㇐rrowó࿪arpoonóՑightarrows;應quigarro÷ニhreetimes;拌g;䋚ingdotseñἲƀahm㈍㈐㈓rò࿪aòՑ;怏oustĀ;a㈞㈟掱che»㈟mid;櫮Ȁabpt㈲㈽㉀㉒Ānr㈷㈺g;柭r;懾rëဃƀafl㉇㉊㉎r;榆;쀀𝕣us;樮imes;樵Āap㉝㉧rĀ;g㉣㉤䀩t;榔olint;樒arò㇣Ȁachq㉻㊀Ⴜ㊅quo;怺r;쀀𝓇Ābu・㊊oĀ;rȔȓƀhir㊗㊛㊠reåㇸmes;拊iȀ;efl㊪ၙᠡ㊫方tri;槎luhar;楨;愞ൡ㋕㋛㋟㌬㌸㍱\0㍺㎤\0\0㏬㏰\0㐨㑈㑚㒭㒱㓊㓱\0㘖\0\0㘳cute;䅛quï➺Ԁ;Eaceinpsyᇭ㋳㋵㋿㌂㌋㌏㌟㌦㌩;檴ǰ㋺\0㋼;檸on;䅡uåᇾĀ;dᇳ㌇il;䅟rc;䅝ƀEas㌖㌘㌛;檶p;檺im;择olint;樓iíሄ;䑁otƀ;be㌴ᵇ㌵担;橦΀Aacmstx㍆㍊㍗㍛㍞㍣㍭rr;懘rĀhr㍐㍒ë∨Ā;oਸ਼਴t耻§䂧i;䀻war;椩mĀin㍩ðnuóñt;朶rĀ;o㍶⁕쀀𝔰Ȁacoy㎂㎆㎑㎠rp;景Āhy㎋㎏cy;䑉;䑈rtɭ㎙\0\0㎜iäᑤaraì⹯耻­䂭Āgm㎨㎴maƀ;fv㎱㎲㎲䏃;䏂Ѐ;deglnprካ㏅㏉㏎㏖㏞㏡㏦ot;橪Ā;q኱ኰĀ;E㏓㏔檞;檠Ā;E㏛㏜檝;檟e;扆lus;樤arr;楲aròᄽȀaeit㏸㐈㐏㐗Āls㏽㐄lsetmé㍪hp;樳parsl;槤Ādlᑣ㐔e;挣Ā;e㐜㐝檪Ā;s㐢㐣檬;쀀⪬︀ƀflp㐮㐳㑂tcy;䑌Ā;b㐸㐹䀯Ā;a㐾㐿槄r;挿f;쀀𝕤aĀdr㑍ЂesĀ;u㑔㑕晠it»㑕ƀcsu㑠㑹㒟Āau㑥㑯pĀ;sᆈ㑫;쀀⊓︀pĀ;sᆴ㑵;쀀⊔︀uĀbp㑿㒏ƀ;esᆗᆜ㒆etĀ;eᆗ㒍ñᆝƀ;esᆨᆭ㒖etĀ;eᆨ㒝ñᆮƀ;afᅻ㒦ְrť㒫ֱ»ᅼaròᅈȀcemt㒹㒾㓂㓅r;쀀𝓈tmîñiì㐕aræᆾĀar㓎㓕rĀ;f㓔ឿ昆Āan㓚㓭ightĀep㓣㓪psiloîỠhé⺯s»⡒ʀbcmnp㓻㕞ሉ㖋㖎Ҁ;Edemnprs㔎㔏㔑㔕㔞㔣㔬㔱㔶抂;櫅ot;檽Ā;dᇚ㔚ot;櫃ult;櫁ĀEe㔨㔪;櫋;把lus;檿arr;楹ƀeiu㔽㕒㕕tƀ;en㔎㕅㕋qĀ;qᇚ㔏eqĀ;q㔫㔨m;櫇Ābp㕚㕜;櫕;櫓c̀;acensᇭ㕬㕲㕹㕻㌦pproø㋺urlyeñᇾñᇳƀaes㖂㖈㌛pproø㌚qñ㌗g;晪ڀ123;Edehlmnps㖩㖬㖯ሜ㖲㖴㗀㗉㗕㗚㗟㗨㗭耻¹䂹耻²䂲耻³䂳;櫆Āos㖹㖼t;檾ub;櫘Ā;dሢ㗅ot;櫄sĀou㗏㗒l;柉b;櫗arr;楻ult;櫂ĀEe㗤㗦;櫌;抋lus;櫀ƀeiu㗴㘉㘌tƀ;enሜ㗼㘂qĀ;qሢ㖲eqĀ;q㗧㗤m;櫈Ābp㘑㘓;櫔;櫖ƀAan㘜㘠㘭rr;懙rĀhr㘦㘨ë∮Ā;oਫ਩war;椪lig耻ß䃟௡㙑㙝㙠ዎ㙳㙹\0㙾㛂\0\0\0\0\0㛛㜃\0㜉㝬\0\0\0㞇ɲ㙖\0\0㙛get;挖;䏄rë๟ƀaey㙦㙫㙰ron;䅥dil;䅣;䑂lrec;挕r;쀀𝔱Ȁeiko㚆㚝㚵㚼ǲ㚋\0㚑eĀ4fኄኁaƀ;sv㚘㚙㚛䎸ym;䏑Ācn㚢㚲kĀas㚨㚮pproø዁im»ኬsðኞĀas㚺㚮ð዁rn耻þ䃾Ǭ̟㛆⋧es膀×;bd㛏㛐㛘䃗Ā;aᤏ㛕r;樱;樰ƀeps㛡㛣㜀á⩍Ȁ;bcf҆㛬㛰㛴ot;挶ir;櫱Ā;o㛹㛼쀀𝕥rk;櫚á㍢rime;怴ƀaip㜏㜒㝤dåቈ΀adempst㜡㝍㝀㝑㝗㝜㝟ngleʀ;dlqr㜰㜱㜶㝀㝂斵own»ᶻeftĀ;e⠀㜾ñम;扜ightĀ;e㊪㝋ñၚot;旬inus;樺lus;樹b;槍ime;樻ezium;揢ƀcht㝲㝽㞁Āry㝷㝻;쀀𝓉;䑆cy;䑛rok;䅧Āio㞋㞎xô᝷headĀlr㞗㞠eftarro÷ࡏightarrow»ཝऀAHabcdfghlmoprstuw㟐㟓㟗㟤㟰㟼㠎㠜㠣㠴㡑㡝㡫㢩㣌㣒㣪㣶ròϭar;楣Ācr㟜㟢ute耻ú䃺òᅐrǣ㟪\0㟭y;䑞ve;䅭Āiy㟵㟺rc耻û䃻;䑃ƀabh㠃㠆㠋ròᎭlac;䅱aòᏃĀir㠓㠘sht;楾;쀀𝔲rave耻ù䃹š㠧㠱rĀlr㠬㠮»ॗ»ႃlk;斀Āct㠹㡍ɯ㠿\0\0㡊rnĀ;e㡅㡆挜r»㡆op;挏ri;旸Āal㡖㡚cr;䅫肻¨͉Āgp㡢㡦on;䅳f;쀀𝕦̀adhlsuᅋ㡸㡽፲㢑㢠ownáᎳarpoonĀlr㢈㢌efô㠭ighô㠯iƀ;hl㢙㢚㢜䏅»ᏺon»㢚parrows;懈ƀcit㢰㣄㣈ɯ㢶\0\0㣁rnĀ;e㢼㢽挝r»㢽op;挎ng;䅯ri;旹cr;쀀𝓊ƀdir㣙㣝㣢ot;拰lde;䅩iĀ;f㜰㣨»᠓Āam㣯㣲rò㢨l耻ü䃼angle;榧ހABDacdeflnoprsz㤜㤟㤩㤭㦵㦸㦽㧟㧤㧨㧳㧹㧽㨁㨠ròϷarĀ;v㤦㤧櫨;櫩asèϡĀnr㤲㤷grt;榜΀eknprst㓣㥆㥋㥒㥝㥤㦖appá␕othinçẖƀhir㓫⻈㥙opô⾵Ā;hᎷ㥢ïㆍĀiu㥩㥭gmá㎳Ābp㥲㦄setneqĀ;q㥽㦀쀀⊊︀;쀀⫋︀setneqĀ;q㦏㦒쀀⊋︀;쀀⫌︀Āhr㦛㦟etá㚜iangleĀlr㦪㦯eft»थight»ၑy;䐲ash»ံƀelr㧄㧒㧗ƀ;beⷪ㧋㧏ar;抻q;扚lip;拮Ābt㧜ᑨaòᑩr;쀀𝔳tré㦮suĀbp㧯㧱»ജ»൙pf;쀀𝕧roð໻tré㦴Ācu㨆㨋r;쀀𝓋Ābp㨐㨘nĀEe㦀㨖»㥾nĀEe㦒㨞»㦐igzag;榚΀cefoprs㨶㨻㩖㩛㩔㩡㩪irc;䅵Ādi㩀㩑Ābg㩅㩉ar;機eĀ;qᗺ㩏;扙erp;愘r;쀀𝔴pf;쀀𝕨Ā;eᑹ㩦atèᑹcr;쀀𝓌ૣណ㪇\0㪋\0㪐㪛\0\0㪝㪨㪫㪯\0\0㫃㫎\0㫘ៜ៟tré៑r;쀀𝔵ĀAa㪔㪗ròσrò৶;䎾ĀAa㪡㪤ròθrò৫að✓is;拻ƀdptឤ㪵㪾Āfl㪺ឩ;쀀𝕩imåឲĀAa㫇㫊ròώròਁĀcq㫒ីr;쀀𝓍Āpt៖㫜ré។Ѐacefiosu㫰㫽㬈㬌㬑㬕㬛㬡cĀuy㫶㫻te耻ý䃽;䑏Āiy㬂㬆rc;䅷;䑋n耻¥䂥r;쀀𝔶cy;䑗pf;쀀𝕪cr;쀀𝓎Ācm㬦㬩y;䑎l耻ÿ䃿Ԁacdefhiosw㭂㭈㭔㭘㭤㭩㭭㭴㭺㮀cute;䅺Āay㭍㭒ron;䅾;䐷ot;䅼Āet㭝㭡træᕟa;䎶r;쀀𝔷cy;䐶grarr;懝pf;쀀𝕫cr;쀀𝓏Ājn㮅㮇;怍j;怌'.split("").map((c) => c.charCodeAt(0))
-);
-const xmlDecodeTree = new Uint16Array(
-  // prettier-ignore
-  "Ȁaglq	\x1Bɭ\0\0p;䀦os;䀧t;䀾t;䀼uot;䀢".split("").map((c) => c.charCodeAt(0))
-);
-var _a;
-const decodeMap = /* @__PURE__ */ new Map([
-  [0, 65533],
-  // C1 Unicode control character reference replacements
-  [128, 8364],
-  [130, 8218],
-  [131, 402],
-  [132, 8222],
-  [133, 8230],
-  [134, 8224],
-  [135, 8225],
-  [136, 710],
-  [137, 8240],
-  [138, 352],
-  [139, 8249],
-  [140, 338],
-  [142, 381],
-  [145, 8216],
-  [146, 8217],
-  [147, 8220],
-  [148, 8221],
-  [149, 8226],
-  [150, 8211],
-  [151, 8212],
-  [152, 732],
-  [153, 8482],
-  [154, 353],
-  [155, 8250],
-  [156, 339],
-  [158, 382],
-  [159, 376]
-]);
-const fromCodePoint$1 = (
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition, node/no-unsupported-features/es-builtins
-  (_a = String.fromCodePoint) !== null && _a !== void 0 ? _a : function(codePoint) {
-    let output = "";
-    if (codePoint > 65535) {
-      codePoint -= 65536;
-      output += String.fromCharCode(codePoint >>> 10 & 1023 | 55296);
-      codePoint = 56320 | codePoint & 1023;
-    }
-    output += String.fromCharCode(codePoint);
-    return output;
-  }
-);
-function replaceCodePoint(codePoint) {
-  var _a2;
-  if (codePoint >= 55296 && codePoint <= 57343 || codePoint > 1114111) {
-    return 65533;
-  }
-  return (_a2 = decodeMap.get(codePoint)) !== null && _a2 !== void 0 ? _a2 : codePoint;
-}
-var CharCodes;
-(function(CharCodes2) {
-  CharCodes2[CharCodes2["NUM"] = 35] = "NUM";
-  CharCodes2[CharCodes2["SEMI"] = 59] = "SEMI";
-  CharCodes2[CharCodes2["EQUALS"] = 61] = "EQUALS";
-  CharCodes2[CharCodes2["ZERO"] = 48] = "ZERO";
-  CharCodes2[CharCodes2["NINE"] = 57] = "NINE";
-  CharCodes2[CharCodes2["LOWER_A"] = 97] = "LOWER_A";
-  CharCodes2[CharCodes2["LOWER_F"] = 102] = "LOWER_F";
-  CharCodes2[CharCodes2["LOWER_X"] = 120] = "LOWER_X";
-  CharCodes2[CharCodes2["LOWER_Z"] = 122] = "LOWER_Z";
-  CharCodes2[CharCodes2["UPPER_A"] = 65] = "UPPER_A";
-  CharCodes2[CharCodes2["UPPER_F"] = 70] = "UPPER_F";
-  CharCodes2[CharCodes2["UPPER_Z"] = 90] = "UPPER_Z";
-})(CharCodes || (CharCodes = {}));
-const TO_LOWER_BIT = 32;
-var BinTrieFlags;
-(function(BinTrieFlags2) {
-  BinTrieFlags2[BinTrieFlags2["VALUE_LENGTH"] = 49152] = "VALUE_LENGTH";
-  BinTrieFlags2[BinTrieFlags2["BRANCH_LENGTH"] = 16256] = "BRANCH_LENGTH";
-  BinTrieFlags2[BinTrieFlags2["JUMP_TABLE"] = 127] = "JUMP_TABLE";
-})(BinTrieFlags || (BinTrieFlags = {}));
-function isNumber(code2) {
-  return code2 >= CharCodes.ZERO && code2 <= CharCodes.NINE;
-}
-function isHexadecimalCharacter(code2) {
-  return code2 >= CharCodes.UPPER_A && code2 <= CharCodes.UPPER_F || code2 >= CharCodes.LOWER_A && code2 <= CharCodes.LOWER_F;
-}
-function isAsciiAlphaNumeric(code2) {
-  return code2 >= CharCodes.UPPER_A && code2 <= CharCodes.UPPER_Z || code2 >= CharCodes.LOWER_A && code2 <= CharCodes.LOWER_Z || isNumber(code2);
-}
-function isEntityInAttributeInvalidEnd(code2) {
-  return code2 === CharCodes.EQUALS || isAsciiAlphaNumeric(code2);
-}
-var EntityDecoderState;
-(function(EntityDecoderState2) {
-  EntityDecoderState2[EntityDecoderState2["EntityStart"] = 0] = "EntityStart";
-  EntityDecoderState2[EntityDecoderState2["NumericStart"] = 1] = "NumericStart";
-  EntityDecoderState2[EntityDecoderState2["NumericDecimal"] = 2] = "NumericDecimal";
-  EntityDecoderState2[EntityDecoderState2["NumericHex"] = 3] = "NumericHex";
-  EntityDecoderState2[EntityDecoderState2["NamedEntity"] = 4] = "NamedEntity";
-})(EntityDecoderState || (EntityDecoderState = {}));
-var DecodingMode;
-(function(DecodingMode2) {
-  DecodingMode2[DecodingMode2["Legacy"] = 0] = "Legacy";
-  DecodingMode2[DecodingMode2["Strict"] = 1] = "Strict";
-  DecodingMode2[DecodingMode2["Attribute"] = 2] = "Attribute";
-})(DecodingMode || (DecodingMode = {}));
-class EntityDecoder {
-  constructor(decodeTree, emitCodePoint, errors2) {
-    this.decodeTree = decodeTree;
-    this.emitCodePoint = emitCodePoint;
-    this.errors = errors2;
-    this.state = EntityDecoderState.EntityStart;
-    this.consumed = 1;
-    this.result = 0;
-    this.treeIndex = 0;
-    this.excess = 1;
-    this.decodeMode = DecodingMode.Strict;
-  }
-  /** Resets the instance to make it reusable. */
-  startEntity(decodeMode) {
-    this.decodeMode = decodeMode;
-    this.state = EntityDecoderState.EntityStart;
-    this.result = 0;
-    this.treeIndex = 0;
-    this.excess = 1;
-    this.consumed = 1;
-  }
-  /**
-   * Write an entity to the decoder. This can be called multiple times with partial entities.
-   * If the entity is incomplete, the decoder will return -1.
-   *
-   * Mirrors the implementation of `getDecoder`, but with the ability to stop decoding if the
-   * entity is incomplete, and resume when the next string is written.
-   *
-   * @param string The string containing the entity (or a continuation of the entity).
-   * @param offset The offset at which the entity begins. Should be 0 if this is not the first call.
-   * @returns The number of characters that were consumed, or -1 if the entity is incomplete.
-   */
-  write(str, offset) {
-    switch (this.state) {
-      case EntityDecoderState.EntityStart: {
-        if (str.charCodeAt(offset) === CharCodes.NUM) {
-          this.state = EntityDecoderState.NumericStart;
-          this.consumed += 1;
-          return this.stateNumericStart(str, offset + 1);
-        }
-        this.state = EntityDecoderState.NamedEntity;
-        return this.stateNamedEntity(str, offset);
-      }
-      case EntityDecoderState.NumericStart: {
-        return this.stateNumericStart(str, offset);
-      }
-      case EntityDecoderState.NumericDecimal: {
-        return this.stateNumericDecimal(str, offset);
-      }
-      case EntityDecoderState.NumericHex: {
-        return this.stateNumericHex(str, offset);
-      }
-      case EntityDecoderState.NamedEntity: {
-        return this.stateNamedEntity(str, offset);
-      }
-    }
-  }
-  /**
-   * Switches between the numeric decimal and hexadecimal states.
-   *
-   * Equivalent to the `Numeric character reference state` in the HTML spec.
-   *
-   * @param str The string containing the entity (or a continuation of the entity).
-   * @param offset The current offset.
-   * @returns The number of characters that were consumed, or -1 if the entity is incomplete.
-   */
-  stateNumericStart(str, offset) {
-    if (offset >= str.length) {
-      return -1;
-    }
-    if ((str.charCodeAt(offset) | TO_LOWER_BIT) === CharCodes.LOWER_X) {
-      this.state = EntityDecoderState.NumericHex;
-      this.consumed += 1;
-      return this.stateNumericHex(str, offset + 1);
-    }
-    this.state = EntityDecoderState.NumericDecimal;
-    return this.stateNumericDecimal(str, offset);
-  }
-  addToNumericResult(str, start, end, base2) {
-    if (start !== end) {
-      const digitCount = end - start;
-      this.result = this.result * Math.pow(base2, digitCount) + parseInt(str.substr(start, digitCount), base2);
-      this.consumed += digitCount;
-    }
-  }
-  /**
-   * Parses a hexadecimal numeric entity.
-   *
-   * Equivalent to the `Hexademical character reference state` in the HTML spec.
-   *
-   * @param str The string containing the entity (or a continuation of the entity).
-   * @param offset The current offset.
-   * @returns The number of characters that were consumed, or -1 if the entity is incomplete.
-   */
-  stateNumericHex(str, offset) {
-    const startIdx = offset;
-    while (offset < str.length) {
-      const char = str.charCodeAt(offset);
-      if (isNumber(char) || isHexadecimalCharacter(char)) {
-        offset += 1;
-      } else {
-        this.addToNumericResult(str, startIdx, offset, 16);
-        return this.emitNumericEntity(char, 3);
-      }
-    }
-    this.addToNumericResult(str, startIdx, offset, 16);
-    return -1;
-  }
-  /**
-   * Parses a decimal numeric entity.
-   *
-   * Equivalent to the `Decimal character reference state` in the HTML spec.
-   *
-   * @param str The string containing the entity (or a continuation of the entity).
-   * @param offset The current offset.
-   * @returns The number of characters that were consumed, or -1 if the entity is incomplete.
-   */
-  stateNumericDecimal(str, offset) {
-    const startIdx = offset;
-    while (offset < str.length) {
-      const char = str.charCodeAt(offset);
-      if (isNumber(char)) {
-        offset += 1;
-      } else {
-        this.addToNumericResult(str, startIdx, offset, 10);
-        return this.emitNumericEntity(char, 2);
-      }
-    }
-    this.addToNumericResult(str, startIdx, offset, 10);
-    return -1;
-  }
-  /**
-   * Validate and emit a numeric entity.
-   *
-   * Implements the logic from the `Hexademical character reference start
-   * state` and `Numeric character reference end state` in the HTML spec.
-   *
-   * @param lastCp The last code point of the entity. Used to see if the
-   *               entity was terminated with a semicolon.
-   * @param expectedLength The minimum number of characters that should be
-   *                       consumed. Used to validate that at least one digit
-   *                       was consumed.
-   * @returns The number of characters that were consumed.
-   */
-  emitNumericEntity(lastCp, expectedLength) {
-    var _a2;
-    if (this.consumed <= expectedLength) {
-      (_a2 = this.errors) === null || _a2 === void 0 ? void 0 : _a2.absenceOfDigitsInNumericCharacterReference(this.consumed);
-      return 0;
-    }
-    if (lastCp === CharCodes.SEMI) {
-      this.consumed += 1;
-    } else if (this.decodeMode === DecodingMode.Strict) {
-      return 0;
-    }
-    this.emitCodePoint(replaceCodePoint(this.result), this.consumed);
-    if (this.errors) {
-      if (lastCp !== CharCodes.SEMI) {
-        this.errors.missingSemicolonAfterCharacterReference();
-      }
-      this.errors.validateNumericCharacterReference(this.result);
-    }
-    return this.consumed;
-  }
-  /**
-   * Parses a named entity.
-   *
-   * Equivalent to the `Named character reference state` in the HTML spec.
-   *
-   * @param str The string containing the entity (or a continuation of the entity).
-   * @param offset The current offset.
-   * @returns The number of characters that were consumed, or -1 if the entity is incomplete.
-   */
-  stateNamedEntity(str, offset) {
-    const { decodeTree } = this;
-    let current = decodeTree[this.treeIndex];
-    let valueLength = (current & BinTrieFlags.VALUE_LENGTH) >> 14;
-    for (; offset < str.length; offset++, this.excess++) {
-      const char = str.charCodeAt(offset);
-      this.treeIndex = determineBranch(decodeTree, current, this.treeIndex + Math.max(1, valueLength), char);
-      if (this.treeIndex < 0) {
-        return this.result === 0 || // If we are parsing an attribute
-        this.decodeMode === DecodingMode.Attribute && // We shouldn't have consumed any characters after the entity,
-        (valueLength === 0 || // And there should be no invalid characters.
-        isEntityInAttributeInvalidEnd(char)) ? 0 : this.emitNotTerminatedNamedEntity();
-      }
-      current = decodeTree[this.treeIndex];
-      valueLength = (current & BinTrieFlags.VALUE_LENGTH) >> 14;
-      if (valueLength !== 0) {
-        if (char === CharCodes.SEMI) {
-          return this.emitNamedEntityData(this.treeIndex, valueLength, this.consumed + this.excess);
-        }
-        if (this.decodeMode !== DecodingMode.Strict) {
-          this.result = this.treeIndex;
-          this.consumed += this.excess;
-          this.excess = 0;
-        }
-      }
-    }
-    return -1;
-  }
-  /**
-   * Emit a named entity that was not terminated with a semicolon.
-   *
-   * @returns The number of characters consumed.
-   */
-  emitNotTerminatedNamedEntity() {
-    var _a2;
-    const { result, decodeTree } = this;
-    const valueLength = (decodeTree[result] & BinTrieFlags.VALUE_LENGTH) >> 14;
-    this.emitNamedEntityData(result, valueLength, this.consumed);
-    (_a2 = this.errors) === null || _a2 === void 0 ? void 0 : _a2.missingSemicolonAfterCharacterReference();
-    return this.consumed;
-  }
-  /**
-   * Emit a named entity.
-   *
-   * @param result The index of the entity in the decode tree.
-   * @param valueLength The number of bytes in the entity.
-   * @param consumed The number of characters consumed.
-   *
-   * @returns The number of characters consumed.
-   */
-  emitNamedEntityData(result, valueLength, consumed) {
-    const { decodeTree } = this;
-    this.emitCodePoint(valueLength === 1 ? decodeTree[result] & ~BinTrieFlags.VALUE_LENGTH : decodeTree[result + 1], consumed);
-    if (valueLength === 3) {
-      this.emitCodePoint(decodeTree[result + 2], consumed);
-    }
-    return consumed;
-  }
-  /**
-   * Signal to the parser that the end of the input was reached.
-   *
-   * Remaining data will be emitted and relevant errors will be produced.
-   *
-   * @returns The number of characters consumed.
-   */
-  end() {
-    var _a2;
-    switch (this.state) {
-      case EntityDecoderState.NamedEntity: {
-        return this.result !== 0 && (this.decodeMode !== DecodingMode.Attribute || this.result === this.treeIndex) ? this.emitNotTerminatedNamedEntity() : 0;
-      }
-      // Otherwise, emit a numeric entity if we have one.
-      case EntityDecoderState.NumericDecimal: {
-        return this.emitNumericEntity(0, 2);
-      }
-      case EntityDecoderState.NumericHex: {
-        return this.emitNumericEntity(0, 3);
-      }
-      case EntityDecoderState.NumericStart: {
-        (_a2 = this.errors) === null || _a2 === void 0 ? void 0 : _a2.absenceOfDigitsInNumericCharacterReference(this.consumed);
-        return 0;
-      }
-      case EntityDecoderState.EntityStart: {
-        return 0;
-      }
-    }
-  }
-}
-function getDecoder(decodeTree) {
-  let ret = "";
-  const decoder = new EntityDecoder(decodeTree, (str) => ret += fromCodePoint$1(str));
-  return function decodeWithTrie(str, decodeMode) {
-    let lastIndex = 0;
-    let offset = 0;
-    while ((offset = str.indexOf("&", offset)) >= 0) {
-      ret += str.slice(lastIndex, offset);
-      decoder.startEntity(decodeMode);
-      const len = decoder.write(
-        str,
-        // Skip the "&"
-        offset + 1
-      );
-      if (len < 0) {
-        lastIndex = offset + decoder.end();
-        break;
-      }
-      lastIndex = offset + len;
-      offset = len === 0 ? lastIndex + 1 : lastIndex;
-    }
-    const result = ret + str.slice(lastIndex);
-    ret = "";
-    return result;
-  };
-}
-function determineBranch(decodeTree, current, nodeIdx, char) {
-  const branchCount = (current & BinTrieFlags.BRANCH_LENGTH) >> 7;
-  const jumpOffset = current & BinTrieFlags.JUMP_TABLE;
-  if (branchCount === 0) {
-    return jumpOffset !== 0 && char === jumpOffset ? nodeIdx : -1;
-  }
-  if (jumpOffset) {
-    const value = char - jumpOffset;
-    return value < 0 || value >= branchCount ? -1 : decodeTree[nodeIdx + value] - 1;
-  }
-  let lo = nodeIdx;
-  let hi = lo + branchCount - 1;
-  while (lo <= hi) {
-    const mid = lo + hi >>> 1;
-    const midVal = decodeTree[mid];
-    if (midVal < char) {
-      lo = mid + 1;
-    } else if (midVal > char) {
-      hi = mid - 1;
-    } else {
-      return decodeTree[mid + branchCount];
-    }
-  }
-  return -1;
-}
-const htmlDecoder = getDecoder(htmlDecodeTree);
-getDecoder(xmlDecodeTree);
-function decodeHTML(str, mode = DecodingMode.Legacy) {
-  return htmlDecoder(str, mode);
-}
-function decodeHTMLStrict(str) {
-  return htmlDecoder(str, DecodingMode.Strict);
-}
-function _class$1(obj) {
-  return Object.prototype.toString.call(obj);
-}
-function isString$1(obj) {
-  return _class$1(obj) === "[object String]";
-}
-const _hasOwnProperty = Object.prototype.hasOwnProperty;
-function has(object2, key) {
-  return _hasOwnProperty.call(object2, key);
-}
-function assign$1(obj) {
-  const sources = Array.prototype.slice.call(arguments, 1);
-  sources.forEach(function(source) {
-    if (!source) {
-      return;
-    }
-    if (typeof source !== "object") {
-      throw new TypeError(source + "must be object");
-    }
-    Object.keys(source).forEach(function(key) {
-      obj[key] = source[key];
-    });
-  });
-  return obj;
-}
-function arrayReplaceAt(src, pos, newElements) {
-  return [].concat(src.slice(0, pos), newElements, src.slice(pos + 1));
-}
-function isValidEntityCode(c) {
-  if (c >= 55296 && c <= 57343) {
-    return false;
-  }
-  if (c >= 64976 && c <= 65007) {
-    return false;
-  }
-  if ((c & 65535) === 65535 || (c & 65535) === 65534) {
-    return false;
-  }
-  if (c >= 0 && c <= 8) {
-    return false;
-  }
-  if (c === 11) {
-    return false;
-  }
-  if (c >= 14 && c <= 31) {
-    return false;
-  }
-  if (c >= 127 && c <= 159) {
-    return false;
-  }
-  if (c > 1114111) {
-    return false;
-  }
-  return true;
-}
-function fromCodePoint(c) {
-  if (c > 65535) {
-    c -= 65536;
-    const surrogate1 = 55296 + (c >> 10);
-    const surrogate2 = 56320 + (c & 1023);
-    return String.fromCharCode(surrogate1, surrogate2);
-  }
-  return String.fromCharCode(c);
-}
-const UNESCAPE_MD_RE = /\\([!"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~])/g;
-const ENTITY_RE = /&([a-z#][a-z0-9]{1,31});/gi;
-const UNESCAPE_ALL_RE = new RegExp(UNESCAPE_MD_RE.source + "|" + ENTITY_RE.source, "gi");
-const DIGITAL_ENTITY_TEST_RE = /^#((?:x[a-f0-9]{1,8}|[0-9]{1,8}))$/i;
-function replaceEntityPattern(match2, name) {
-  if (name.charCodeAt(0) === 35 && DIGITAL_ENTITY_TEST_RE.test(name)) {
-    const code2 = name[1].toLowerCase() === "x" ? parseInt(name.slice(2), 16) : parseInt(name.slice(1), 10);
-    if (isValidEntityCode(code2)) {
-      return fromCodePoint(code2);
-    }
-    return match2;
-  }
-  const decoded = decodeHTML(match2);
-  if (decoded !== match2) {
-    return decoded;
-  }
-  return match2;
-}
-function unescapeMd(str) {
-  if (str.indexOf("\\") < 0) {
-    return str;
-  }
-  return str.replace(UNESCAPE_MD_RE, "$1");
-}
-function unescapeAll(str) {
-  if (str.indexOf("\\") < 0 && str.indexOf("&") < 0) {
-    return str;
-  }
-  return str.replace(UNESCAPE_ALL_RE, function(match2, escaped, entity2) {
-    if (escaped) {
-      return escaped;
-    }
-    return replaceEntityPattern(match2, entity2);
-  });
-}
-const HTML_ESCAPE_TEST_RE = /[&<>"]/;
-const HTML_ESCAPE_REPLACE_RE = /[&<>"]/g;
-const HTML_REPLACEMENTS = {
-  "&": "&amp;",
-  "<": "&lt;",
-  ">": "&gt;",
-  '"': "&quot;"
-};
-function replaceUnsafeChar(ch) {
-  return HTML_REPLACEMENTS[ch];
-}
-function escapeHtml(str) {
-  if (HTML_ESCAPE_TEST_RE.test(str)) {
-    return str.replace(HTML_ESCAPE_REPLACE_RE, replaceUnsafeChar);
-  }
-  return str;
-}
-const REGEXP_ESCAPE_RE = /[.?*+^$[\]\\(){}|-]/g;
-function escapeRE$1(str) {
-  return str.replace(REGEXP_ESCAPE_RE, "\\$&");
-}
-function isSpace(code2) {
-  switch (code2) {
-    case 9:
-    case 32:
-      return true;
-  }
-  return false;
-}
-function isWhiteSpace(code2) {
-  if (code2 >= 8192 && code2 <= 8202) {
-    return true;
-  }
-  switch (code2) {
-    case 9:
-    // \t
-    case 10:
-    // \n
-    case 11:
-    // \v
-    case 12:
-    // \f
-    case 13:
-    // \r
-    case 32:
-    case 160:
-    case 5760:
-    case 8239:
-    case 8287:
-    case 12288:
-      return true;
-  }
-  return false;
-}
-function isPunctChar(ch) {
-  return P.test(ch) || regex.test(ch);
-}
-function isPunctCharCode(code2) {
-  return isPunctChar(fromCodePoint(code2));
-}
-function isMdAsciiPunct(ch) {
-  switch (ch) {
-    case 33:
-    case 34:
-    case 35:
-    case 36:
-    case 37:
-    case 38:
-    case 39:
-    case 40:
-    case 41:
-    case 42:
-    case 43:
-    case 44:
-    case 45:
-    case 46:
-    case 47:
-    case 58:
-    case 59:
-    case 60:
-    case 61:
-    case 62:
-    case 63:
-    case 64:
-    case 91:
-    case 92:
-    case 93:
-    case 94:
-    case 95:
-    case 96:
-    case 123:
-    case 124:
-    case 125:
-    case 126:
-      return true;
-    default:
-      return false;
-  }
-}
-function normalizeReference(str) {
-  str = str.trim().replace(/\s+/g, " ");
-  if ("ẞ".toLowerCase() === "Ṿ") {
-    str = str.replace(/ẞ/g, "ß");
-  }
-  return str.toLowerCase().toUpperCase();
-}
-function isAsciiTrimmable(c) {
-  return c === 32 || c === 9 || c === 10 || c === 13;
-}
-function asciiTrim(str) {
-  let start = 0;
-  for (; start < str.length; start++) {
-    if (!isAsciiTrimmable(str.charCodeAt(start))) {
-      break;
-    }
-  }
-  let end = str.length - 1;
-  for (; end >= start; end--) {
-    if (!isAsciiTrimmable(str.charCodeAt(end))) {
-      break;
-    }
-  }
-  return str.slice(start, end + 1);
-}
-const lib = { mdurl, ucmicro };
-const utils$1 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
-  __proto__: null,
-  arrayReplaceAt,
-  asciiTrim,
-  assign: assign$1,
-  escapeHtml,
-  escapeRE: escapeRE$1,
-  fromCodePoint,
-  has,
-  isMdAsciiPunct,
-  isPunctChar,
-  isPunctCharCode,
-  isSpace,
-  isString: isString$1,
-  isValidEntityCode,
-  isWhiteSpace,
-  lib,
-  normalizeReference,
-  unescapeAll,
-  unescapeMd
-}, Symbol.toStringTag, { value: "Module" }));
-function parseLinkLabel(state, start, disableNested) {
-  let level, found, marker, prevPos;
-  const max = state.posMax;
-  const oldPos = state.pos;
-  state.pos = start + 1;
-  level = 1;
-  while (state.pos < max) {
-    marker = state.src.charCodeAt(state.pos);
-    if (marker === 93) {
-      level--;
-      if (level === 0) {
-        found = true;
-        break;
-      }
-    }
-    prevPos = state.pos;
-    state.md.inline.skipToken(state);
-    if (marker === 91) {
-      if (prevPos === state.pos - 1) {
-        level++;
-      } else if (disableNested) {
-        state.pos = oldPos;
-        return -1;
-      }
-    }
-  }
-  let labelEnd = -1;
-  if (found) {
-    labelEnd = state.pos;
-  }
-  state.pos = oldPos;
-  return labelEnd;
-}
-function parseLinkDestination(str, start, max) {
-  let code2;
-  let pos = start;
-  const result = {
-    ok: false,
-    pos: 0,
-    str: ""
-  };
-  if (str.charCodeAt(pos) === 60) {
-    pos++;
-    while (pos < max) {
-      code2 = str.charCodeAt(pos);
-      if (code2 === 10) {
-        return result;
-      }
-      if (code2 === 60) {
-        return result;
-      }
-      if (code2 === 62) {
-        result.pos = pos + 1;
-        result.str = unescapeAll(str.slice(start + 1, pos));
-        result.ok = true;
-        return result;
-      }
-      if (code2 === 92 && pos + 1 < max) {
-        pos += 2;
-        continue;
-      }
-      pos++;
-    }
-    return result;
-  }
-  let level = 0;
-  while (pos < max) {
-    code2 = str.charCodeAt(pos);
-    if (code2 === 32) {
-      break;
-    }
-    if (code2 < 32 || code2 === 127) {
-      break;
-    }
-    if (code2 === 92 && pos + 1 < max) {
-      if (str.charCodeAt(pos + 1) === 32) {
-        break;
-      }
-      pos += 2;
-      continue;
-    }
-    if (code2 === 40) {
-      level++;
-      if (level > 32) {
-        return result;
-      }
-    }
-    if (code2 === 41) {
-      if (level === 0) {
-        break;
-      }
-      level--;
-    }
-    pos++;
-  }
-  if (start === pos) {
-    return result;
-  }
-  if (level !== 0) {
-    return result;
-  }
-  result.str = unescapeAll(str.slice(start, pos));
-  result.pos = pos;
-  result.ok = true;
-  return result;
-}
-function parseLinkTitle(str, start, max, prev_state) {
-  let code2;
-  let pos = start;
-  const state = {
-    // if `true`, this is a valid link title
-    ok: false,
-    // if `true`, this link can be continued on the next line
-    can_continue: false,
-    // if `ok`, it's the position of the first character after the closing marker
-    pos: 0,
-    // if `ok`, it's the unescaped title
-    str: "",
-    // expected closing marker character code
-    marker: 0
-  };
-  if (prev_state) {
-    state.str = prev_state.str;
-    state.marker = prev_state.marker;
-  } else {
-    if (pos >= max) {
-      return state;
-    }
-    let marker = str.charCodeAt(pos);
-    if (marker !== 34 && marker !== 39 && marker !== 40) {
-      return state;
-    }
-    start++;
-    pos++;
-    if (marker === 40) {
-      marker = 41;
-    }
-    state.marker = marker;
-  }
-  while (pos < max) {
-    code2 = str.charCodeAt(pos);
-    if (code2 === state.marker) {
-      state.pos = pos + 1;
-      state.str += unescapeAll(str.slice(start, pos));
-      state.ok = true;
-      return state;
-    } else if (code2 === 40 && state.marker === 41) {
-      return state;
-    } else if (code2 === 92 && pos + 1 < max) {
-      pos++;
-    }
-    pos++;
-  }
-  state.can_continue = true;
-  state.str += unescapeAll(str.slice(start, pos));
-  return state;
-}
-const helpers = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
-  __proto__: null,
-  parseLinkDestination,
-  parseLinkLabel,
-  parseLinkTitle
-}, Symbol.toStringTag, { value: "Module" }));
-const default_rules = {};
-default_rules.code_inline = function(tokens, idx, options, env, slf) {
-  const token = tokens[idx];
-  return "<code" + slf.renderAttrs(token) + ">" + escapeHtml(token.content) + "</code>";
-};
-default_rules.code_block = function(tokens, idx, options, env, slf) {
-  const token = tokens[idx];
-  return "<pre" + slf.renderAttrs(token) + "><code>" + escapeHtml(tokens[idx].content) + "</code></pre>\n";
-};
-default_rules.fence = function(tokens, idx, options, env, slf) {
-  const token = tokens[idx];
-  const info = token.info ? unescapeAll(token.info).trim() : "";
-  let langName = "";
-  let langAttrs = "";
-  if (info) {
-    const arr = info.split(/(\s+)/g);
-    langName = arr[0];
-    langAttrs = arr.slice(2).join("");
-  }
-  let highlighted;
-  if (options.highlight) {
-    highlighted = options.highlight(token.content, langName, langAttrs) || escapeHtml(token.content);
-  } else {
-    highlighted = escapeHtml(token.content);
-  }
-  if (highlighted.indexOf("<pre") === 0) {
-    return highlighted + "\n";
-  }
-  if (info) {
-    const i = token.attrIndex("class");
-    const tmpAttrs = token.attrs ? token.attrs.slice() : [];
-    if (i < 0) {
-      tmpAttrs.push(["class", options.langPrefix + langName]);
-    } else {
-      tmpAttrs[i] = tmpAttrs[i].slice();
-      tmpAttrs[i][1] += " " + options.langPrefix + langName;
-    }
-    const tmpToken = {
-      attrs: tmpAttrs
-    };
-    return `<pre><code${slf.renderAttrs(tmpToken)}>${highlighted}</code></pre>
-`;
-  }
-  return `<pre><code${slf.renderAttrs(token)}>${highlighted}</code></pre>
-`;
-};
-default_rules.image = function(tokens, idx, options, env, slf) {
-  const token = tokens[idx];
-  token.attrs[token.attrIndex("alt")][1] = slf.renderInlineAsText(token.children, options, env);
-  return slf.renderToken(tokens, idx, options);
-};
-default_rules.hardbreak = function(tokens, idx, options) {
-  return options.xhtmlOut ? "<br />\n" : "<br>\n";
-};
-default_rules.softbreak = function(tokens, idx, options) {
-  return options.breaks ? options.xhtmlOut ? "<br />\n" : "<br>\n" : "\n";
-};
-default_rules.text = function(tokens, idx) {
-  return escapeHtml(tokens[idx].content);
-};
-default_rules.html_block = function(tokens, idx) {
-  return tokens[idx].content;
-};
-default_rules.html_inline = function(tokens, idx) {
-  return tokens[idx].content;
-};
-function Renderer() {
-  this.rules = assign$1({}, default_rules);
-}
-Renderer.prototype.renderAttrs = function renderAttrs(token) {
-  let i, l, result;
-  if (!token.attrs) {
-    return "";
-  }
-  result = "";
-  for (i = 0, l = token.attrs.length; i < l; i++) {
-    result += " " + escapeHtml(token.attrs[i][0]) + '="' + escapeHtml(token.attrs[i][1]) + '"';
-  }
-  return result;
-};
-Renderer.prototype.renderToken = function renderToken(tokens, idx, options) {
-  const token = tokens[idx];
-  let result = "";
-  if (token.hidden) {
-    return "";
-  }
-  if (token.block && token.nesting !== -1 && idx && tokens[idx - 1].hidden) {
-    result += "\n";
-  }
-  result += (token.nesting === -1 ? "</" : "<") + token.tag;
-  result += this.renderAttrs(token);
-  if (token.nesting === 0 && options.xhtmlOut) {
-    result += " /";
-  }
-  let needLf = false;
-  if (token.block) {
-    needLf = true;
-    if (token.nesting === 1) {
-      if (idx + 1 < tokens.length) {
-        const nextToken = tokens[idx + 1];
-        if (nextToken.type === "inline" || nextToken.hidden) {
-          needLf = false;
-        } else if (nextToken.nesting === -1 && nextToken.tag === token.tag) {
-          needLf = false;
-        }
-      }
-    }
-  }
-  result += needLf ? ">\n" : ">";
-  return result;
-};
-Renderer.prototype.renderInline = function(tokens, options, env) {
-  let result = "";
-  const rules2 = this.rules;
-  for (let i = 0, len = tokens.length; i < len; i++) {
-    const type2 = tokens[i].type;
-    if (typeof rules2[type2] !== "undefined") {
-      result += rules2[type2](tokens, i, options, env, this);
-    } else {
-      result += this.renderToken(tokens, i, options);
-    }
-  }
-  return result;
-};
-Renderer.prototype.renderInlineAsText = function(tokens, options, env) {
-  let result = "";
-  for (let i = 0, len = tokens.length; i < len; i++) {
-    switch (tokens[i].type) {
-      case "text":
-        result += tokens[i].content;
-        break;
-      case "image":
-        result += this.renderInlineAsText(tokens[i].children, options, env);
-        break;
-      case "html_inline":
-      case "html_block":
-        result += tokens[i].content;
-        break;
-      case "softbreak":
-      case "hardbreak":
-        result += "\n";
-        break;
-    }
-  }
-  return result;
-};
-Renderer.prototype.render = function(tokens, options, env) {
-  let result = "";
-  const rules2 = this.rules;
-  for (let i = 0, len = tokens.length; i < len; i++) {
-    const type2 = tokens[i].type;
-    if (type2 === "inline") {
-      result += this.renderInline(tokens[i].children, options, env);
-    } else if (typeof rules2[type2] !== "undefined") {
-      result += rules2[type2](tokens, i, options, env, this);
-    } else {
-      result += this.renderToken(tokens, i, options, env);
-    }
-  }
-  return result;
-};
-function Ruler() {
-  this.__rules__ = [];
-  this.__cache__ = null;
-}
-Ruler.prototype.__find__ = function(name) {
-  for (let i = 0; i < this.__rules__.length; i++) {
-    if (this.__rules__[i].name === name) {
-      return i;
-    }
-  }
-  return -1;
-};
-Ruler.prototype.__compile__ = function() {
-  const self = this;
-  const chains = [""];
-  self.__rules__.forEach(function(rule) {
-    if (!rule.enabled) {
-      return;
-    }
-    rule.alt.forEach(function(altName) {
-      if (chains.indexOf(altName) < 0) {
-        chains.push(altName);
-      }
-    });
-  });
-  self.__cache__ = {};
-  chains.forEach(function(chain) {
-    self.__cache__[chain] = [];
-    self.__rules__.forEach(function(rule) {
-      if (!rule.enabled) {
-        return;
-      }
-      if (chain && rule.alt.indexOf(chain) < 0) {
-        return;
-      }
-      self.__cache__[chain].push(rule.fn);
-    });
-  });
-};
-Ruler.prototype.at = function(name, fn, options) {
-  const index = this.__find__(name);
-  const opt = options || {};
-  if (index === -1) {
-    throw new Error("Parser rule not found: " + name);
-  }
-  this.__rules__[index].fn = fn;
-  this.__rules__[index].alt = opt.alt || [];
-  this.__cache__ = null;
-};
-Ruler.prototype.before = function(beforeName, ruleName, fn, options) {
-  const index = this.__find__(beforeName);
-  const opt = options || {};
-  if (index === -1) {
-    throw new Error("Parser rule not found: " + beforeName);
-  }
-  this.__rules__.splice(index, 0, {
-    name: ruleName,
-    enabled: true,
-    fn,
-    alt: opt.alt || []
-  });
-  this.__cache__ = null;
-};
-Ruler.prototype.after = function(afterName, ruleName, fn, options) {
-  const index = this.__find__(afterName);
-  const opt = options || {};
-  if (index === -1) {
-    throw new Error("Parser rule not found: " + afterName);
-  }
-  this.__rules__.splice(index + 1, 0, {
-    name: ruleName,
-    enabled: true,
-    fn,
-    alt: opt.alt || []
-  });
-  this.__cache__ = null;
-};
-Ruler.prototype.push = function(ruleName, fn, options) {
-  const opt = options || {};
-  this.__rules__.push({
-    name: ruleName,
-    enabled: true,
-    fn,
-    alt: opt.alt || []
-  });
-  this.__cache__ = null;
-};
-Ruler.prototype.enable = function(list2, ignoreInvalid) {
-  if (!Array.isArray(list2)) {
-    list2 = [list2];
-  }
-  const result = [];
-  list2.forEach(function(name) {
-    const idx = this.__find__(name);
-    if (idx < 0) {
-      if (ignoreInvalid) {
-        return;
-      }
-      throw new Error("Rules manager: invalid rule name " + name);
-    }
-    this.__rules__[idx].enabled = true;
-    result.push(name);
-  }, this);
-  this.__cache__ = null;
-  return result;
-};
-Ruler.prototype.enableOnly = function(list2, ignoreInvalid) {
-  if (!Array.isArray(list2)) {
-    list2 = [list2];
-  }
-  this.__rules__.forEach(function(rule) {
-    rule.enabled = false;
-  });
-  this.enable(list2, ignoreInvalid);
-};
-Ruler.prototype.disable = function(list2, ignoreInvalid) {
-  if (!Array.isArray(list2)) {
-    list2 = [list2];
-  }
-  const result = [];
-  list2.forEach(function(name) {
-    const idx = this.__find__(name);
-    if (idx < 0) {
-      if (ignoreInvalid) {
-        return;
-      }
-      throw new Error("Rules manager: invalid rule name " + name);
-    }
-    this.__rules__[idx].enabled = false;
-    result.push(name);
-  }, this);
-  this.__cache__ = null;
-  return result;
-};
-Ruler.prototype.getRules = function(chainName) {
-  if (this.__cache__ === null) {
-    this.__compile__();
-  }
-  return this.__cache__[chainName] || [];
-};
-function Token(type2, tag, nesting) {
-  this.type = type2;
-  this.tag = tag;
-  this.attrs = null;
-  this.map = null;
-  this.nesting = nesting;
-  this.level = 0;
-  this.children = null;
-  this.content = "";
-  this.markup = "";
-  this.info = "";
-  this.meta = null;
-  this.block = false;
-  this.hidden = false;
-}
-Token.prototype.attrIndex = function attrIndex(name) {
-  if (!this.attrs) {
-    return -1;
-  }
-  const attrs = this.attrs;
-  for (let i = 0, len = attrs.length; i < len; i++) {
-    if (attrs[i][0] === name) {
-      return i;
-    }
-  }
-  return -1;
-};
-Token.prototype.attrPush = function attrPush(attrData) {
-  if (this.attrs) {
-    this.attrs.push(attrData);
-  } else {
-    this.attrs = [attrData];
-  }
-};
-Token.prototype.attrSet = function attrSet(name, value) {
-  const idx = this.attrIndex(name);
-  const attrData = [name, value];
-  if (idx < 0) {
-    this.attrPush(attrData);
-  } else {
-    this.attrs[idx] = attrData;
-  }
-};
-Token.prototype.attrGet = function attrGet(name) {
-  const idx = this.attrIndex(name);
-  let value = null;
-  if (idx >= 0) {
-    value = this.attrs[idx][1];
-  }
-  return value;
-};
-Token.prototype.attrJoin = function attrJoin(name, value) {
-  const idx = this.attrIndex(name);
-  if (idx < 0) {
-    this.attrPush([name, value]);
-  } else {
-    this.attrs[idx][1] = this.attrs[idx][1] + " " + value;
-  }
-};
-function StateCore(src, md, env) {
-  this.src = src;
-  this.env = env;
-  this.tokens = [];
-  this.inlineMode = false;
-  this.md = md;
-}
-StateCore.prototype.Token = Token;
-const NEWLINES_RE = /\r\n?|\n/g;
-const NULL_RE = /\0/g;
-function normalize(state) {
-  let str;
-  str = state.src.replace(NEWLINES_RE, "\n");
-  str = str.replace(NULL_RE, "�");
-  state.src = str;
-}
-function block(state) {
-  let token;
-  if (state.inlineMode) {
-    token = new state.Token("inline", "", 0);
-    token.content = state.src;
-    token.map = [0, 1];
-    token.children = [];
-    state.tokens.push(token);
-  } else {
-    state.md.block.parse(state.src, state.md, state.env, state.tokens);
-  }
-}
-function inline(state) {
-  const tokens = state.tokens;
-  for (let i = 0, l = tokens.length; i < l; i++) {
-    const tok = tokens[i];
-    if (tok.type === "inline") {
-      state.md.inline.parse(tok.content, state.md, state.env, tok.children);
-    }
-  }
-}
-function isLinkOpen$1(str) {
-  return /^<a[>\s]/i.test(str);
-}
-function isLinkClose$1(str) {
-  return /^<\/a\s*>/i.test(str);
-}
-function linkify$1(state) {
-  const blockTokens = state.tokens;
-  if (!state.md.options.linkify) {
-    return;
-  }
-  for (let j = 0, l = blockTokens.length; j < l; j++) {
-    if (blockTokens[j].type !== "inline" || !state.md.linkify.pretest(blockTokens[j].content)) {
-      continue;
-    }
-    let tokens = blockTokens[j].children;
-    let htmlLinkLevel = 0;
-    for (let i = tokens.length - 1; i >= 0; i--) {
-      const currentToken = tokens[i];
-      if (currentToken.type === "link_close") {
-        i--;
-        while (tokens[i].level !== currentToken.level && tokens[i].type !== "link_open") {
-          i--;
-        }
-        continue;
-      }
-      if (currentToken.type === "html_inline") {
-        if (isLinkOpen$1(currentToken.content) && htmlLinkLevel > 0) {
-          htmlLinkLevel--;
-        }
-        if (isLinkClose$1(currentToken.content)) {
-          htmlLinkLevel++;
-        }
-      }
-      if (htmlLinkLevel > 0) {
-        continue;
-      }
-      if (currentToken.type === "text" && state.md.linkify.test(currentToken.content)) {
-        const text2 = currentToken.content;
-        let links = state.md.linkify.match(text2);
-        const nodes = [];
-        let level = currentToken.level;
-        let lastPos = 0;
-        if (links.length > 0 && links[0].index === 0 && i > 0 && tokens[i - 1].type === "text_special") {
-          links = links.slice(1);
-        }
-        for (let ln = 0; ln < links.length; ln++) {
-          const url = links[ln].url;
-          const fullUrl = state.md.normalizeLink(url);
-          if (!state.md.validateLink(fullUrl)) {
-            continue;
-          }
-          let urlText = links[ln].text;
-          if (!links[ln].schema) {
-            urlText = state.md.normalizeLinkText("http://" + urlText).replace(/^http:\/\//, "");
-          } else if (links[ln].schema === "mailto:" && !/^mailto:/i.test(urlText)) {
-            urlText = state.md.normalizeLinkText("mailto:" + urlText).replace(/^mailto:/, "");
-          } else {
-            urlText = state.md.normalizeLinkText(urlText);
-          }
-          const pos = links[ln].index;
-          if (pos > lastPos) {
-            const token = new state.Token("text", "", 0);
-            token.content = text2.slice(lastPos, pos);
-            token.level = level;
-            nodes.push(token);
-          }
-          const token_o = new state.Token("link_open", "a", 1);
-          token_o.attrs = [["href", fullUrl]];
-          token_o.level = level++;
-          token_o.markup = "linkify";
-          token_o.info = "auto";
-          nodes.push(token_o);
-          const token_t = new state.Token("text", "", 0);
-          token_t.content = urlText;
-          token_t.level = level;
-          nodes.push(token_t);
-          const token_c = new state.Token("link_close", "a", -1);
-          token_c.level = --level;
-          token_c.markup = "linkify";
-          token_c.info = "auto";
-          nodes.push(token_c);
-          lastPos = links[ln].lastIndex;
-        }
-        if (lastPos < text2.length) {
-          const token = new state.Token("text", "", 0);
-          token.content = text2.slice(lastPos);
-          token.level = level;
-          nodes.push(token);
-        }
-        blockTokens[j].children = tokens = arrayReplaceAt(tokens, i, nodes);
-      }
-    }
-  }
-}
-const RARE_RE = /\+-|\.\.|\?\?\?\?|!!!!|,,|--/;
-const SCOPED_ABBR_TEST_RE = /\((c|tm|r)\)/i;
-const SCOPED_ABBR_RE = /\((c|tm|r)\)/ig;
-const SCOPED_ABBR = {
-  c: "©",
-  r: "®",
-  tm: "™"
-};
-function replaceFn(match2, name) {
-  return SCOPED_ABBR[name.toLowerCase()];
-}
-function replace_scoped(inlineTokens) {
-  let inside_autolink = 0;
-  for (let i = inlineTokens.length - 1; i >= 0; i--) {
-    const token = inlineTokens[i];
-    if (token.type === "text" && !inside_autolink) {
-      token.content = token.content.replace(SCOPED_ABBR_RE, replaceFn);
-    }
-    if (token.type === "link_open" && token.info === "auto") {
-      inside_autolink--;
-    }
-    if (token.type === "link_close" && token.info === "auto") {
-      inside_autolink++;
-    }
-  }
-}
-function replace_rare(inlineTokens) {
-  let inside_autolink = 0;
-  for (let i = inlineTokens.length - 1; i >= 0; i--) {
-    const token = inlineTokens[i];
-    if (token.type === "text" && !inside_autolink) {
-      if (RARE_RE.test(token.content)) {
-        token.content = token.content.replace(/\+-/g, "±").replace(/\.{2,}/g, "…").replace(/([?!])…/g, "$1..").replace(/([?!]){4,}/g, "$1$1$1").replace(/,{2,}/g, ",").replace(/(^|[^-])---(?=[^-]|$)/mg, "$1—").replace(/(^|\s)--(?=\s|$)/mg, "$1–").replace(/(^|[^-\s])--(?=[^-\s]|$)/mg, "$1–");
-      }
-    }
-    if (token.type === "link_open" && token.info === "auto") {
-      inside_autolink--;
-    }
-    if (token.type === "link_close" && token.info === "auto") {
-      inside_autolink++;
-    }
-  }
-}
-function replace(state) {
-  let blkIdx;
-  if (!state.md.options.typographer) {
-    return;
-  }
-  for (blkIdx = state.tokens.length - 1; blkIdx >= 0; blkIdx--) {
-    if (state.tokens[blkIdx].type !== "inline") {
-      continue;
-    }
-    if (SCOPED_ABBR_TEST_RE.test(state.tokens[blkIdx].content)) {
-      replace_scoped(state.tokens[blkIdx].children);
-    }
-    if (RARE_RE.test(state.tokens[blkIdx].content)) {
-      replace_rare(state.tokens[blkIdx].children);
-    }
-  }
-}
-const QUOTE_TEST_RE = /['"]/;
-const QUOTE_RE = /['"]/g;
-const APOSTROPHE = "’";
-function addReplacement(replacements, tokenIdx, pos, ch) {
-  if (!replacements[tokenIdx]) {
-    replacements[tokenIdx] = [];
-  }
-  replacements[tokenIdx].push({ pos, ch });
-}
-function applyReplacements(str, replacements) {
-  let result = "";
-  let lastPos = 0;
-  replacements.sort((a, b) => a.pos - b.pos);
-  for (let i = 0; i < replacements.length; i++) {
-    const replacement = replacements[i];
-    result += str.slice(lastPos, replacement.pos) + replacement.ch;
-    lastPos = replacement.pos + 1;
-  }
-  return result + str.slice(lastPos);
-}
-function process_inlines(tokens, state) {
-  let j;
-  const stack = [];
-  const replacements = {};
-  for (let i = 0; i < tokens.length; i++) {
-    const token = tokens[i];
-    const thisLevel = tokens[i].level;
-    for (j = stack.length - 1; j >= 0; j--) {
-      if (stack[j].level <= thisLevel) {
-        break;
-      }
-    }
-    stack.length = j + 1;
-    if (token.type !== "text") {
-      continue;
-    }
-    const text2 = token.content;
-    let pos = 0;
-    const max = text2.length;
-    OUTER:
-      while (pos < max) {
-        QUOTE_RE.lastIndex = pos;
-        const t = QUOTE_RE.exec(text2);
-        if (!t) {
-          break;
-        }
-        let canOpen = true;
-        let canClose = true;
-        pos = t.index + 1;
-        const isSingle = t[0] === "'";
-        let lastChar = 32;
-        if (t.index - 1 >= 0) {
-          lastChar = text2.charCodeAt(t.index - 1);
-        } else {
-          for (j = i - 1; j >= 0; j--) {
-            if (tokens[j].type === "softbreak" || tokens[j].type === "hardbreak") break;
-            if (!tokens[j].content) continue;
-            lastChar = tokens[j].content.charCodeAt(tokens[j].content.length - 1);
-            break;
-          }
-        }
-        let nextChar = 32;
-        if (pos < max) {
-          nextChar = text2.charCodeAt(pos);
-        } else {
-          for (j = i + 1; j < tokens.length; j++) {
-            if (tokens[j].type === "softbreak" || tokens[j].type === "hardbreak") break;
-            if (!tokens[j].content) continue;
-            nextChar = tokens[j].content.charCodeAt(0);
-            break;
-          }
-        }
-        const isLastPunctChar = isMdAsciiPunct(lastChar) || isPunctCharCode(lastChar);
-        const isNextPunctChar = isMdAsciiPunct(nextChar) || isPunctCharCode(nextChar);
-        const isLastWhiteSpace = isWhiteSpace(lastChar);
-        const isNextWhiteSpace = isWhiteSpace(nextChar);
-        if (isNextWhiteSpace) {
-          canOpen = false;
-        } else if (isNextPunctChar) {
-          if (!(isLastWhiteSpace || isLastPunctChar)) {
-            canOpen = false;
-          }
-        }
-        if (isLastWhiteSpace) {
-          canClose = false;
-        } else if (isLastPunctChar) {
-          if (!(isNextWhiteSpace || isNextPunctChar)) {
-            canClose = false;
-          }
-        }
-        if (nextChar === 34 && t[0] === '"') {
-          if (lastChar >= 48 && lastChar <= 57) {
-            canClose = canOpen = false;
-          }
-        }
-        if (canOpen && canClose) {
-          canOpen = isLastPunctChar;
-          canClose = isNextPunctChar;
-        }
-        if (!canOpen && !canClose) {
-          if (isSingle) {
-            addReplacement(replacements, i, t.index, APOSTROPHE);
-          }
-          continue;
-        }
-        if (canClose) {
-          for (j = stack.length - 1; j >= 0; j--) {
-            let item2 = stack[j];
-            if (stack[j].level < thisLevel) {
-              break;
-            }
-            if (item2.single === isSingle && stack[j].level === thisLevel) {
-              item2 = stack[j];
-              let openQuote;
-              let closeQuote;
-              if (isSingle) {
-                openQuote = state.md.options.quotes[2];
-                closeQuote = state.md.options.quotes[3];
-              } else {
-                openQuote = state.md.options.quotes[0];
-                closeQuote = state.md.options.quotes[1];
-              }
-              addReplacement(replacements, i, t.index, closeQuote);
-              addReplacement(replacements, item2.token, item2.pos, openQuote);
-              stack.length = j;
-              continue OUTER;
-            }
-          }
-        }
-        if (canOpen) {
-          stack.push({
-            token: i,
-            pos: t.index,
-            single: isSingle,
-            level: thisLevel
-          });
-        } else if (canClose && isSingle) {
-          addReplacement(replacements, i, t.index, APOSTROPHE);
-        }
-      }
-  }
-  Object.keys(replacements).forEach(function(tokenIdx) {
-    tokens[tokenIdx].content = applyReplacements(tokens[tokenIdx].content, replacements[tokenIdx]);
-  });
-}
-function smartquotes(state) {
-  if (!state.md.options.typographer) {
-    return;
-  }
-  for (let blkIdx = state.tokens.length - 1; blkIdx >= 0; blkIdx--) {
-    if (state.tokens[blkIdx].type !== "inline" || !QUOTE_TEST_RE.test(state.tokens[blkIdx].content)) {
-      continue;
-    }
-    process_inlines(state.tokens[blkIdx].children, state);
-  }
-}
-function text_join(state) {
-  let curr, last;
-  const blockTokens = state.tokens;
-  const l = blockTokens.length;
-  for (let j = 0; j < l; j++) {
-    if (blockTokens[j].type !== "inline") continue;
-    const tokens = blockTokens[j].children;
-    const max = tokens.length;
-    for (curr = 0; curr < max; curr++) {
-      if (tokens[curr].type === "text_special") {
-        tokens[curr].type = "text";
-      }
-    }
-    for (curr = last = 0; curr < max; curr++) {
-      if (tokens[curr].type === "text" && curr + 1 < max && tokens[curr + 1].type === "text") {
-        tokens[curr + 1].content = tokens[curr].content + tokens[curr + 1].content;
-      } else {
-        if (curr !== last) {
-          tokens[last] = tokens[curr];
-        }
-        last++;
-      }
-    }
-    if (curr !== last) {
-      tokens.length = last;
-    }
-  }
-}
-const _rules$2 = [
-  ["normalize", normalize],
-  ["block", block],
-  ["inline", inline],
-  ["linkify", linkify$1],
-  ["replacements", replace],
-  ["smartquotes", smartquotes],
-  // `text_join` finds `text_special` tokens (for escape sequences)
-  // and joins them with the rest of the text
-  ["text_join", text_join]
-];
-function Core() {
-  this.ruler = new Ruler();
-  for (let i = 0; i < _rules$2.length; i++) {
-    this.ruler.push(_rules$2[i][0], _rules$2[i][1]);
-  }
-}
-Core.prototype.process = function(state) {
-  const rules2 = this.ruler.getRules("");
-  for (let i = 0, l = rules2.length; i < l; i++) {
-    rules2[i](state);
-  }
-};
-Core.prototype.State = StateCore;
-function StateBlock(src, md, env, tokens) {
-  this.src = src;
-  this.md = md;
-  this.env = env;
-  this.tokens = tokens;
-  this.bMarks = [];
-  this.eMarks = [];
-  this.tShift = [];
-  this.sCount = [];
-  this.bsCount = [];
-  this.blkIndent = 0;
-  this.line = 0;
-  this.lineMax = 0;
-  this.tight = false;
-  this.ddIndent = -1;
-  this.listIndent = -1;
-  this.parentType = "root";
-  this.level = 0;
-  const s = this.src;
-  for (let start = 0, pos = 0, indent = 0, offset = 0, len = s.length, indent_found = false; pos < len; pos++) {
-    const ch = s.charCodeAt(pos);
-    if (!indent_found) {
-      if (isSpace(ch)) {
-        indent++;
-        if (ch === 9) {
-          offset += 4 - offset % 4;
-        } else {
-          offset++;
-        }
-        continue;
-      } else {
-        indent_found = true;
-      }
-    }
-    if (ch === 10 || pos === len - 1) {
-      if (ch !== 10) {
-        pos++;
-      }
-      this.bMarks.push(start);
-      this.eMarks.push(pos);
-      this.tShift.push(indent);
-      this.sCount.push(offset);
-      this.bsCount.push(0);
-      indent_found = false;
-      indent = 0;
-      offset = 0;
-      start = pos + 1;
-    }
-  }
-  this.bMarks.push(s.length);
-  this.eMarks.push(s.length);
-  this.tShift.push(0);
-  this.sCount.push(0);
-  this.bsCount.push(0);
-  this.lineMax = this.bMarks.length - 1;
-}
-StateBlock.prototype.push = function(type2, tag, nesting) {
-  const token = new Token(type2, tag, nesting);
-  token.block = true;
-  if (nesting < 0) this.level--;
-  token.level = this.level;
-  if (nesting > 0) this.level++;
-  this.tokens.push(token);
-  return token;
-};
-StateBlock.prototype.isEmpty = function isEmpty(line) {
-  return this.bMarks[line] + this.tShift[line] >= this.eMarks[line];
-};
-StateBlock.prototype.skipEmptyLines = function skipEmptyLines(from) {
-  for (let max = this.lineMax; from < max; from++) {
-    if (this.bMarks[from] + this.tShift[from] < this.eMarks[from]) {
-      break;
-    }
-  }
-  return from;
-};
-StateBlock.prototype.skipSpaces = function skipSpaces(pos) {
-  for (let max = this.src.length; pos < max; pos++) {
-    const ch = this.src.charCodeAt(pos);
-    if (!isSpace(ch)) {
-      break;
-    }
-  }
-  return pos;
-};
-StateBlock.prototype.skipSpacesBack = function skipSpacesBack(pos, min) {
-  if (pos <= min) {
-    return pos;
-  }
-  while (pos > min) {
-    if (!isSpace(this.src.charCodeAt(--pos))) {
-      return pos + 1;
-    }
-  }
-  return pos;
-};
-StateBlock.prototype.skipChars = function skipChars(pos, code2) {
-  for (let max = this.src.length; pos < max; pos++) {
-    if (this.src.charCodeAt(pos) !== code2) {
-      break;
-    }
-  }
-  return pos;
-};
-StateBlock.prototype.skipCharsBack = function skipCharsBack(pos, code2, min) {
-  if (pos <= min) {
-    return pos;
-  }
-  while (pos > min) {
-    if (code2 !== this.src.charCodeAt(--pos)) {
-      return pos + 1;
-    }
-  }
-  return pos;
-};
-StateBlock.prototype.getLines = function getLines(begin, end, indent, keepLastLF) {
-  if (begin >= end) {
-    return "";
-  }
-  const queue = new Array(end - begin);
-  for (let i = 0, line = begin; line < end; line++, i++) {
-    let lineIndent = 0;
-    const lineStart = this.bMarks[line];
-    let first = lineStart;
-    let last;
-    if (line + 1 < end || keepLastLF) {
-      last = this.eMarks[line] + 1;
-    } else {
-      last = this.eMarks[line];
-    }
-    while (first < last && lineIndent < indent) {
-      const ch = this.src.charCodeAt(first);
-      if (isSpace(ch)) {
-        if (ch === 9) {
-          lineIndent += 4 - (lineIndent + this.bsCount[line]) % 4;
-        } else {
-          lineIndent++;
-        }
-      } else if (first - lineStart < this.tShift[line]) {
-        lineIndent++;
-      } else {
-        break;
-      }
-      first++;
-    }
-    if (lineIndent > indent) {
-      queue[i] = new Array(lineIndent - indent + 1).join(" ") + this.src.slice(first, last);
-    } else {
-      queue[i] = this.src.slice(first, last);
-    }
-  }
-  return queue.join("");
-};
-StateBlock.prototype.Token = Token;
-const MAX_AUTOCOMPLETED_CELLS = 65536;
-function getLine(state, line) {
-  const pos = state.bMarks[line] + state.tShift[line];
-  const max = state.eMarks[line];
-  return state.src.slice(pos, max);
-}
-function escapedSplit(str) {
-  const result = [];
-  const max = str.length;
-  let pos = 0;
-  let ch = str.charCodeAt(pos);
-  let isEscaped = false;
-  let lastPos = 0;
-  let current = "";
-  while (pos < max) {
-    if (ch === 124) {
-      if (!isEscaped) {
-        result.push(current + str.substring(lastPos, pos));
-        current = "";
-        lastPos = pos + 1;
-      } else {
-        current += str.substring(lastPos, pos - 1);
-        lastPos = pos;
-      }
-    }
-    isEscaped = ch === 92;
-    pos++;
-    ch = str.charCodeAt(pos);
-  }
-  result.push(current + str.substring(lastPos));
-  return result;
-}
-function table(state, startLine, endLine, silent) {
-  if (startLine + 2 > endLine) {
-    return false;
-  }
-  let nextLine = startLine + 1;
-  if (state.sCount[nextLine] < state.blkIndent) {
-    return false;
-  }
-  if (state.sCount[nextLine] - state.blkIndent >= 4) {
-    return false;
-  }
-  let pos = state.bMarks[nextLine] + state.tShift[nextLine];
-  if (pos >= state.eMarks[nextLine]) {
-    return false;
-  }
-  const firstCh = state.src.charCodeAt(pos++);
-  if (firstCh !== 124 && firstCh !== 45 && firstCh !== 58) {
-    return false;
-  }
-  if (pos >= state.eMarks[nextLine]) {
-    return false;
-  }
-  const secondCh = state.src.charCodeAt(pos++);
-  if (secondCh !== 124 && secondCh !== 45 && secondCh !== 58 && !isSpace(secondCh)) {
-    return false;
-  }
-  if (firstCh === 45 && isSpace(secondCh)) {
-    return false;
-  }
-  while (pos < state.eMarks[nextLine]) {
-    const ch = state.src.charCodeAt(pos);
-    if (ch !== 124 && ch !== 45 && ch !== 58 && !isSpace(ch)) {
-      return false;
-    }
-    pos++;
-  }
-  let lineText = getLine(state, startLine + 1);
-  let columns = lineText.split("|");
-  const aligns = [];
-  for (let i = 0; i < columns.length; i++) {
-    const t = columns[i].trim();
-    if (!t) {
-      if (i === 0 || i === columns.length - 1) {
-        continue;
-      } else {
-        return false;
-      }
-    }
-    if (!/^:?-+:?$/.test(t)) {
-      return false;
-    }
-    if (t.charCodeAt(t.length - 1) === 58) {
-      aligns.push(t.charCodeAt(0) === 58 ? "center" : "right");
-    } else if (t.charCodeAt(0) === 58) {
-      aligns.push("left");
-    } else {
-      aligns.push("");
-    }
-  }
-  lineText = getLine(state, startLine).trim();
-  if (lineText.indexOf("|") === -1) {
-    return false;
-  }
-  if (state.sCount[startLine] - state.blkIndent >= 4) {
-    return false;
-  }
-  columns = escapedSplit(lineText);
-  if (columns.length && columns[0] === "") columns.shift();
-  if (columns.length && columns[columns.length - 1] === "") columns.pop();
-  const columnCount = columns.length;
-  if (columnCount === 0 || columnCount !== aligns.length) {
-    return false;
-  }
-  if (silent) {
-    return true;
-  }
-  const oldParentType = state.parentType;
-  state.parentType = "table";
-  const terminatorRules = state.md.block.ruler.getRules("blockquote");
-  const token_to = state.push("table_open", "table", 1);
-  const tableLines = [startLine, 0];
-  token_to.map = tableLines;
-  const token_tho = state.push("thead_open", "thead", 1);
-  token_tho.map = [startLine, startLine + 1];
-  const token_htro = state.push("tr_open", "tr", 1);
-  token_htro.map = [startLine, startLine + 1];
-  for (let i = 0; i < columns.length; i++) {
-    const token_ho = state.push("th_open", "th", 1);
-    if (aligns[i]) {
-      token_ho.attrs = [["style", "text-align:" + aligns[i]]];
-    }
-    const token_il = state.push("inline", "", 0);
-    token_il.content = columns[i].trim();
-    token_il.children = [];
-    state.push("th_close", "th", -1);
-  }
-  state.push("tr_close", "tr", -1);
-  state.push("thead_close", "thead", -1);
-  let tbodyLines;
-  let autocompletedCells = 0;
-  for (nextLine = startLine + 2; nextLine < endLine; nextLine++) {
-    if (state.sCount[nextLine] < state.blkIndent) {
-      break;
-    }
-    let terminate = false;
-    for (let i = 0, l = terminatorRules.length; i < l; i++) {
-      if (terminatorRules[i](state, nextLine, endLine, true)) {
-        terminate = true;
-        break;
-      }
-    }
-    if (terminate) {
-      break;
-    }
-    lineText = getLine(state, nextLine).trim();
-    if (!lineText) {
-      break;
-    }
-    if (state.sCount[nextLine] - state.blkIndent >= 4) {
-      break;
-    }
-    columns = escapedSplit(lineText);
-    if (columns.length && columns[0] === "") columns.shift();
-    if (columns.length && columns[columns.length - 1] === "") columns.pop();
-    autocompletedCells += columnCount - columns.length;
-    if (autocompletedCells > MAX_AUTOCOMPLETED_CELLS) {
-      break;
-    }
-    if (nextLine === startLine + 2) {
-      const token_tbo = state.push("tbody_open", "tbody", 1);
-      token_tbo.map = tbodyLines = [startLine + 2, 0];
-    }
-    const token_tro = state.push("tr_open", "tr", 1);
-    token_tro.map = [nextLine, nextLine + 1];
-    for (let i = 0; i < columnCount; i++) {
-      const token_tdo = state.push("td_open", "td", 1);
-      if (aligns[i]) {
-        token_tdo.attrs = [["style", "text-align:" + aligns[i]]];
-      }
-      const token_il = state.push("inline", "", 0);
-      token_il.content = columns[i] ? columns[i].trim() : "";
-      token_il.children = [];
-      state.push("td_close", "td", -1);
-    }
-    state.push("tr_close", "tr", -1);
-  }
-  if (tbodyLines) {
-    state.push("tbody_close", "tbody", -1);
-    tbodyLines[1] = nextLine;
-  }
-  state.push("table_close", "table", -1);
-  tableLines[1] = nextLine;
-  state.parentType = oldParentType;
-  state.line = nextLine;
-  return true;
-}
-function code$2(state, startLine, endLine) {
-  if (state.sCount[startLine] - state.blkIndent < 4) {
-    return false;
-  }
-  let nextLine = startLine + 1;
-  let last = nextLine;
-  while (nextLine < endLine) {
-    if (state.isEmpty(nextLine)) {
-      nextLine++;
-      continue;
-    }
-    if (state.sCount[nextLine] - state.blkIndent >= 4) {
-      nextLine++;
-      last = nextLine;
-      continue;
-    }
-    break;
-  }
-  state.line = last;
-  const token = state.push("code_block", "code", 0);
-  token.content = state.getLines(startLine, last, 4 + state.blkIndent, false) + "\n";
-  token.map = [startLine, state.line];
-  return true;
-}
-function fence(state, startLine, endLine, silent) {
-  let pos = state.bMarks[startLine] + state.tShift[startLine];
-  let max = state.eMarks[startLine];
-  if (state.sCount[startLine] - state.blkIndent >= 4) {
-    return false;
-  }
-  if (pos + 3 > max) {
-    return false;
-  }
-  const marker = state.src.charCodeAt(pos);
-  if (marker !== 126 && marker !== 96) {
-    return false;
-  }
-  let mem = pos;
-  pos = state.skipChars(pos, marker);
-  let len = pos - mem;
-  if (len < 3) {
-    return false;
-  }
-  const markup = state.src.slice(mem, pos);
-  const params = state.src.slice(pos, max);
-  if (marker === 96) {
-    if (params.indexOf(String.fromCharCode(marker)) >= 0) {
-      return false;
-    }
-  }
-  if (silent) {
-    return true;
-  }
-  let nextLine = startLine;
-  let haveEndMarker = false;
-  for (; ; ) {
-    nextLine++;
-    if (nextLine >= endLine) {
-      break;
-    }
-    pos = mem = state.bMarks[nextLine] + state.tShift[nextLine];
-    max = state.eMarks[nextLine];
-    if (pos < max && state.sCount[nextLine] < state.blkIndent) {
-      break;
-    }
-    if (state.src.charCodeAt(pos) !== marker) {
-      continue;
-    }
-    if (state.sCount[nextLine] - state.blkIndent >= 4) {
-      continue;
-    }
-    pos = state.skipChars(pos, marker);
-    if (pos - mem < len) {
-      continue;
-    }
-    pos = state.skipSpaces(pos);
-    if (pos < max) {
-      continue;
-    }
-    haveEndMarker = true;
-    break;
-  }
-  len = state.sCount[startLine];
-  state.line = nextLine + (haveEndMarker ? 1 : 0);
-  const token = state.push("fence", "code", 0);
-  token.info = params;
-  token.content = state.getLines(startLine + 1, nextLine, len, true);
-  token.markup = markup;
-  token.map = [startLine, state.line];
-  return true;
-}
-function blockquote(state, startLine, endLine, silent) {
-  let pos = state.bMarks[startLine] + state.tShift[startLine];
-  let max = state.eMarks[startLine];
-  const oldLineMax = state.lineMax;
-  if (state.sCount[startLine] - state.blkIndent >= 4) {
-    return false;
-  }
-  if (state.src.charCodeAt(pos) !== 62) {
-    return false;
-  }
-  if (silent) {
-    return true;
-  }
-  const oldBMarks = [];
-  const oldBSCount = [];
-  const oldSCount = [];
-  const oldTShift = [];
-  const terminatorRules = state.md.block.ruler.getRules("blockquote");
-  const oldParentType = state.parentType;
-  state.parentType = "blockquote";
-  let lastLineEmpty = false;
-  let nextLine;
-  for (nextLine = startLine; nextLine < endLine; nextLine++) {
-    const isOutdented = state.sCount[nextLine] < state.blkIndent;
-    pos = state.bMarks[nextLine] + state.tShift[nextLine];
-    max = state.eMarks[nextLine];
-    if (pos >= max) {
-      break;
-    }
-    if (state.src.charCodeAt(pos++) === 62 && !isOutdented) {
-      let initial = state.sCount[nextLine] + 1;
-      let spaceAfterMarker;
-      let adjustTab;
-      if (state.src.charCodeAt(pos) === 32) {
-        pos++;
-        initial++;
-        adjustTab = false;
-        spaceAfterMarker = true;
-      } else if (state.src.charCodeAt(pos) === 9) {
-        spaceAfterMarker = true;
-        if ((state.bsCount[nextLine] + initial) % 4 === 3) {
-          pos++;
-          initial++;
-          adjustTab = false;
-        } else {
-          adjustTab = true;
-        }
-      } else {
-        spaceAfterMarker = false;
-      }
-      let offset = initial;
-      oldBMarks.push(state.bMarks[nextLine]);
-      state.bMarks[nextLine] = pos;
-      while (pos < max) {
-        const ch = state.src.charCodeAt(pos);
-        if (isSpace(ch)) {
-          if (ch === 9) {
-            offset += 4 - (offset + state.bsCount[nextLine] + (adjustTab ? 1 : 0)) % 4;
-          } else {
-            offset++;
-          }
-        } else {
-          break;
-        }
-        pos++;
-      }
-      lastLineEmpty = pos >= max;
-      oldBSCount.push(state.bsCount[nextLine]);
-      state.bsCount[nextLine] = state.sCount[nextLine] + 1 + (spaceAfterMarker ? 1 : 0);
-      oldSCount.push(state.sCount[nextLine]);
-      state.sCount[nextLine] = offset - initial;
-      oldTShift.push(state.tShift[nextLine]);
-      state.tShift[nextLine] = pos - state.bMarks[nextLine];
-      continue;
-    }
-    if (lastLineEmpty) {
-      break;
-    }
-    let terminate = false;
-    for (let i = 0, l = terminatorRules.length; i < l; i++) {
-      if (terminatorRules[i](state, nextLine, endLine, true)) {
-        terminate = true;
-        break;
-      }
-    }
-    if (terminate) {
-      state.lineMax = nextLine;
-      if (state.blkIndent !== 0) {
-        oldBMarks.push(state.bMarks[nextLine]);
-        oldBSCount.push(state.bsCount[nextLine]);
-        oldTShift.push(state.tShift[nextLine]);
-        oldSCount.push(state.sCount[nextLine]);
-        state.sCount[nextLine] -= state.blkIndent;
-      }
-      break;
-    }
-    oldBMarks.push(state.bMarks[nextLine]);
-    oldBSCount.push(state.bsCount[nextLine]);
-    oldTShift.push(state.tShift[nextLine]);
-    oldSCount.push(state.sCount[nextLine]);
-    state.sCount[nextLine] = -1;
-  }
-  const oldIndent = state.blkIndent;
-  state.blkIndent = 0;
-  const token_o = state.push("blockquote_open", "blockquote", 1);
-  token_o.markup = ">";
-  const lines2 = [startLine, 0];
-  token_o.map = lines2;
-  state.md.block.tokenize(state, startLine, nextLine);
-  const token_c = state.push("blockquote_close", "blockquote", -1);
-  token_c.markup = ">";
-  state.lineMax = oldLineMax;
-  state.parentType = oldParentType;
-  lines2[1] = state.line;
-  for (let i = 0; i < oldTShift.length; i++) {
-    state.bMarks[i + startLine] = oldBMarks[i];
-    state.tShift[i + startLine] = oldTShift[i];
-    state.sCount[i + startLine] = oldSCount[i];
-    state.bsCount[i + startLine] = oldBSCount[i];
-  }
-  state.blkIndent = oldIndent;
-  return true;
-}
-function hr(state, startLine, endLine, silent) {
-  const max = state.eMarks[startLine];
-  if (state.sCount[startLine] - state.blkIndent >= 4) {
-    return false;
-  }
-  let pos = state.bMarks[startLine] + state.tShift[startLine];
-  const marker = state.src.charCodeAt(pos++);
-  if (marker !== 42 && marker !== 45 && marker !== 95) {
-    return false;
-  }
-  let cnt = 1;
-  while (pos < max) {
-    const ch = state.src.charCodeAt(pos++);
-    if (ch !== marker && !isSpace(ch)) {
-      return false;
-    }
-    if (ch === marker) {
-      cnt++;
-    }
-  }
-  if (cnt < 3) {
-    return false;
-  }
-  if (silent) {
-    return true;
-  }
-  state.line = startLine + 1;
-  const token = state.push("hr", "hr", 0);
-  token.map = [startLine, state.line];
-  token.markup = Array(cnt + 1).join(String.fromCharCode(marker));
-  return true;
-}
-function skipBulletListMarker(state, startLine) {
-  const max = state.eMarks[startLine];
-  let pos = state.bMarks[startLine] + state.tShift[startLine];
-  const marker = state.src.charCodeAt(pos++);
-  if (marker !== 42 && marker !== 45 && marker !== 43) {
-    return -1;
-  }
-  if (pos < max) {
-    const ch = state.src.charCodeAt(pos);
-    if (!isSpace(ch)) {
-      return -1;
-    }
-  }
-  return pos;
-}
-function skipOrderedListMarker(state, startLine) {
-  const start = state.bMarks[startLine] + state.tShift[startLine];
-  const max = state.eMarks[startLine];
-  let pos = start;
-  if (pos + 1 >= max) {
-    return -1;
-  }
-  let ch = state.src.charCodeAt(pos++);
-  if (ch < 48 || ch > 57) {
-    return -1;
-  }
-  for (; ; ) {
-    if (pos >= max) {
-      return -1;
-    }
-    ch = state.src.charCodeAt(pos++);
-    if (ch >= 48 && ch <= 57) {
-      if (pos - start >= 10) {
-        return -1;
-      }
-      continue;
-    }
-    if (ch === 41 || ch === 46) {
-      break;
-    }
-    return -1;
-  }
-  if (pos < max) {
-    ch = state.src.charCodeAt(pos);
-    if (!isSpace(ch)) {
-      return -1;
-    }
-  }
-  return pos;
-}
-function markTightParagraphs(state, idx) {
-  const level = state.level + 2;
-  for (let i = idx + 2, l = state.tokens.length - 2; i < l; i++) {
-    if (state.tokens[i].level === level && state.tokens[i].type === "paragraph_open") {
-      state.tokens[i + 2].hidden = true;
-      state.tokens[i].hidden = true;
-      i += 2;
-    }
-  }
-}
-function list(state, startLine, endLine, silent) {
-  let max, pos, start, token;
-  let nextLine = startLine;
-  let tight = true;
-  if (state.sCount[nextLine] - state.blkIndent >= 4) {
-    return false;
-  }
-  if (state.listIndent >= 0 && state.sCount[nextLine] - state.listIndent >= 4 && state.sCount[nextLine] < state.blkIndent) {
-    return false;
-  }
-  let isTerminatingParagraph = false;
-  if (silent && state.parentType === "paragraph") {
-    if (state.sCount[nextLine] >= state.blkIndent) {
-      isTerminatingParagraph = true;
-    }
-  }
-  let isOrdered;
-  let markerValue;
-  let posAfterMarker;
-  if ((posAfterMarker = skipOrderedListMarker(state, nextLine)) >= 0) {
-    isOrdered = true;
-    start = state.bMarks[nextLine] + state.tShift[nextLine];
-    markerValue = Number(state.src.slice(start, posAfterMarker - 1));
-    if (isTerminatingParagraph && markerValue !== 1) return false;
-  } else if ((posAfterMarker = skipBulletListMarker(state, nextLine)) >= 0) {
-    isOrdered = false;
-  } else {
-    return false;
-  }
-  if (isTerminatingParagraph) {
-    if (state.skipSpaces(posAfterMarker) >= state.eMarks[nextLine]) return false;
-  }
-  if (silent) {
-    return true;
-  }
-  const markerCharCode = state.src.charCodeAt(posAfterMarker - 1);
-  const listTokIdx = state.tokens.length;
-  if (isOrdered) {
-    token = state.push("ordered_list_open", "ol", 1);
-    if (markerValue !== 1) {
-      token.attrs = [["start", markerValue]];
-    }
-  } else {
-    token = state.push("bullet_list_open", "ul", 1);
-  }
-  const listLines = [nextLine, 0];
-  token.map = listLines;
-  token.markup = String.fromCharCode(markerCharCode);
-  let prevEmptyEnd = false;
-  const terminatorRules = state.md.block.ruler.getRules("list");
-  const oldParentType = state.parentType;
-  state.parentType = "list";
-  while (nextLine < endLine) {
-    pos = posAfterMarker;
-    max = state.eMarks[nextLine];
-    const initial = state.sCount[nextLine] + posAfterMarker - (state.bMarks[nextLine] + state.tShift[nextLine]);
-    let offset = initial;
-    while (pos < max) {
-      const ch = state.src.charCodeAt(pos);
-      if (ch === 9) {
-        offset += 4 - (offset + state.bsCount[nextLine]) % 4;
-      } else if (ch === 32) {
-        offset++;
-      } else {
-        break;
-      }
-      pos++;
-    }
-    const contentStart = pos;
-    let indentAfterMarker;
-    if (contentStart >= max) {
-      indentAfterMarker = 1;
-    } else {
-      indentAfterMarker = offset - initial;
-    }
-    if (indentAfterMarker > 4) {
-      indentAfterMarker = 1;
-    }
-    const indent = initial + indentAfterMarker;
-    token = state.push("list_item_open", "li", 1);
-    token.markup = String.fromCharCode(markerCharCode);
-    const itemLines = [nextLine, 0];
-    token.map = itemLines;
-    if (isOrdered) {
-      token.info = state.src.slice(start, posAfterMarker - 1);
-    }
-    const oldTight = state.tight;
-    const oldTShift = state.tShift[nextLine];
-    const oldSCount = state.sCount[nextLine];
-    const oldListIndent = state.listIndent;
-    state.listIndent = state.blkIndent;
-    state.blkIndent = indent;
-    state.tight = true;
-    state.tShift[nextLine] = contentStart - state.bMarks[nextLine];
-    state.sCount[nextLine] = offset;
-    if (contentStart >= max && state.isEmpty(nextLine + 1)) {
-      state.line = Math.min(state.line + 2, endLine);
-    } else {
-      state.md.block.tokenize(state, nextLine, endLine, true);
-    }
-    if (!state.tight || prevEmptyEnd) {
-      tight = false;
-    }
-    prevEmptyEnd = state.line - nextLine > 1 && state.isEmpty(state.line - 1);
-    state.blkIndent = state.listIndent;
-    state.listIndent = oldListIndent;
-    state.tShift[nextLine] = oldTShift;
-    state.sCount[nextLine] = oldSCount;
-    state.tight = oldTight;
-    token = state.push("list_item_close", "li", -1);
-    token.markup = String.fromCharCode(markerCharCode);
-    nextLine = state.line;
-    itemLines[1] = nextLine;
-    if (nextLine >= endLine) {
-      break;
-    }
-    if (state.sCount[nextLine] < state.blkIndent) {
-      break;
-    }
-    if (state.sCount[nextLine] - state.blkIndent >= 4) {
-      break;
-    }
-    let terminate = false;
-    for (let i = 0, l = terminatorRules.length; i < l; i++) {
-      if (terminatorRules[i](state, nextLine, endLine, true)) {
-        terminate = true;
-        break;
-      }
-    }
-    if (terminate) {
-      break;
-    }
-    if (isOrdered) {
-      posAfterMarker = skipOrderedListMarker(state, nextLine);
-      if (posAfterMarker < 0) {
-        break;
-      }
-      start = state.bMarks[nextLine] + state.tShift[nextLine];
-    } else {
-      posAfterMarker = skipBulletListMarker(state, nextLine);
-      if (posAfterMarker < 0) {
-        break;
-      }
-    }
-    if (markerCharCode !== state.src.charCodeAt(posAfterMarker - 1)) {
-      break;
-    }
-  }
-  if (isOrdered) {
-    token = state.push("ordered_list_close", "ol", -1);
-  } else {
-    token = state.push("bullet_list_close", "ul", -1);
-  }
-  token.markup = String.fromCharCode(markerCharCode);
-  listLines[1] = nextLine;
-  state.line = nextLine;
-  state.parentType = oldParentType;
-  if (tight) {
-    markTightParagraphs(state, listTokIdx);
-  }
-  return true;
-}
-function reference(state, startLine, _endLine, silent) {
-  let pos = state.bMarks[startLine] + state.tShift[startLine];
-  let max = state.eMarks[startLine];
-  let nextLine = startLine + 1;
-  if (state.sCount[startLine] - state.blkIndent >= 4) {
-    return false;
-  }
-  if (state.src.charCodeAt(pos) !== 91) {
-    return false;
-  }
-  function getNextLine(nextLine2) {
-    const endLine = state.lineMax;
-    if (nextLine2 >= endLine || state.isEmpty(nextLine2)) {
-      return null;
-    }
-    let isContinuation = false;
-    if (state.sCount[nextLine2] - state.blkIndent > 3) {
-      isContinuation = true;
-    }
-    if (state.sCount[nextLine2] < 0) {
-      isContinuation = true;
-    }
-    if (!isContinuation) {
-      const terminatorRules = state.md.block.ruler.getRules("reference");
-      const oldParentType = state.parentType;
-      state.parentType = "reference";
-      let terminate = false;
-      for (let i = 0, l = terminatorRules.length; i < l; i++) {
-        if (terminatorRules[i](state, nextLine2, endLine, true)) {
-          terminate = true;
-          break;
-        }
-      }
-      state.parentType = oldParentType;
-      if (terminate) {
-        return null;
-      }
-    }
-    const pos2 = state.bMarks[nextLine2] + state.tShift[nextLine2];
-    const max2 = state.eMarks[nextLine2];
-    return state.src.slice(pos2, max2 + 1);
-  }
-  let str = state.src.slice(pos, max + 1);
-  max = str.length;
-  let labelEnd = -1;
-  for (pos = 1; pos < max; pos++) {
-    const ch = str.charCodeAt(pos);
-    if (ch === 91) {
-      return false;
-    } else if (ch === 93) {
-      labelEnd = pos;
-      break;
-    } else if (ch === 10) {
-      const lineContent = getNextLine(nextLine);
-      if (lineContent !== null) {
-        str += lineContent;
-        max = str.length;
-        nextLine++;
-      }
-    } else if (ch === 92) {
-      pos++;
-      if (pos < max && str.charCodeAt(pos) === 10) {
-        const lineContent = getNextLine(nextLine);
-        if (lineContent !== null) {
-          str += lineContent;
-          max = str.length;
-          nextLine++;
-        }
-      }
-    }
-  }
-  if (labelEnd < 0 || str.charCodeAt(labelEnd + 1) !== 58) {
-    return false;
-  }
-  for (pos = labelEnd + 2; pos < max; pos++) {
-    const ch = str.charCodeAt(pos);
-    if (ch === 10) {
-      const lineContent = getNextLine(nextLine);
-      if (lineContent !== null) {
-        str += lineContent;
-        max = str.length;
-        nextLine++;
-      }
-    } else if (isSpace(ch)) ;
-    else {
-      break;
-    }
-  }
-  const destRes = state.md.helpers.parseLinkDestination(str, pos, max);
-  if (!destRes.ok) {
-    return false;
-  }
-  const href = state.md.normalizeLink(destRes.str);
-  if (!state.md.validateLink(href)) {
-    return false;
-  }
-  pos = destRes.pos;
-  const destEndPos = pos;
-  const destEndLineNo = nextLine;
-  const start = pos;
-  for (; pos < max; pos++) {
-    const ch = str.charCodeAt(pos);
-    if (ch === 10) {
-      const lineContent = getNextLine(nextLine);
-      if (lineContent !== null) {
-        str += lineContent;
-        max = str.length;
-        nextLine++;
-      }
-    } else if (isSpace(ch)) ;
-    else {
-      break;
-    }
-  }
-  let titleRes = state.md.helpers.parseLinkTitle(str, pos, max);
-  while (titleRes.can_continue) {
-    const lineContent = getNextLine(nextLine);
-    if (lineContent === null) break;
-    str += lineContent;
-    pos = max;
-    max = str.length;
-    nextLine++;
-    titleRes = state.md.helpers.parseLinkTitle(str, pos, max, titleRes);
-  }
-  let title2;
-  if (pos < max && start !== pos && titleRes.ok) {
-    title2 = titleRes.str;
-    pos = titleRes.pos;
-  } else {
-    title2 = "";
-    pos = destEndPos;
-    nextLine = destEndLineNo;
-  }
-  while (pos < max) {
-    const ch = str.charCodeAt(pos);
-    if (!isSpace(ch)) {
-      break;
-    }
-    pos++;
-  }
-  if (pos < max && str.charCodeAt(pos) !== 10) {
-    if (title2) {
-      title2 = "";
-      pos = destEndPos;
-      nextLine = destEndLineNo;
-      while (pos < max) {
-        const ch = str.charCodeAt(pos);
-        if (!isSpace(ch)) {
-          break;
-        }
-        pos++;
-      }
-    }
-  }
-  if (pos < max && str.charCodeAt(pos) !== 10) {
-    return false;
-  }
-  const label = normalizeReference(str.slice(1, labelEnd));
-  if (!label) {
-    return false;
-  }
-  if (silent) {
-    return true;
-  }
-  if (typeof state.env.references === "undefined") {
-    state.env.references = {};
-  }
-  if (typeof state.env.references[label] === "undefined") {
-    state.env.references[label] = { title: title2, href };
-  }
-  state.line = nextLine;
-  return true;
-}
-const block_names = [
-  "address",
-  "article",
-  "aside",
-  "base",
-  "basefont",
-  "blockquote",
-  "body",
-  "caption",
-  "center",
-  "col",
-  "colgroup",
-  "dd",
-  "details",
-  "dialog",
-  "dir",
-  "div",
-  "dl",
-  "dt",
-  "fieldset",
-  "figcaption",
-  "figure",
-  "footer",
-  "form",
-  "frame",
-  "frameset",
-  "h1",
-  "h2",
-  "h3",
-  "h4",
-  "h5",
-  "h6",
-  "head",
-  "header",
-  "hr",
-  "html",
-  "iframe",
-  "legend",
-  "li",
-  "link",
-  "main",
-  "menu",
-  "menuitem",
-  "nav",
-  "noframes",
-  "ol",
-  "optgroup",
-  "option",
-  "p",
-  "param",
-  "search",
-  "section",
-  "summary",
-  "table",
-  "tbody",
-  "td",
-  "tfoot",
-  "th",
-  "thead",
-  "title",
-  "tr",
-  "track",
-  "ul"
-];
-const attr_name = "[a-zA-Z_:][a-zA-Z0-9:._-]*";
-const unquoted = "[^\"'=<>`\\x00-\\x20]+";
-const single_quoted = "'[^']*'";
-const double_quoted = '"[^"]*"';
-const attr_value = "(?:" + unquoted + "|" + single_quoted + "|" + double_quoted + ")";
-const attribute = "(?:\\s+" + attr_name + "(?:\\s*=\\s*" + attr_value + ")?)";
-const open_tag = "<[A-Za-z][A-Za-z0-9\\-]*" + attribute + "*\\s*\\/?>";
-const close_tag = "<\\/[A-Za-z][A-Za-z0-9\\-]*\\s*>";
-const comment = "<!---?>|<!--(?:[^-]|-[^-]|--[^>])*-->";
-const processing = "<[?][\\s\\S]*?[?]>";
-const declaration = "<![A-Za-z][^>]*>";
-const cdata = "<!\\[CDATA\\[[\\s\\S]*?\\]\\]>";
-const HTML_TAG_RE = new RegExp("^(?:" + open_tag + "|" + close_tag + "|" + comment + "|" + processing + "|" + declaration + "|" + cdata + ")");
-const HTML_OPEN_CLOSE_TAG_RE = new RegExp("^(?:" + open_tag + "|" + close_tag + ")");
-const HTML_SEQUENCES = [
-  [/^<(script|pre|style|textarea)(?=(\s|>|$))/i, /<\/(script|pre|style|textarea)>/i, true],
-  [/^<!--/, /-->/, true],
-  [/^<\?/, /\?>/, true],
-  [/^<![A-Z]/, />/, true],
-  [/^<!\[CDATA\[/, /\]\]>/, true],
-  [new RegExp("^</?(" + block_names.join("|") + ")(?=(\\s|/?>|$))", "i"), /^$/, true],
-  [new RegExp(HTML_OPEN_CLOSE_TAG_RE.source + "\\s*$"), /^$/, false]
-];
-function html_block(state, startLine, endLine, silent) {
-  let pos = state.bMarks[startLine] + state.tShift[startLine];
-  let max = state.eMarks[startLine];
-  if (state.sCount[startLine] - state.blkIndent >= 4) {
-    return false;
-  }
-  if (!state.md.options.html) {
-    return false;
-  }
-  if (state.src.charCodeAt(pos) !== 60) {
-    return false;
-  }
-  let lineText = state.src.slice(pos, max);
-  let i = 0;
-  for (; i < HTML_SEQUENCES.length; i++) {
-    if (HTML_SEQUENCES[i][0].test(lineText)) {
-      break;
-    }
-  }
-  if (i === HTML_SEQUENCES.length) {
-    return false;
-  }
-  if (silent) {
-    return HTML_SEQUENCES[i][2];
-  }
-  let nextLine = startLine + 1;
-  const endsOnBlankLine = HTML_SEQUENCES[i][1].test("");
-  if (!HTML_SEQUENCES[i][1].test(lineText)) {
-    for (; nextLine < endLine; nextLine++) {
-      if (state.sCount[nextLine] < state.blkIndent) {
-        if (endsOnBlankLine || !state.isEmpty(nextLine)) {
-          break;
-        }
-      }
-      pos = state.bMarks[nextLine] + state.tShift[nextLine];
-      max = state.eMarks[nextLine];
-      lineText = state.src.slice(pos, max);
-      if (HTML_SEQUENCES[i][1].test(lineText)) {
-        if (lineText.length !== 0) {
-          nextLine++;
-        }
-        break;
-      }
-    }
-  }
-  state.line = nextLine;
-  const token = state.push("html_block", "", 0);
-  token.map = [startLine, nextLine];
-  token.content = state.getLines(startLine, nextLine, state.blkIndent, true);
-  return true;
-}
-function heading(state, startLine, endLine, silent) {
-  let pos = state.bMarks[startLine] + state.tShift[startLine];
-  let max = state.eMarks[startLine];
-  if (state.sCount[startLine] - state.blkIndent >= 4) {
-    return false;
-  }
-  let ch = state.src.charCodeAt(pos);
-  if (ch !== 35 || pos >= max) {
-    return false;
-  }
-  let level = 1;
-  ch = state.src.charCodeAt(++pos);
-  while (ch === 35 && pos < max && level <= 6) {
-    level++;
-    ch = state.src.charCodeAt(++pos);
-  }
-  if (level > 6 || pos < max && !isSpace(ch)) {
-    return false;
-  }
-  if (silent) {
-    return true;
-  }
-  max = state.skipSpacesBack(max, pos);
-  const tmp = state.skipCharsBack(max, 35, pos);
-  if (tmp > pos && isSpace(state.src.charCodeAt(tmp - 1))) {
-    max = tmp;
-  }
-  state.line = startLine + 1;
-  const token_o = state.push("heading_open", "h" + String(level), 1);
-  token_o.markup = "########".slice(0, level);
-  token_o.map = [startLine, state.line];
-  const token_i = state.push("inline", "", 0);
-  token_i.content = asciiTrim(state.src.slice(pos, max));
-  token_i.map = [startLine, state.line];
-  token_i.children = [];
-  const token_c = state.push("heading_close", "h" + String(level), -1);
-  token_c.markup = "########".slice(0, level);
-  return true;
-}
-function lheading(state, startLine, endLine) {
-  const terminatorRules = state.md.block.ruler.getRules("paragraph");
-  if (state.sCount[startLine] - state.blkIndent >= 4) {
-    return false;
-  }
-  const oldParentType = state.parentType;
-  state.parentType = "paragraph";
-  let level = 0;
-  let marker;
-  let nextLine = startLine + 1;
-  for (; nextLine < endLine && !state.isEmpty(nextLine); nextLine++) {
-    if (state.sCount[nextLine] - state.blkIndent > 3) {
-      continue;
-    }
-    if (state.sCount[nextLine] >= state.blkIndent) {
-      let pos = state.bMarks[nextLine] + state.tShift[nextLine];
-      const max = state.eMarks[nextLine];
-      if (pos < max) {
-        marker = state.src.charCodeAt(pos);
-        if (marker === 45 || marker === 61) {
-          pos = state.skipChars(pos, marker);
-          pos = state.skipSpaces(pos);
-          if (pos >= max) {
-            level = marker === 61 ? 1 : 2;
-            break;
-          }
-        }
-      }
-    }
-    if (state.sCount[nextLine] < 0) {
-      continue;
-    }
-    let terminate = false;
-    for (let i = 0, l = terminatorRules.length; i < l; i++) {
-      if (terminatorRules[i](state, nextLine, endLine, true)) {
-        terminate = true;
-        break;
-      }
-    }
-    if (terminate) {
-      break;
-    }
-  }
-  if (!level) {
-    state.parentType = oldParentType;
-    return false;
-  }
-  const content = asciiTrim(state.getLines(startLine, nextLine, state.blkIndent, false));
-  state.line = nextLine + 1;
-  const token_o = state.push("heading_open", "h" + String(level), 1);
-  token_o.markup = String.fromCharCode(marker);
-  token_o.map = [startLine, state.line];
-  const token_i = state.push("inline", "", 0);
-  token_i.content = content;
-  token_i.map = [startLine, state.line - 1];
-  token_i.children = [];
-  const token_c = state.push("heading_close", "h" + String(level), -1);
-  token_c.markup = String.fromCharCode(marker);
-  state.parentType = oldParentType;
-  return true;
-}
-function paragraph(state, startLine, endLine) {
-  const terminatorRules = state.md.block.ruler.getRules("paragraph");
-  const oldParentType = state.parentType;
-  let nextLine = startLine + 1;
-  state.parentType = "paragraph";
-  for (; nextLine < endLine && !state.isEmpty(nextLine); nextLine++) {
-    if (state.sCount[nextLine] - state.blkIndent > 3) {
-      continue;
-    }
-    if (state.sCount[nextLine] < 0) {
-      continue;
-    }
-    let terminate = false;
-    for (let i = 0, l = terminatorRules.length; i < l; i++) {
-      if (terminatorRules[i](state, nextLine, endLine, true)) {
-        terminate = true;
-        break;
-      }
-    }
-    if (terminate) {
-      break;
-    }
-  }
-  const content = asciiTrim(state.getLines(startLine, nextLine, state.blkIndent, false));
-  state.line = nextLine;
-  const token_o = state.push("paragraph_open", "p", 1);
-  token_o.map = [startLine, state.line];
-  const token_i = state.push("inline", "", 0);
-  token_i.content = content;
-  token_i.map = [startLine, state.line];
-  token_i.children = [];
-  state.push("paragraph_close", "p", -1);
-  state.parentType = oldParentType;
-  return true;
-}
-const _rules$1 = [
-  // First 2 params - rule name & source. Secondary array - list of rules,
-  // which can be terminated by this one.
-  ["table", table, ["paragraph", "reference"]],
-  ["code", code$2],
-  ["fence", fence, ["paragraph", "reference", "blockquote", "list"]],
-  ["blockquote", blockquote, ["paragraph", "reference", "blockquote", "list"]],
-  ["hr", hr, ["paragraph", "reference", "blockquote", "list"]],
-  ["list", list, ["paragraph", "reference", "blockquote"]],
-  ["reference", reference],
-  ["html_block", html_block, ["paragraph", "reference", "blockquote"]],
-  ["heading", heading, ["paragraph", "reference", "blockquote"]],
-  ["lheading", lheading],
-  ["paragraph", paragraph]
-];
-function ParserBlock() {
-  this.ruler = new Ruler();
-  for (let i = 0; i < _rules$1.length; i++) {
-    this.ruler.push(_rules$1[i][0], _rules$1[i][1], { alt: (_rules$1[i][2] || []).slice() });
-  }
-}
-ParserBlock.prototype.tokenize = function(state, startLine, endLine) {
-  const rules2 = this.ruler.getRules("");
-  const len = rules2.length;
-  const maxNesting = state.md.options.maxNesting;
-  let line = startLine;
-  let hasEmptyLines = false;
-  while (line < endLine) {
-    state.line = line = state.skipEmptyLines(line);
-    if (line >= endLine) {
-      break;
-    }
-    if (state.sCount[line] < state.blkIndent) {
-      break;
-    }
-    if (state.level >= maxNesting) {
-      state.line = endLine;
-      break;
-    }
-    const prevLine = state.line;
-    let ok = false;
-    for (let i = 0; i < len; i++) {
-      ok = rules2[i](state, line, endLine, false);
-      if (ok) {
-        if (prevLine >= state.line) {
-          throw new Error("block rule didn't increment state.line");
-        }
-        break;
-      }
-    }
-    if (!ok) throw new Error("none of the block rules matched");
-    state.tight = !hasEmptyLines;
-    if (state.isEmpty(state.line - 1)) {
-      hasEmptyLines = true;
-    }
-    line = state.line;
-    if (line < endLine && state.isEmpty(line)) {
-      hasEmptyLines = true;
-      line++;
-      state.line = line;
-    }
-  }
-};
-ParserBlock.prototype.parse = function(src, md, env, outTokens) {
-  if (!src) {
-    return;
-  }
-  const state = new this.State(src, md, env, outTokens);
-  this.tokenize(state, state.line, state.lineMax);
-};
-ParserBlock.prototype.State = StateBlock;
-function StateInline(src, md, env, outTokens) {
-  this.src = src;
-  this.env = env;
-  this.md = md;
-  this.tokens = outTokens;
-  this.tokens_meta = Array(outTokens.length);
-  this.pos = 0;
-  this.posMax = this.src.length;
-  this.level = 0;
-  this.pending = "";
-  this.pendingLevel = 0;
-  this.cache = {};
-  this.delimiters = [];
-  this._prev_delimiters = [];
-  this.backticks = {};
-  this.backticksScanned = false;
-  this.linkLevel = 0;
-}
-StateInline.prototype.pushPending = function() {
-  const token = new Token("text", "", 0);
-  token.content = this.pending;
-  token.level = this.pendingLevel;
-  this.tokens.push(token);
-  this.pending = "";
-  return token;
-};
-StateInline.prototype.push = function(type2, tag, nesting) {
-  if (this.pending) {
-    this.pushPending();
-  }
-  const token = new Token(type2, tag, nesting);
-  let token_meta = null;
-  if (nesting < 0) {
-    this.level--;
-    this.delimiters = this._prev_delimiters.pop();
-  }
-  token.level = this.level;
-  if (nesting > 0) {
-    this.level++;
-    this._prev_delimiters.push(this.delimiters);
-    this.delimiters = [];
-    token_meta = { delimiters: this.delimiters };
-  }
-  this.pendingLevel = this.level;
-  this.tokens.push(token);
-  this.tokens_meta.push(token_meta);
-  return token;
-};
-StateInline.prototype.scanDelims = function(start, canSplitWord) {
-  const max = this.posMax;
-  const marker = this.src.charCodeAt(start);
-  let lastChar;
-  if (start === 0) {
-    lastChar = 32;
-  } else if (start === 1) {
-    lastChar = this.src.charCodeAt(0);
-    if ((lastChar & 63488) === 55296) {
-      lastChar = 65533;
-    }
-  } else {
-    lastChar = this.src.charCodeAt(start - 1);
-    if ((lastChar & 64512) === 56320) {
-      const highSurr = this.src.charCodeAt(start - 2);
-      lastChar = (highSurr & 64512) === 55296 ? 65536 + (highSurr - 55296 << 10) + (lastChar - 56320) : 65533;
-    } else if ((lastChar & 64512) === 55296) {
-      lastChar = 65533;
-    }
-  }
-  let pos = start;
-  while (pos < max && this.src.charCodeAt(pos) === marker) {
-    pos++;
-  }
-  const count = pos - start;
-  let nextChar = pos < max ? this.src.charCodeAt(pos) : 32;
-  if ((nextChar & 64512) === 55296) {
-    const lowSurr = this.src.charCodeAt(pos + 1);
-    nextChar = (lowSurr & 64512) === 56320 ? 65536 + (nextChar - 55296 << 10) + (lowSurr - 56320) : 65533;
-  } else if ((nextChar & 64512) === 56320) {
-    nextChar = 65533;
-  }
-  const isLastPunctChar = isMdAsciiPunct(lastChar) || isPunctCharCode(lastChar);
-  const isNextPunctChar = isMdAsciiPunct(nextChar) || isPunctCharCode(nextChar);
-  const isLastWhiteSpace = isWhiteSpace(lastChar);
-  const isNextWhiteSpace = isWhiteSpace(nextChar);
-  const left_flanking = !isNextWhiteSpace && (!isNextPunctChar || isLastWhiteSpace || isLastPunctChar);
-  const right_flanking = !isLastWhiteSpace && (!isLastPunctChar || isNextWhiteSpace || isNextPunctChar);
-  const can_open = left_flanking && (canSplitWord || !right_flanking || isLastPunctChar);
-  const can_close = right_flanking && (canSplitWord || !left_flanking || isNextPunctChar);
-  return { can_open, can_close, length: count };
-};
-StateInline.prototype.Token = Token;
-function isTerminatorChar(ch) {
-  switch (ch) {
-    case 10:
-    case 33:
-    case 35:
-    case 36:
-    case 37:
-    case 38:
-    case 42:
-    case 43:
-    case 45:
-    case 58:
-    case 60:
-    case 61:
-    case 62:
-    case 64:
-    case 91:
-    case 92:
-    case 93:
-    case 94:
-    case 95:
-    case 96:
-    case 123:
-    case 125:
-    case 126:
-      return true;
-    default:
-      return false;
-  }
-}
-function text(state, silent) {
-  let pos = state.pos;
-  while (pos < state.posMax && !isTerminatorChar(state.src.charCodeAt(pos))) {
-    pos++;
-  }
-  if (pos === state.pos) {
-    return false;
-  }
-  if (!silent) {
-    state.pending += state.src.slice(state.pos, pos);
-  }
-  state.pos = pos;
-  return true;
-}
-const SCHEME_RE = /(?:^|[^a-z0-9.+-])([a-z][a-z0-9.+-]*)$/i;
-function linkify(state, silent) {
-  if (!state.md.options.linkify) return false;
-  if (state.linkLevel > 0) return false;
-  const pos = state.pos;
-  const max = state.posMax;
-  if (pos + 3 > max) return false;
-  if (state.src.charCodeAt(pos) !== 58) return false;
-  if (state.src.charCodeAt(pos + 1) !== 47) return false;
-  if (state.src.charCodeAt(pos + 2) !== 47) return false;
-  const match2 = state.pending.match(SCHEME_RE);
-  if (!match2) return false;
-  const proto = match2[1];
-  const link2 = state.md.linkify.matchAtStart(state.src.slice(pos - proto.length));
-  if (!link2) return false;
-  let url = link2.url;
-  if (url.length <= proto.length) return false;
-  let urlEnd = url.length;
-  while (urlEnd > 0 && url.charCodeAt(urlEnd - 1) === 42) {
-    urlEnd--;
-  }
-  if (urlEnd !== url.length) {
-    url = url.slice(0, urlEnd);
-  }
-  const fullUrl = state.md.normalizeLink(url);
-  if (!state.md.validateLink(fullUrl)) return false;
-  if (!silent) {
-    state.pending = state.pending.slice(0, -proto.length);
-    const token_o = state.push("link_open", "a", 1);
-    token_o.attrs = [["href", fullUrl]];
-    token_o.markup = "linkify";
-    token_o.info = "auto";
-    const token_t = state.push("text", "", 0);
-    token_t.content = state.md.normalizeLinkText(url);
-    const token_c = state.push("link_close", "a", -1);
-    token_c.markup = "linkify";
-    token_c.info = "auto";
-  }
-  state.pos += url.length - proto.length;
-  return true;
-}
-function newline(state, silent) {
-  let pos = state.pos;
-  if (state.src.charCodeAt(pos) !== 10) {
-    return false;
-  }
-  const pmax = state.pending.length - 1;
-  const max = state.posMax;
-  if (!silent) {
-    if (pmax >= 0 && state.pending.charCodeAt(pmax) === 32) {
-      if (pmax >= 1 && state.pending.charCodeAt(pmax - 1) === 32) {
-        let ws = pmax - 1;
-        while (ws >= 1 && state.pending.charCodeAt(ws - 1) === 32) ws--;
-        state.pending = state.pending.slice(0, ws);
-        state.push("hardbreak", "br", 0);
-      } else {
-        state.pending = state.pending.slice(0, -1);
-        state.push("softbreak", "br", 0);
-      }
-    } else {
-      state.push("softbreak", "br", 0);
-    }
-  }
-  pos++;
-  while (pos < max && isSpace(state.src.charCodeAt(pos))) {
-    pos++;
-  }
-  state.pos = pos;
-  return true;
-}
-const ESCAPED = [];
-for (let i = 0; i < 256; i++) {
-  ESCAPED.push(0);
-}
-"\\!\"#$%&'()*+,./:;<=>?@[]^_`{|}~-".split("").forEach(function(ch) {
-  ESCAPED[ch.charCodeAt(0)] = 1;
-});
-function escape$1(state, silent) {
-  let pos = state.pos;
-  const max = state.posMax;
-  if (state.src.charCodeAt(pos) !== 92) return false;
-  pos++;
-  if (pos >= max) return false;
-  let ch1 = state.src.charCodeAt(pos);
-  if (ch1 === 10) {
-    if (!silent) {
-      state.push("hardbreak", "br", 0);
-    }
-    pos++;
-    while (pos < max) {
-      ch1 = state.src.charCodeAt(pos);
-      if (!isSpace(ch1)) break;
-      pos++;
-    }
-    state.pos = pos;
-    return true;
-  }
-  let escapedStr = state.src[pos];
-  if (ch1 >= 55296 && ch1 <= 56319 && pos + 1 < max) {
-    const ch2 = state.src.charCodeAt(pos + 1);
-    if (ch2 >= 56320 && ch2 <= 57343) {
-      escapedStr += state.src[pos + 1];
-      pos++;
-    }
-  }
-  const origStr = "\\" + escapedStr;
-  if (!silent) {
-    const token = state.push("text_special", "", 0);
-    if (ch1 < 256 && ESCAPED[ch1] !== 0) {
-      token.content = escapedStr;
-    } else {
-      token.content = origStr;
-    }
-    token.markup = origStr;
-    token.info = "escape";
-  }
-  state.pos = pos + 1;
-  return true;
-}
-function backtick(state, silent) {
-  let pos = state.pos;
-  const ch = state.src.charCodeAt(pos);
-  if (ch !== 96) {
-    return false;
-  }
-  const start = pos;
-  pos++;
-  const max = state.posMax;
-  while (pos < max && state.src.charCodeAt(pos) === 96) {
-    pos++;
-  }
-  const marker = state.src.slice(start, pos);
-  const openerLength = marker.length;
-  if (state.backticksScanned && (state.backticks[openerLength] || 0) <= start) {
-    if (!silent) state.pending += marker;
-    state.pos += openerLength;
-    return true;
-  }
-  let matchEnd = pos;
-  let matchStart;
-  while ((matchStart = state.src.indexOf("`", matchEnd)) !== -1) {
-    matchEnd = matchStart + 1;
-    while (matchEnd < max && state.src.charCodeAt(matchEnd) === 96) {
-      matchEnd++;
-    }
-    const closerLength = matchEnd - matchStart;
-    if (closerLength === openerLength) {
-      if (!silent) {
-        const token = state.push("code_inline", "code", 0);
-        token.markup = marker;
-        token.content = state.src.slice(pos, matchStart).replace(/\n/g, " ").replace(/^ (.+) $/, "$1");
-      }
-      state.pos = matchEnd;
-      return true;
-    }
-    state.backticks[closerLength] = matchStart;
-  }
-  state.backticksScanned = true;
-  if (!silent) state.pending += marker;
-  state.pos += openerLength;
-  return true;
-}
-function strikethrough_tokenize(state, silent) {
-  const start = state.pos;
-  const marker = state.src.charCodeAt(start);
-  if (silent) {
-    return false;
-  }
-  if (marker !== 126) {
-    return false;
-  }
-  const scanned = state.scanDelims(state.pos, true);
-  let len = scanned.length;
-  const ch = String.fromCharCode(marker);
-  if (len < 2) {
-    return false;
-  }
-  let token;
-  if (len % 2) {
-    token = state.push("text", "", 0);
-    token.content = ch;
-    len--;
-  }
-  for (let i = 0; i < len; i += 2) {
-    token = state.push("text", "", 0);
-    token.content = ch + ch;
-    state.delimiters.push({
-      marker,
-      length: 0,
-      // disable "rule of 3" length checks meant for emphasis
-      token: state.tokens.length - 1,
-      end: -1,
-      open: scanned.can_open,
-      close: scanned.can_close
-    });
-  }
-  state.pos += scanned.length;
-  return true;
-}
-function postProcess$1(state, delimiters) {
-  let token;
-  const loneMarkers = [];
-  const max = delimiters.length;
-  for (let i = 0; i < max; i++) {
-    const startDelim = delimiters[i];
-    if (startDelim.marker !== 126) {
-      continue;
-    }
-    if (startDelim.end === -1) {
-      continue;
-    }
-    const endDelim = delimiters[startDelim.end];
-    token = state.tokens[startDelim.token];
-    token.type = "s_open";
-    token.tag = "s";
-    token.nesting = 1;
-    token.markup = "~~";
-    token.content = "";
-    token = state.tokens[endDelim.token];
-    token.type = "s_close";
-    token.tag = "s";
-    token.nesting = -1;
-    token.markup = "~~";
-    token.content = "";
-    if (state.tokens[endDelim.token - 1].type === "text" && state.tokens[endDelim.token - 1].content === "~") {
-      loneMarkers.push(endDelim.token - 1);
-    }
-  }
-  while (loneMarkers.length) {
-    const i = loneMarkers.pop();
-    let j = i + 1;
-    while (j < state.tokens.length && state.tokens[j].type === "s_close") {
-      j++;
-    }
-    j--;
-    if (i !== j) {
-      token = state.tokens[j];
-      state.tokens[j] = state.tokens[i];
-      state.tokens[i] = token;
-    }
-  }
-}
-function strikethrough_postProcess(state) {
-  const tokens_meta = state.tokens_meta;
-  const max = state.tokens_meta.length;
-  postProcess$1(state, state.delimiters);
-  for (let curr = 0; curr < max; curr++) {
-    if (tokens_meta[curr] && tokens_meta[curr].delimiters) {
-      postProcess$1(state, tokens_meta[curr].delimiters);
-    }
-  }
-}
-const r_strikethrough = {
-  tokenize: strikethrough_tokenize,
-  postProcess: strikethrough_postProcess
-};
-function emphasis_tokenize(state, silent) {
-  const start = state.pos;
-  const marker = state.src.charCodeAt(start);
-  if (silent) {
-    return false;
-  }
-  if (marker !== 95 && marker !== 42) {
-    return false;
-  }
-  const scanned = state.scanDelims(state.pos, marker === 42);
-  for (let i = 0; i < scanned.length; i++) {
-    const token = state.push("text", "", 0);
-    token.content = String.fromCharCode(marker);
-    state.delimiters.push({
-      // Char code of the starting marker (number).
-      //
-      marker,
-      // Total length of these series of delimiters.
-      //
-      length: scanned.length,
-      // A position of the token this delimiter corresponds to.
-      //
-      token: state.tokens.length - 1,
-      // If this delimiter is matched as a valid opener, `end` will be
-      // equal to its position, otherwise it's `-1`.
-      //
-      end: -1,
-      // Boolean flags that determine if this delimiter could open or close
-      // an emphasis.
-      //
-      open: scanned.can_open,
-      close: scanned.can_close
-    });
-  }
-  state.pos += scanned.length;
-  return true;
-}
-function postProcess(state, delimiters) {
-  const max = delimiters.length;
-  for (let i = max - 1; i >= 0; i--) {
-    const startDelim = delimiters[i];
-    if (startDelim.marker !== 95 && startDelim.marker !== 42) {
-      continue;
-    }
-    if (startDelim.end === -1) {
-      continue;
-    }
-    const endDelim = delimiters[startDelim.end];
-    const isStrong = i > 0 && delimiters[i - 1].end === startDelim.end + 1 && // check that first two markers match and adjacent
-    delimiters[i - 1].marker === startDelim.marker && delimiters[i - 1].token === startDelim.token - 1 && // check that last two markers are adjacent (we can safely assume they match)
-    delimiters[startDelim.end + 1].token === endDelim.token + 1;
-    const ch = String.fromCharCode(startDelim.marker);
-    const token_o = state.tokens[startDelim.token];
-    token_o.type = isStrong ? "strong_open" : "em_open";
-    token_o.tag = isStrong ? "strong" : "em";
-    token_o.nesting = 1;
-    token_o.markup = isStrong ? ch + ch : ch;
-    token_o.content = "";
-    const token_c = state.tokens[endDelim.token];
-    token_c.type = isStrong ? "strong_close" : "em_close";
-    token_c.tag = isStrong ? "strong" : "em";
-    token_c.nesting = -1;
-    token_c.markup = isStrong ? ch + ch : ch;
-    token_c.content = "";
-    if (isStrong) {
-      state.tokens[delimiters[i - 1].token].content = "";
-      state.tokens[delimiters[startDelim.end + 1].token].content = "";
-      i--;
-    }
-  }
-}
-function emphasis_post_process(state) {
-  const tokens_meta = state.tokens_meta;
-  const max = state.tokens_meta.length;
-  postProcess(state, state.delimiters);
-  for (let curr = 0; curr < max; curr++) {
-    if (tokens_meta[curr] && tokens_meta[curr].delimiters) {
-      postProcess(state, tokens_meta[curr].delimiters);
-    }
-  }
-}
-const r_emphasis = {
-  tokenize: emphasis_tokenize,
-  postProcess: emphasis_post_process
-};
-function link(state, silent) {
-  let code2, label, res, ref2;
-  let href = "";
-  let title2 = "";
-  let start = state.pos;
-  let parseReference = true;
-  if (state.src.charCodeAt(state.pos) !== 91) {
-    return false;
-  }
-  const oldPos = state.pos;
-  const max = state.posMax;
-  const labelStart = state.pos + 1;
-  const labelEnd = state.md.helpers.parseLinkLabel(state, state.pos, true);
-  if (labelEnd < 0) {
-    return false;
-  }
-  let pos = labelEnd + 1;
-  if (pos < max && state.src.charCodeAt(pos) === 40) {
-    parseReference = false;
-    pos++;
-    for (; pos < max; pos++) {
-      code2 = state.src.charCodeAt(pos);
-      if (!isSpace(code2) && code2 !== 10) {
-        break;
-      }
-    }
-    if (pos >= max) {
-      return false;
-    }
-    start = pos;
-    res = state.md.helpers.parseLinkDestination(state.src, pos, state.posMax);
-    if (res.ok) {
-      href = state.md.normalizeLink(res.str);
-      if (state.md.validateLink(href)) {
-        pos = res.pos;
-      } else {
-        href = "";
-      }
-      start = pos;
-      for (; pos < max; pos++) {
-        code2 = state.src.charCodeAt(pos);
-        if (!isSpace(code2) && code2 !== 10) {
-          break;
-        }
-      }
-      res = state.md.helpers.parseLinkTitle(state.src, pos, state.posMax);
-      if (pos < max && start !== pos && res.ok) {
-        title2 = res.str;
-        pos = res.pos;
-        for (; pos < max; pos++) {
-          code2 = state.src.charCodeAt(pos);
-          if (!isSpace(code2) && code2 !== 10) {
-            break;
-          }
-        }
-      }
-    }
-    if (pos >= max || state.src.charCodeAt(pos) !== 41) {
-      parseReference = true;
-    }
-    pos++;
-  }
-  if (parseReference) {
-    if (typeof state.env.references === "undefined") {
-      return false;
-    }
-    if (pos < max && state.src.charCodeAt(pos) === 91) {
-      start = pos + 1;
-      pos = state.md.helpers.parseLinkLabel(state, pos);
-      if (pos >= 0) {
-        label = state.src.slice(start, pos++);
-      } else {
-        pos = labelEnd + 1;
-      }
-    } else {
-      pos = labelEnd + 1;
-    }
-    if (!label) {
-      label = state.src.slice(labelStart, labelEnd);
-    }
-    ref2 = state.env.references[normalizeReference(label)];
-    if (!ref2) {
-      state.pos = oldPos;
-      return false;
-    }
-    href = ref2.href;
-    title2 = ref2.title;
-  }
-  if (!silent) {
-    state.pos = labelStart;
-    state.posMax = labelEnd;
-    const token_o = state.push("link_open", "a", 1);
-    const attrs = [["href", href]];
-    token_o.attrs = attrs;
-    if (title2) {
-      attrs.push(["title", title2]);
-    }
-    state.linkLevel++;
-    state.md.inline.tokenize(state);
-    state.linkLevel--;
-    state.push("link_close", "a", -1);
-  }
-  state.pos = pos;
-  state.posMax = max;
-  return true;
-}
-function image(state, silent) {
-  let code2, content, label, pos, ref2, res, title2, start;
-  let href = "";
-  const oldPos = state.pos;
-  const max = state.posMax;
-  if (state.src.charCodeAt(state.pos) !== 33) {
-    return false;
-  }
-  if (state.src.charCodeAt(state.pos + 1) !== 91) {
-    return false;
-  }
-  const labelStart = state.pos + 2;
-  const labelEnd = state.md.helpers.parseLinkLabel(state, state.pos + 1, false);
-  if (labelEnd < 0) {
-    return false;
-  }
-  pos = labelEnd + 1;
-  if (pos < max && state.src.charCodeAt(pos) === 40) {
-    pos++;
-    for (; pos < max; pos++) {
-      code2 = state.src.charCodeAt(pos);
-      if (!isSpace(code2) && code2 !== 10) {
-        break;
-      }
-    }
-    if (pos >= max) {
-      return false;
-    }
-    start = pos;
-    res = state.md.helpers.parseLinkDestination(state.src, pos, state.posMax);
-    if (res.ok) {
-      href = state.md.normalizeLink(res.str);
-      if (state.md.validateLink(href)) {
-        pos = res.pos;
-      } else {
-        href = "";
-      }
-    }
-    start = pos;
-    for (; pos < max; pos++) {
-      code2 = state.src.charCodeAt(pos);
-      if (!isSpace(code2) && code2 !== 10) {
-        break;
-      }
-    }
-    res = state.md.helpers.parseLinkTitle(state.src, pos, state.posMax);
-    if (pos < max && start !== pos && res.ok) {
-      title2 = res.str;
-      pos = res.pos;
-      for (; pos < max; pos++) {
-        code2 = state.src.charCodeAt(pos);
-        if (!isSpace(code2) && code2 !== 10) {
-          break;
-        }
-      }
-    } else {
-      title2 = "";
-    }
-    if (pos >= max || state.src.charCodeAt(pos) !== 41) {
-      state.pos = oldPos;
-      return false;
-    }
-    pos++;
-  } else {
-    if (typeof state.env.references === "undefined") {
-      return false;
-    }
-    if (pos < max && state.src.charCodeAt(pos) === 91) {
-      start = pos + 1;
-      pos = state.md.helpers.parseLinkLabel(state, pos);
-      if (pos >= 0) {
-        label = state.src.slice(start, pos++);
-      } else {
-        pos = labelEnd + 1;
-      }
-    } else {
-      pos = labelEnd + 1;
-    }
-    if (!label) {
-      label = state.src.slice(labelStart, labelEnd);
-    }
-    ref2 = state.env.references[normalizeReference(label)];
-    if (!ref2) {
-      state.pos = oldPos;
-      return false;
-    }
-    href = ref2.href;
-    title2 = ref2.title;
-  }
-  if (!silent) {
-    content = state.src.slice(labelStart, labelEnd);
-    const tokens = [];
-    state.md.inline.parse(
-      content,
-      state.md,
-      state.env,
-      tokens
-    );
-    const token = state.push("image", "img", 0);
-    const attrs = [["src", href], ["alt", ""]];
-    token.attrs = attrs;
-    token.children = tokens;
-    token.content = content;
-    if (title2) {
-      attrs.push(["title", title2]);
-    }
-  }
-  state.pos = pos;
-  state.posMax = max;
-  return true;
-}
-const EMAIL_RE = /^([a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*)$/;
-const AUTOLINK_RE = /^([a-zA-Z][a-zA-Z0-9+.-]{1,31}):([^<>\x00-\x20]*)$/;
-function autolink(state, silent) {
-  let pos = state.pos;
-  if (state.src.charCodeAt(pos) !== 60) {
-    return false;
-  }
-  const start = state.pos;
-  const max = state.posMax;
-  for (; ; ) {
-    if (++pos >= max) return false;
-    const ch = state.src.charCodeAt(pos);
-    if (ch === 60) return false;
-    if (ch === 62) break;
-  }
-  const url = state.src.slice(start + 1, pos);
-  if (AUTOLINK_RE.test(url)) {
-    const fullUrl = state.md.normalizeLink(url);
-    if (!state.md.validateLink(fullUrl)) {
-      return false;
-    }
-    if (!silent) {
-      const token_o = state.push("link_open", "a", 1);
-      token_o.attrs = [["href", fullUrl]];
-      token_o.markup = "autolink";
-      token_o.info = "auto";
-      const token_t = state.push("text", "", 0);
-      token_t.content = state.md.normalizeLinkText(url);
-      const token_c = state.push("link_close", "a", -1);
-      token_c.markup = "autolink";
-      token_c.info = "auto";
-    }
-    state.pos += url.length + 2;
-    return true;
-  }
-  if (EMAIL_RE.test(url)) {
-    const fullUrl = state.md.normalizeLink("mailto:" + url);
-    if (!state.md.validateLink(fullUrl)) {
-      return false;
-    }
-    if (!silent) {
-      const token_o = state.push("link_open", "a", 1);
-      token_o.attrs = [["href", fullUrl]];
-      token_o.markup = "autolink";
-      token_o.info = "auto";
-      const token_t = state.push("text", "", 0);
-      token_t.content = state.md.normalizeLinkText(url);
-      const token_c = state.push("link_close", "a", -1);
-      token_c.markup = "autolink";
-      token_c.info = "auto";
-    }
-    state.pos += url.length + 2;
-    return true;
-  }
-  return false;
-}
-function isLinkOpen(str) {
-  return /^<a[>\s]/i.test(str);
-}
-function isLinkClose(str) {
-  return /^<\/a\s*>/i.test(str);
-}
-function isLetter(ch) {
-  const lc = ch | 32;
-  return lc >= 97 && lc <= 122;
-}
-function html_inline(state, silent) {
-  if (!state.md.options.html) {
-    return false;
-  }
-  const max = state.posMax;
-  const pos = state.pos;
-  if (state.src.charCodeAt(pos) !== 60 || pos + 2 >= max) {
-    return false;
-  }
-  const ch = state.src.charCodeAt(pos + 1);
-  if (ch !== 33 && ch !== 63 && ch !== 47 && !isLetter(ch)) {
-    return false;
-  }
-  const match2 = state.src.slice(pos).match(HTML_TAG_RE);
-  if (!match2) {
-    return false;
-  }
-  if (!silent) {
-    const token = state.push("html_inline", "", 0);
-    token.content = match2[0];
-    if (isLinkOpen(token.content)) state.linkLevel++;
-    if (isLinkClose(token.content)) state.linkLevel--;
-  }
-  state.pos += match2[0].length;
-  return true;
-}
-const DIGITAL_RE = /^&#((?:x[a-f0-9]{1,6}|[0-9]{1,7}));/i;
-const NAMED_RE = /^&([a-z][a-z0-9]{1,31});/i;
-function entity(state, silent) {
-  const pos = state.pos;
-  const max = state.posMax;
-  if (state.src.charCodeAt(pos) !== 38) return false;
-  if (pos + 1 >= max) return false;
-  const ch = state.src.charCodeAt(pos + 1);
-  if (ch === 35) {
-    const match2 = state.src.slice(pos).match(DIGITAL_RE);
-    if (match2) {
-      if (!silent) {
-        const code2 = match2[1][0].toLowerCase() === "x" ? parseInt(match2[1].slice(1), 16) : parseInt(match2[1], 10);
-        const token = state.push("text_special", "", 0);
-        token.content = isValidEntityCode(code2) ? fromCodePoint(code2) : fromCodePoint(65533);
-        token.markup = match2[0];
-        token.info = "entity";
-      }
-      state.pos += match2[0].length;
-      return true;
-    }
-  } else {
-    const match2 = state.src.slice(pos).match(NAMED_RE);
-    if (match2) {
-      const decoded = decodeHTMLStrict(match2[0]);
-      if (decoded !== match2[0]) {
-        if (!silent) {
-          const token = state.push("text_special", "", 0);
-          token.content = decoded;
-          token.markup = match2[0];
-          token.info = "entity";
-        }
-        state.pos += match2[0].length;
-        return true;
-      }
-    }
-  }
-  return false;
-}
-function processDelimiters(delimiters) {
-  const openersBottom = {};
-  const max = delimiters.length;
-  if (!max) return;
-  let headerIdx = 0;
-  let lastTokenIdx = -2;
-  const jumps = [];
-  for (let closerIdx = 0; closerIdx < max; closerIdx++) {
-    const closer = delimiters[closerIdx];
-    jumps.push(0);
-    if (delimiters[headerIdx].marker !== closer.marker || lastTokenIdx !== closer.token - 1) {
-      headerIdx = closerIdx;
-    }
-    lastTokenIdx = closer.token;
-    closer.length = closer.length || 0;
-    if (!closer.close) continue;
-    if (!openersBottom.hasOwnProperty(closer.marker)) {
-      openersBottom[closer.marker] = [-1, -1, -1, -1, -1, -1];
-    }
-    const minOpenerIdx = openersBottom[closer.marker][(closer.open ? 3 : 0) + closer.length % 3];
-    let openerIdx = headerIdx - jumps[headerIdx] - 1;
-    let newMinOpenerIdx = openerIdx;
-    for (; openerIdx > minOpenerIdx; openerIdx -= jumps[openerIdx] + 1) {
-      const opener = delimiters[openerIdx];
-      if (opener.marker !== closer.marker) continue;
-      if (opener.open && opener.end < 0) {
-        let isOddMatch = false;
-        if (opener.close || closer.open) {
-          if ((opener.length + closer.length) % 3 === 0) {
-            if (opener.length % 3 !== 0 || closer.length % 3 !== 0) {
-              isOddMatch = true;
-            }
-          }
-        }
-        if (!isOddMatch) {
-          const lastJump = openerIdx > 0 && !delimiters[openerIdx - 1].open ? jumps[openerIdx - 1] + 1 : 0;
-          jumps[closerIdx] = closerIdx - openerIdx + lastJump;
-          jumps[openerIdx] = lastJump;
-          closer.open = false;
-          opener.end = closerIdx;
-          opener.close = false;
-          newMinOpenerIdx = -1;
-          lastTokenIdx = -2;
-          break;
-        }
-      }
-    }
-    if (newMinOpenerIdx !== -1) {
-      openersBottom[closer.marker][(closer.open ? 3 : 0) + (closer.length || 0) % 3] = newMinOpenerIdx;
-    }
-  }
-}
-function link_pairs(state) {
-  const tokens_meta = state.tokens_meta;
-  const max = state.tokens_meta.length;
-  processDelimiters(state.delimiters);
-  for (let curr = 0; curr < max; curr++) {
-    if (tokens_meta[curr] && tokens_meta[curr].delimiters) {
-      processDelimiters(tokens_meta[curr].delimiters);
-    }
-  }
-}
-function fragments_join(state) {
-  let curr, last;
-  let level = 0;
-  const tokens = state.tokens;
-  const max = state.tokens.length;
-  for (curr = last = 0; curr < max; curr++) {
-    if (tokens[curr].nesting < 0) level--;
-    tokens[curr].level = level;
-    if (tokens[curr].nesting > 0) level++;
-    if (tokens[curr].type === "text" && curr + 1 < max && tokens[curr + 1].type === "text") {
-      tokens[curr + 1].content = tokens[curr].content + tokens[curr + 1].content;
-    } else {
-      if (curr !== last) {
-        tokens[last] = tokens[curr];
-      }
-      last++;
-    }
-  }
-  if (curr !== last) {
-    tokens.length = last;
-  }
-}
-const _rules = [
-  ["text", text],
-  ["linkify", linkify],
-  ["newline", newline],
-  ["escape", escape$1],
-  ["backticks", backtick],
-  ["strikethrough", r_strikethrough.tokenize],
-  ["emphasis", r_emphasis.tokenize],
-  ["link", link],
-  ["image", image],
-  ["autolink", autolink],
-  ["html_inline", html_inline],
-  ["entity", entity]
-];
-const _rules2 = [
-  ["balance_pairs", link_pairs],
-  ["strikethrough", r_strikethrough.postProcess],
-  ["emphasis", r_emphasis.postProcess],
-  // rules for pairs separate '**' into its own text tokens, which may be left unused,
-  // rule below merges unused segments back with the rest of the text
-  ["fragments_join", fragments_join]
-];
-function ParserInline() {
-  this.ruler = new Ruler();
-  for (let i = 0; i < _rules.length; i++) {
-    this.ruler.push(_rules[i][0], _rules[i][1]);
-  }
-  this.ruler2 = new Ruler();
-  for (let i = 0; i < _rules2.length; i++) {
-    this.ruler2.push(_rules2[i][0], _rules2[i][1]);
-  }
-}
-ParserInline.prototype.skipToken = function(state) {
-  const pos = state.pos;
-  const rules2 = this.ruler.getRules("");
-  const len = rules2.length;
-  const maxNesting = state.md.options.maxNesting;
-  const cache2 = state.cache;
-  if (typeof cache2[pos] !== "undefined") {
-    state.pos = cache2[pos];
-    return;
-  }
-  let ok = false;
-  if (state.level < maxNesting) {
-    for (let i = 0; i < len; i++) {
-      state.level++;
-      ok = rules2[i](state, true);
-      state.level--;
-      if (ok) {
-        if (pos >= state.pos) {
-          throw new Error("inline rule didn't increment state.pos");
-        }
-        break;
-      }
-    }
-  } else {
-    state.pos = state.posMax;
-  }
-  if (!ok) {
-    state.pos++;
-  }
-  cache2[pos] = state.pos;
-};
-ParserInline.prototype.tokenize = function(state) {
-  const rules2 = this.ruler.getRules("");
-  const len = rules2.length;
-  const end = state.posMax;
-  const maxNesting = state.md.options.maxNesting;
-  while (state.pos < end) {
-    const prevPos = state.pos;
-    let ok = false;
-    if (state.level < maxNesting) {
-      for (let i = 0; i < len; i++) {
-        ok = rules2[i](state, false);
-        if (ok) {
-          if (prevPos >= state.pos) {
-            throw new Error("inline rule didn't increment state.pos");
-          }
-          break;
-        }
-      }
-    }
-    if (ok) {
-      if (state.pos >= end) {
-        break;
-      }
-      continue;
-    }
-    state.pending += state.src[state.pos++];
-  }
-  if (state.pending) {
-    state.pushPending();
-  }
-};
-ParserInline.prototype.parse = function(str, md, env, outTokens) {
-  const state = new this.State(str, md, env, outTokens);
-  this.tokenize(state);
-  const rules2 = this.ruler2.getRules("");
-  const len = rules2.length;
-  for (let i = 0; i < len; i++) {
-    rules2[i](state);
-  }
-};
-ParserInline.prototype.State = StateInline;
-function reFactory(opts) {
-  const re = {};
-  opts = opts || {};
-  re.src_Any = Any.source;
-  re.src_Cc = Cc.source;
-  re.src_Z = Z.source;
-  re.src_P = P.source;
-  re.src_ZPCc = [re.src_Z, re.src_P, re.src_Cc].join("|");
-  re.src_ZCc = [re.src_Z, re.src_Cc].join("|");
-  const text_separators = "[><｜]";
-  re.src_pseudo_letter = `(?:(?!${text_separators}|${re.src_ZPCc})${re.src_Any})`;
-  re.src_ip4 = "(?:(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)";
-  re.src_auth = `(?:(?:(?!${re.src_ZCc}|[@/\\[\\]()]).){1,50}@)?`;
-  re.src_port = "(?::(?:6(?:[0-4]\\d{3}|5(?:[0-4]\\d{2}|5(?:[0-2]\\d|3[0-5])))|[1-5]?\\d{1,4}))?";
-  re.src_host_terminator = `(?=$|${text_separators}|${re.src_ZPCc})(?!${opts["---"] ? "-(?!--)|" : "-|"}_|:\\d|\\.-|\\.(?!$|${re.src_ZPCc}))`;
-  re.src_path = `(?:[/?#](?:(?!${re.src_ZCc}|${text_separators}|[()[\\]{}.,"'?!\\-;]).|\\[(?:(?!${re.src_ZCc}|\\]).)*\\]|\\((?:(?!${re.src_ZCc}|[)]).)*\\)|\\{(?:(?!${re.src_ZCc}|[}]).)*\\}|\\"(?:(?!${re.src_ZCc}|["]).)+\\"|\\'(?:(?!${re.src_ZCc}|[']).)+\\'|\\'(?=${re.src_pseudo_letter}|[-])|\\.{2,}[a-zA-Z0-9%/&]|\\.(?!${re.src_ZCc}|[.]|$)|` + (opts["---"] ? "\\-(?!--(?:[^-]|$))(?:-*)|" : "\\-+|") + // allow `,,,` in paths
-  `,(?!${re.src_ZCc}|$)|;(?!${re.src_ZCc}|$)|\\!+(?!${re.src_ZCc}|[!]|$)|\\?(?!${re.src_ZCc}|[?]|$))+|\\/)?`;
-  re.src_email_name = '[\\-;:&=\\+\\$,\\.a-zA-Z0-9_][\\-;:&=\\+\\$,\\"\\.a-zA-Z0-9_]{0,63}';
-  re.src_xn = "xn--[a-z0-9\\-]{1,59}";
-  re.src_domain_root = // Allow letters & digits (http://test1)
-  "(?:" + re.src_xn + `|${re.src_pseudo_letter}{1,63})`;
-  re.src_domain = "(?:" + re.src_xn + `|(?:${re.src_pseudo_letter})|(?:${re.src_pseudo_letter}(?:-|${re.src_pseudo_letter}){0,61}${re.src_pseudo_letter}))`;
-  re.src_host = `(?:(?:(?:(?:${re.src_domain})\\.)*${re.src_domain}))`;
-  re.tpl_host_fuzzy = "(?:" + re.src_ip4 + `|(?:(?:(?:${re.src_domain})\\.)+(?:%TLDS%)))`;
-  re.tpl_host_no_ip_fuzzy = `(?:(?:(?:${re.src_domain})\\.)+(?:%TLDS%))`;
-  re.src_host_strict = re.src_host + re.src_host_terminator;
-  re.tpl_host_fuzzy_strict = re.tpl_host_fuzzy + re.src_host_terminator;
-  re.src_host_port_strict = re.src_host + re.src_port + re.src_host_terminator;
-  re.tpl_host_port_fuzzy_strict = re.tpl_host_fuzzy + re.src_port + re.src_host_terminator;
-  re.tpl_host_port_no_ip_fuzzy_strict = re.tpl_host_no_ip_fuzzy + re.src_port + re.src_host_terminator;
-  re.tpl_host_fuzzy_test = `localhost|www\\.|\\.\\d{1,3}\\.|(?:\\.(?:%TLDS%)(?:${re.src_ZPCc}|>|$))`;
-  re.tpl_email_fuzzy = `(^|${text_separators}|"|\\(|${re.src_ZCc})(${re.src_email_name}@${re.tpl_host_fuzzy_strict})`;
-  re.tpl_link_fuzzy = // Fuzzy link can't be prepended with .:/\- and non punctuation.
-  // but can start with > (markdown blockquote)
-  `(^|(?![.:/\\-_@])(?:[$+<=>^\`|｜]|${re.src_ZPCc}))((?![$+<=>^\`|｜])${re.tpl_host_port_fuzzy_strict}${re.src_path})`;
-  re.tpl_link_no_ip_fuzzy = // Fuzzy link can't be prepended with .:/\- and non punctuation.
-  // but can start with > (markdown blockquote)
-  `(^|(?![.:/\\-_@])(?:[$+<=>^\`|｜]|${re.src_ZPCc}))((?![$+<=>^\`|｜])${re.tpl_host_port_no_ip_fuzzy_strict}${re.src_path})`;
-  return re;
-}
-function assign(obj) {
-  const sources = Array.prototype.slice.call(arguments, 1);
-  sources.forEach(function(source) {
-    if (!source) {
-      return;
-    }
-    Object.keys(source).forEach(function(key) {
-      obj[key] = source[key];
-    });
-  });
-  return obj;
-}
-function _class(obj) {
-  return Object.prototype.toString.call(obj);
-}
-function isString(obj) {
-  return _class(obj) === "[object String]";
-}
-function isObject$1(obj) {
-  return _class(obj) === "[object Object]";
-}
-function isRegExp(obj) {
-  return _class(obj) === "[object RegExp]";
-}
-function isFunction(obj) {
-  return _class(obj) === "[object Function]";
-}
-function escapeRE(str) {
-  return str.replace(/[.?*+^$[\]\\(){}|-]/g, "\\$&");
-}
-const defaultOptions$1 = {
-  fuzzyLink: true,
-  fuzzyEmail: true,
-  fuzzyIP: false
-};
-function isOptionsObj(obj) {
-  return Object.keys(obj || {}).reduce(function(acc, k) {
-    return acc || defaultOptions$1.hasOwnProperty(k);
-  }, false);
-}
-const defaultSchemas = {
-  "http:": {
-    validate: function(text2, pos, self) {
-      const tail = text2.slice(pos);
-      if (!self.re.http) {
-        self.re.http = new RegExp(
-          `^\\/\\/${self.re.src_auth}${self.re.src_host_port_strict}${self.re.src_path}`,
-          "i"
-        );
-      }
-      if (self.re.http.test(tail)) {
-        return tail.match(self.re.http)[0].length;
-      }
-      return 0;
-    }
-  },
-  "https:": "http:",
-  "ftp:": "http:",
-  "//": {
-    validate: function(text2, pos, self) {
-      const tail = text2.slice(pos);
-      if (!self.re.no_http) {
-        self.re.no_http = new RegExp(
-          "^" + self.re.src_auth + // Don't allow single-level domains, because of false positives like '//test'
-          // with code comments
-          `(?:localhost|(?:(?:${self.re.src_domain})\\.)+${self.re.src_domain_root})` + self.re.src_port + self.re.src_host_terminator + self.re.src_path,
-          "i"
-        );
-      }
-      if (self.re.no_http.test(tail)) {
-        if (pos >= 3 && text2[pos - 3] === ":") {
-          return 0;
-        }
-        if (pos >= 3 && text2[pos - 3] === "/") {
-          return 0;
-        }
-        return tail.match(self.re.no_http)[0].length;
-      }
-      return 0;
-    }
-  },
-  "mailto:": {
-    validate: function(text2, pos, self) {
-      const tail = text2.slice(pos);
-      if (!self.re.mailto) {
-        self.re.mailto = new RegExp(
-          `^${self.re.src_email_name}@${self.re.src_host_strict}`,
-          "i"
-        );
-      }
-      if (self.re.mailto.test(tail)) {
-        return tail.match(self.re.mailto)[0].length;
-      }
-      return 0;
-    }
-  }
-};
-const tlds_2ch_src_re = "a[cdefgilmnoqrstuwxz]|b[abdefghijmnorstvwyz]|c[acdfghiklmnoruvwxyz]|d[ejkmoz]|e[cegrstu]|f[ijkmor]|g[abdefghilmnpqrstuwy]|h[kmnrtu]|i[delmnoqrst]|j[emop]|k[eghimnprwyz]|l[abcikrstuvy]|m[acdeghklmnopqrstuvwxyz]|n[acefgilopruz]|om|p[aefghklmnrstwy]|qa|r[eosuw]|s[abcdeghijklmnortuvxyz]|t[cdfghjklmnortvwz]|u[agksyz]|v[aceginu]|w[fs]|y[et]|z[amw]";
-const tlds_default = "biz|com|edu|gov|net|org|pro|web|xxx|aero|asia|coop|info|museum|name|shop|рф".split("|");
-function createValidator(re) {
-  return function(text2, pos) {
-    const tail = text2.slice(pos);
-    if (re.test(tail)) {
-      return tail.match(re)[0].length;
-    }
-    return 0;
-  };
-}
-function createNormalizer() {
-  return function(match2, self) {
-    self.normalize(match2);
-  };
-}
-function compile$1(self) {
-  const re = self.re = reFactory(self.__opts__);
-  const tlds2 = self.__tlds__.slice();
-  self.onCompile();
-  if (!self.__tlds_replaced__) {
-    tlds2.push(tlds_2ch_src_re);
-  }
-  tlds2.push(re.src_xn);
-  re.src_tlds = tlds2.join("|");
-  function untpl(tpl) {
-    return tpl.replace("%TLDS%", re.src_tlds);
-  }
-  re.email_fuzzy = RegExp(untpl(re.tpl_email_fuzzy), "i");
-  re.email_fuzzy_global = RegExp(untpl(re.tpl_email_fuzzy), "ig");
-  re.link_fuzzy = RegExp(untpl(re.tpl_link_fuzzy), "i");
-  re.link_fuzzy_global = RegExp(untpl(re.tpl_link_fuzzy), "ig");
-  re.link_no_ip_fuzzy = RegExp(untpl(re.tpl_link_no_ip_fuzzy), "i");
-  re.link_no_ip_fuzzy_global = RegExp(untpl(re.tpl_link_no_ip_fuzzy), "ig");
-  re.host_fuzzy_test = RegExp(untpl(re.tpl_host_fuzzy_test), "i");
-  const aliases2 = [];
-  self.__compiled__ = {};
-  function schemaError(name, val) {
-    throw new Error(`(LinkifyIt) Invalid schema "${name}": ${val}`);
-  }
-  Object.keys(self.__schemas__).forEach(function(name) {
-    const val = self.__schemas__[name];
-    if (val === null) {
-      return;
-    }
-    const compiled = { validate: null, link: null };
-    self.__compiled__[name] = compiled;
-    if (isObject$1(val)) {
-      if (isRegExp(val.validate)) {
-        compiled.validate = createValidator(val.validate);
-      } else if (isFunction(val.validate)) {
-        compiled.validate = val.validate;
-      } else {
-        schemaError(name, val);
-      }
-      if (isFunction(val.normalize)) {
-        compiled.normalize = val.normalize;
-      } else if (!val.normalize) {
-        compiled.normalize = createNormalizer();
-      } else {
-        schemaError(name, val);
-      }
-      return;
-    }
-    if (isString(val)) {
-      aliases2.push(name);
-      return;
-    }
-    schemaError(name, val);
-  });
-  aliases2.forEach(function(alias) {
-    if (!self.__compiled__[self.__schemas__[alias]]) {
-      return;
-    }
-    self.__compiled__[alias].validate = self.__compiled__[self.__schemas__[alias]].validate;
-    self.__compiled__[alias].normalize = self.__compiled__[self.__schemas__[alias]].normalize;
-  });
-  self.__compiled__[""] = { validate: null, normalize: createNormalizer() };
-  const slist = Object.keys(self.__compiled__).filter(function(name) {
-    return name.length > 0 && self.__compiled__[name];
-  }).map(escapeRE).join("|");
-  self.re.schema_test = RegExp(`(^|(?!_)(?:[><｜]|${re.src_ZPCc}))(${slist})`, "i");
-  self.re.schema_search = RegExp(`(^|(?!_)(?:[><｜]|${re.src_ZPCc}))(${slist})`, "ig");
-  self.re.schema_at_start = RegExp(`^${self.re.schema_search.source}`, "i");
-  self.re.pretest = RegExp(
-    `(${self.re.schema_test.source})|(${self.re.host_fuzzy_test.source})|@`,
-    "i"
-  );
-}
-function Match(text2, schema, index, lastIndex) {
-  const raw = text2.slice(index, lastIndex);
-  this.schema = schema.toLowerCase();
-  this.index = index;
-  this.lastIndex = lastIndex;
-  this.raw = raw;
-  this.text = raw;
-  this.url = raw;
-}
-function LinkifyIt(schemas, options) {
-  if (!(this instanceof LinkifyIt)) {
-    return new LinkifyIt(schemas, options);
-  }
-  if (!options) {
-    if (isOptionsObj(schemas)) {
-      options = schemas;
-      schemas = {};
-    }
-  }
-  this.__opts__ = assign({}, defaultOptions$1, options);
-  this.__schemas__ = assign({}, defaultSchemas, schemas);
-  this.__compiled__ = {};
-  this.__tlds__ = tlds_default;
-  this.__tlds_replaced__ = false;
-  this.re = {};
-  compile$1(this);
-}
-LinkifyIt.prototype.add = function add(schema, definition) {
-  this.__schemas__[schema] = definition;
-  compile$1(this);
-  return this;
-};
-LinkifyIt.prototype.set = function set(options) {
-  this.__opts__ = assign(this.__opts__, options);
-  return this;
-};
-LinkifyIt.prototype.test = function test(text2) {
-  if (!text2.length) {
-    return false;
-  }
-  let m, re;
-  if (this.re.schema_test.test(text2)) {
-    re = this.re.schema_search;
-    re.lastIndex = 0;
-    while ((m = re.exec(text2)) !== null) {
-      if (this.testSchemaAt(text2, m[2], re.lastIndex)) {
-        return true;
-      }
-    }
-  }
-  if (this.__opts__.fuzzyLink && this.__compiled__["http:"]) {
-    if (text2.search(this.re.host_fuzzy_test) >= 0) {
-      if (text2.match(this.__opts__.fuzzyIP ? this.re.link_fuzzy : this.re.link_no_ip_fuzzy) !== null) {
-        return true;
-      }
-    }
-  }
-  if (this.__opts__.fuzzyEmail && this.__compiled__["mailto:"]) {
-    if (text2.indexOf("@") >= 0) {
-      if (text2.match(this.re.email_fuzzy) !== null) {
-        return true;
-      }
-    }
-  }
-  return false;
-};
-LinkifyIt.prototype.pretest = function pretest(text2) {
-  return this.re.pretest.test(text2);
-};
-LinkifyIt.prototype.testSchemaAt = function testSchemaAt(text2, schema, pos) {
-  if (!this.__compiled__[schema.toLowerCase()]) {
-    return 0;
-  }
-  return this.__compiled__[schema.toLowerCase()].validate(text2, pos, this);
-};
-LinkifyIt.prototype.match = function match(text2) {
-  const result = [];
-  const type_schemed = [];
-  const type_fuzzy_link = [];
-  const type_fuzzy_email = [];
-  let m, len, re;
-  function choose(a, b) {
-    if (!a) {
-      return b;
-    }
-    if (!b) {
-      return a;
-    }
-    if (a.index !== b.index) {
-      return a.index < b.index ? a : b;
-    }
-    return a.lastIndex >= b.lastIndex ? a : b;
-  }
-  if (!text2.length) {
-    return null;
-  }
-  if (this.re.schema_test.test(text2)) {
-    re = this.re.schema_search;
-    re.lastIndex = 0;
-    while ((m = re.exec(text2)) !== null) {
-      len = this.testSchemaAt(text2, m[2], re.lastIndex);
-      if (len) {
-        type_schemed.push({
-          schema: m[2],
-          index: m.index + m[1].length,
-          lastIndex: m.index + m[0].length + len
-        });
-      }
-    }
-  }
-  if (this.__opts__.fuzzyLink && this.__compiled__["http:"]) {
-    re = this.__opts__.fuzzyIP ? this.re.link_fuzzy_global : this.re.link_no_ip_fuzzy_global;
-    re.lastIndex = 0;
-    while ((m = re.exec(text2)) !== null) {
-      type_fuzzy_link.push({
-        schema: "",
-        index: m.index + m[1].length,
-        lastIndex: m.index + m[0].length
-      });
-    }
-  }
-  if (this.__opts__.fuzzyEmail && this.__compiled__["mailto:"]) {
-    re = this.re.email_fuzzy_global;
-    re.lastIndex = 0;
-    while ((m = re.exec(text2)) !== null) {
-      type_fuzzy_email.push({
-        schema: "mailto:",
-        index: m.index + m[1].length,
-        lastIndex: m.index + m[0].length
-      });
-    }
-  }
-  const indexes = [0, 0, 0];
-  let lastIndex = 0;
-  for (; ; ) {
-    const candidates = [
-      type_schemed[indexes[0]],
-      type_fuzzy_email[indexes[1]],
-      type_fuzzy_link[indexes[2]]
-    ];
-    const candidate = choose(choose(candidates[0], candidates[1]), candidates[2]);
-    if (!candidate) {
-      break;
-    }
-    if (candidate === candidates[0]) {
-      indexes[0]++;
-    } else if (candidate === candidates[1]) {
-      indexes[1]++;
-    } else {
-      indexes[2]++;
-    }
-    if (candidate.index < lastIndex) {
-      continue;
-    }
-    const match2 = new Match(text2, candidate.schema, candidate.index, candidate.lastIndex);
-    this.__compiled__[match2.schema].normalize(match2, this);
-    result.push(match2);
-    lastIndex = candidate.lastIndex;
-  }
-  if (result.length) {
-    return result;
-  }
-  return null;
-};
-LinkifyIt.prototype.matchAtStart = function matchAtStart(text2) {
-  if (!text2.length) return null;
-  const m = this.re.schema_at_start.exec(text2);
-  if (!m) return null;
-  const len = this.testSchemaAt(text2, m[2], m[0].length);
-  if (!len) return null;
-  const match2 = new Match(text2, m[2], m.index + m[1].length, m.index + m[0].length + len);
-  this.__compiled__[match2.schema].normalize(match2, this);
-  return match2;
-};
-LinkifyIt.prototype.tlds = function tlds(list2, keepOld) {
-  list2 = Array.isArray(list2) ? list2 : [list2];
-  if (!keepOld) {
-    this.__tlds__ = list2.slice();
-    this.__tlds_replaced__ = true;
-    compile$1(this);
-    return this;
-  }
-  this.__tlds__ = this.__tlds__.concat(list2).sort().filter(function(el, idx, arr) {
-    return el !== arr[idx - 1];
-  }).reverse();
-  compile$1(this);
-  return this;
-};
-LinkifyIt.prototype.normalize = function normalize2(match2) {
-  if (!match2.schema) {
-    match2.url = `http://${match2.url}`;
-  }
-  if (match2.schema === "mailto:" && !/^mailto:/i.test(match2.url)) {
-    match2.url = `mailto:${match2.url}`;
-  }
-};
-LinkifyIt.prototype.onCompile = function onCompile() {
-};
-const maxInt = 2147483647;
-const base = 36;
-const tMin = 1;
-const tMax = 26;
-const skew = 38;
-const damp = 700;
-const initialBias = 72;
-const initialN = 128;
-const delimiter = "-";
-const regexPunycode = /^xn--/;
-const regexNonASCII = /[^\0-\x7F]/;
-const regexSeparators = /[\x2E\u3002\uFF0E\uFF61]/g;
-const errors$1 = {
-  "overflow": "Overflow: input needs wider integers to process",
-  "not-basic": "Illegal input >= 0x80 (not a basic code point)",
-  "invalid-input": "Invalid input"
-};
-const baseMinusTMin = base - tMin;
-const floor = Math.floor;
-const stringFromCharCode = String.fromCharCode;
-function error(type2) {
-  throw new RangeError(errors$1[type2]);
-}
-function map(array2, callback) {
-  const result = [];
-  let length = array2.length;
-  while (length--) {
-    result[length] = callback(array2[length]);
-  }
-  return result;
-}
-function mapDomain(domain, callback) {
-  const parts = domain.split("@");
-  let result = "";
-  if (parts.length > 1) {
-    result = parts[0] + "@";
-    domain = parts[1];
-  }
-  domain = domain.replace(regexSeparators, ".");
-  const labels = domain.split(".");
-  const encoded = map(labels, callback).join(".");
-  return result + encoded;
-}
-function ucs2decode(string2) {
-  const output = [];
-  let counter = 0;
-  const length = string2.length;
-  while (counter < length) {
-    const value = string2.charCodeAt(counter++);
-    if (value >= 55296 && value <= 56319 && counter < length) {
-      const extra = string2.charCodeAt(counter++);
-      if ((extra & 64512) == 56320) {
-        output.push(((value & 1023) << 10) + (extra & 1023) + 65536);
-      } else {
-        output.push(value);
-        counter--;
-      }
-    } else {
-      output.push(value);
-    }
-  }
-  return output;
-}
-const ucs2encode = (codePoints) => String.fromCodePoint(...codePoints);
-const basicToDigit = function(codePoint) {
-  if (codePoint >= 48 && codePoint < 58) {
-    return 26 + (codePoint - 48);
-  }
-  if (codePoint >= 65 && codePoint < 91) {
-    return codePoint - 65;
-  }
-  if (codePoint >= 97 && codePoint < 123) {
-    return codePoint - 97;
-  }
-  return base;
-};
-const digitToBasic = function(digit, flag) {
-  return digit + 22 + 75 * (digit < 26) - ((flag != 0) << 5);
-};
-const adapt = function(delta, numPoints, firstTime) {
-  let k = 0;
-  delta = firstTime ? floor(delta / damp) : delta >> 1;
-  delta += floor(delta / numPoints);
-  for (; delta > baseMinusTMin * tMax >> 1; k += base) {
-    delta = floor(delta / baseMinusTMin);
-  }
-  return floor(k + (baseMinusTMin + 1) * delta / (delta + skew));
-};
-const decode = function(input) {
-  const output = [];
-  const inputLength = input.length;
-  let i = 0;
-  let n = initialN;
-  let bias = initialBias;
-  let basic = input.lastIndexOf(delimiter);
-  if (basic < 0) {
-    basic = 0;
-  }
-  for (let j = 0; j < basic; ++j) {
-    if (input.charCodeAt(j) >= 128) {
-      error("not-basic");
-    }
-    output.push(input.charCodeAt(j));
-  }
-  for (let index = basic > 0 ? basic + 1 : 0; index < inputLength; ) {
-    const oldi = i;
-    for (let w = 1, k = base; ; k += base) {
-      if (index >= inputLength) {
-        error("invalid-input");
-      }
-      const digit = basicToDigit(input.charCodeAt(index++));
-      if (digit >= base) {
-        error("invalid-input");
-      }
-      if (digit > floor((maxInt - i) / w)) {
-        error("overflow");
-      }
-      i += digit * w;
-      const t = k <= bias ? tMin : k >= bias + tMax ? tMax : k - bias;
-      if (digit < t) {
-        break;
-      }
-      const baseMinusT = base - t;
-      if (w > floor(maxInt / baseMinusT)) {
-        error("overflow");
-      }
-      w *= baseMinusT;
-    }
-    const out = output.length + 1;
-    bias = adapt(i - oldi, out, oldi == 0);
-    if (floor(i / out) > maxInt - n) {
-      error("overflow");
-    }
-    n += floor(i / out);
-    i %= out;
-    output.splice(i++, 0, n);
-  }
-  return String.fromCodePoint(...output);
-};
-const encode = function(input) {
-  const output = [];
-  input = ucs2decode(input);
-  const inputLength = input.length;
-  let n = initialN;
-  let delta = 0;
-  let bias = initialBias;
-  for (const currentValue of input) {
-    if (currentValue < 128) {
-      output.push(stringFromCharCode(currentValue));
-    }
-  }
-  const basicLength = output.length;
-  let handledCPCount = basicLength;
-  if (basicLength) {
-    output.push(delimiter);
-  }
-  while (handledCPCount < inputLength) {
-    let m = maxInt;
-    for (const currentValue of input) {
-      if (currentValue >= n && currentValue < m) {
-        m = currentValue;
-      }
-    }
-    const handledCPCountPlusOne = handledCPCount + 1;
-    if (m - n > floor((maxInt - delta) / handledCPCountPlusOne)) {
-      error("overflow");
-    }
-    delta += (m - n) * handledCPCountPlusOne;
-    n = m;
-    for (const currentValue of input) {
-      if (currentValue < n && ++delta > maxInt) {
-        error("overflow");
-      }
-      if (currentValue === n) {
-        let q = delta;
-        for (let k = base; ; k += base) {
-          const t = k <= bias ? tMin : k >= bias + tMax ? tMax : k - bias;
-          if (q < t) {
-            break;
-          }
-          const qMinusT = q - t;
-          const baseMinusT = base - t;
-          output.push(
-            stringFromCharCode(digitToBasic(t + qMinusT % baseMinusT, 0))
-          );
-          q = floor(qMinusT / baseMinusT);
-        }
-        output.push(stringFromCharCode(digitToBasic(q, 0)));
-        bias = adapt(delta, handledCPCountPlusOne, handledCPCount === basicLength);
-        delta = 0;
-        ++handledCPCount;
-      }
-    }
-    ++delta;
-    ++n;
-  }
-  return output.join("");
-};
-const toUnicode = function(input) {
-  return mapDomain(input, function(string2) {
-    return regexPunycode.test(string2) ? decode(string2.slice(4).toLowerCase()) : string2;
-  });
-};
-const toASCII = function(input) {
-  return mapDomain(input, function(string2) {
-    return regexNonASCII.test(string2) ? "xn--" + encode(string2) : string2;
-  });
-};
-const punycode = {
-  /**
-   * A string representing the current Punycode.js version number.
-   * @memberOf punycode
-   * @type String
-   */
-  "version": "2.3.1",
-  /**
-   * An object of methods to convert from JavaScript's internal character
-   * representation (UCS-2) to Unicode code points, and back.
-   * @see <https://mathiasbynens.be/notes/javascript-encoding>
-   * @memberOf punycode
-   * @type Object
-   */
-  "ucs2": {
-    "decode": ucs2decode,
-    "encode": ucs2encode
-  },
-  "decode": decode,
-  "encode": encode,
-  "toASCII": toASCII,
-  "toUnicode": toUnicode
-};
-const cfg_default = {
-  options: {
-    // Enable HTML tags in source
-    html: false,
-    // Use '/' to close single tags (<br />)
-    xhtmlOut: false,
-    // Convert '\n' in paragraphs into <br>
-    breaks: false,
-    // CSS language prefix for fenced blocks
-    langPrefix: "language-",
-    // autoconvert URL-like texts to links
-    linkify: false,
-    // Enable some language-neutral replacements + quotes beautification
-    typographer: false,
-    // Double + single quotes replacement pairs, when typographer enabled,
-    // and smartquotes on. Could be either a String or an Array.
-    //
-    // For example, you can use '«»„“' for Russian, '„“‚‘' for German,
-    // and ['«\xA0', '\xA0»', '‹\xA0', '\xA0›'] for French (including nbsp).
-    quotes: "“”‘’",
-    /* “”‘’ */
-    // Highlighter function. Should return escaped HTML,
-    // or '' if the source string is not changed and should be escaped externaly.
-    // If result starts with <pre... internal wrapper is skipped.
-    //
-    // function (/*str, lang*/) { return ''; }
-    //
-    highlight: null,
-    // Internal protection, recursion limit
-    maxNesting: 100
-  },
-  components: {
-    core: {},
-    block: {},
-    inline: {}
-  }
-};
-const cfg_zero = {
-  options: {
-    // Enable HTML tags in source
-    html: false,
-    // Use '/' to close single tags (<br />)
-    xhtmlOut: false,
-    // Convert '\n' in paragraphs into <br>
-    breaks: false,
-    // CSS language prefix for fenced blocks
-    langPrefix: "language-",
-    // autoconvert URL-like texts to links
-    linkify: false,
-    // Enable some language-neutral replacements + quotes beautification
-    typographer: false,
-    // Double + single quotes replacement pairs, when typographer enabled,
-    // and smartquotes on. Could be either a String or an Array.
-    //
-    // For example, you can use '«»„“' for Russian, '„“‚‘' for German,
-    // and ['«\xA0', '\xA0»', '‹\xA0', '\xA0›'] for French (including nbsp).
-    quotes: "“”‘’",
-    /* “”‘’ */
-    // Highlighter function. Should return escaped HTML,
-    // or '' if the source string is not changed and should be escaped externaly.
-    // If result starts with <pre... internal wrapper is skipped.
-    //
-    // function (/*str, lang*/) { return ''; }
-    //
-    highlight: null,
-    // Internal protection, recursion limit
-    maxNesting: 20
-  },
-  components: {
-    core: {
-      rules: [
-        "normalize",
-        "block",
-        "inline",
-        "text_join"
-      ]
-    },
-    block: {
-      rules: [
-        "paragraph"
-      ]
-    },
-    inline: {
-      rules: [
-        "text"
-      ],
-      rules2: [
-        "balance_pairs",
-        "fragments_join"
-      ]
-    }
-  }
-};
-const cfg_commonmark = {
-  options: {
-    // Enable HTML tags in source
-    html: true,
-    // Use '/' to close single tags (<br />)
-    xhtmlOut: true,
-    // Convert '\n' in paragraphs into <br>
-    breaks: false,
-    // CSS language prefix for fenced blocks
-    langPrefix: "language-",
-    // autoconvert URL-like texts to links
-    linkify: false,
-    // Enable some language-neutral replacements + quotes beautification
-    typographer: false,
-    // Double + single quotes replacement pairs, when typographer enabled,
-    // and smartquotes on. Could be either a String or an Array.
-    //
-    // For example, you can use '«»„“' for Russian, '„“‚‘' for German,
-    // and ['«\xA0', '\xA0»', '‹\xA0', '\xA0›'] for French (including nbsp).
-    quotes: "“”‘’",
-    /* “”‘’ */
-    // Highlighter function. Should return escaped HTML,
-    // or '' if the source string is not changed and should be escaped externaly.
-    // If result starts with <pre... internal wrapper is skipped.
-    //
-    // function (/*str, lang*/) { return ''; }
-    //
-    highlight: null,
-    // Internal protection, recursion limit
-    maxNesting: 20
-  },
-  components: {
-    core: {
-      rules: [
-        "normalize",
-        "block",
-        "inline",
-        "text_join"
-      ]
-    },
-    block: {
-      rules: [
-        "blockquote",
-        "code",
-        "fence",
-        "heading",
-        "hr",
-        "html_block",
-        "lheading",
-        "list",
-        "reference",
-        "paragraph"
-      ]
-    },
-    inline: {
-      rules: [
-        "autolink",
-        "backticks",
-        "emphasis",
-        "entity",
-        "escape",
-        "html_inline",
-        "image",
-        "link",
-        "newline",
-        "text"
-      ],
-      rules2: [
-        "balance_pairs",
-        "emphasis",
-        "fragments_join"
-      ]
-    }
-  }
-};
-const config$1 = {
-  default: cfg_default,
-  zero: cfg_zero,
-  commonmark: cfg_commonmark
-};
-const BAD_PROTO_RE = /^(vbscript|javascript|file|data):/;
-const GOOD_DATA_RE = /^data:image\/(gif|png|jpeg|webp);/;
-function validateLink(url) {
-  const str = url.trim().toLowerCase();
-  return BAD_PROTO_RE.test(str) ? GOOD_DATA_RE.test(str) : true;
-}
-const RECODE_HOSTNAME_FOR = ["http:", "https:", "mailto:"];
-function normalizeLink(url) {
-  const parsed = urlParse(url, true);
-  if (parsed.hostname) {
-    if (!parsed.protocol || RECODE_HOSTNAME_FOR.indexOf(parsed.protocol) >= 0) {
-      try {
-        parsed.hostname = punycode.toASCII(parsed.hostname);
-      } catch (er) {
-      }
-    }
-  }
-  return encode$1(format$2(parsed));
-}
-function normalizeLinkText(url) {
-  const parsed = urlParse(url, true);
-  if (parsed.hostname) {
-    if (!parsed.protocol || RECODE_HOSTNAME_FOR.indexOf(parsed.protocol) >= 0) {
-      try {
-        parsed.hostname = punycode.toUnicode(parsed.hostname);
-      } catch (er) {
-      }
-    }
-  }
-  return decode$1(format$2(parsed), decode$1.defaultChars + "%");
-}
-function MarkdownIt(presetName, options) {
-  if (!(this instanceof MarkdownIt)) {
-    return new MarkdownIt(presetName, options);
-  }
-  if (!options) {
-    if (!isString$1(presetName)) {
-      options = presetName || {};
-      presetName = "default";
-    }
-  }
-  this.inline = new ParserInline();
-  this.block = new ParserBlock();
-  this.core = new Core();
-  this.renderer = new Renderer();
-  this.linkify = new LinkifyIt();
-  this.validateLink = validateLink;
-  this.normalizeLink = normalizeLink;
-  this.normalizeLinkText = normalizeLinkText;
-  this.utils = utils$1;
-  this.helpers = assign$1({}, helpers);
-  this.options = {};
-  this.configure(presetName);
-  if (options) {
-    this.set(options);
-  }
-}
-MarkdownIt.prototype.set = function(options) {
-  assign$1(this.options, options);
-  return this;
-};
-MarkdownIt.prototype.configure = function(presets) {
-  const self = this;
-  if (isString$1(presets)) {
-    const presetName = presets;
-    presets = config$1[presetName];
-    if (!presets) {
-      throw new Error('Wrong `markdown-it` preset "' + presetName + '", check name');
-    }
-  }
-  if (!presets) {
-    throw new Error("Wrong `markdown-it` preset, can't be empty");
-  }
-  if (presets.options) {
-    self.set(presets.options);
-  }
-  if (presets.components) {
-    Object.keys(presets.components).forEach(function(name) {
-      if (presets.components[name].rules) {
-        self[name].ruler.enableOnly(presets.components[name].rules);
-      }
-      if (presets.components[name].rules2) {
-        self[name].ruler2.enableOnly(presets.components[name].rules2);
-      }
-    });
-  }
-  return this;
-};
-MarkdownIt.prototype.enable = function(list2, ignoreInvalid) {
-  let result = [];
-  if (!Array.isArray(list2)) {
-    list2 = [list2];
-  }
-  ["core", "block", "inline"].forEach(function(chain) {
-    result = result.concat(this[chain].ruler.enable(list2, true));
-  }, this);
-  result = result.concat(this.inline.ruler2.enable(list2, true));
-  const missed = list2.filter(function(name) {
-    return result.indexOf(name) < 0;
-  });
-  if (missed.length && !ignoreInvalid) {
-    throw new Error("MarkdownIt. Failed to enable unknown rule(s): " + missed);
-  }
-  return this;
-};
-MarkdownIt.prototype.disable = function(list2, ignoreInvalid) {
-  let result = [];
-  if (!Array.isArray(list2)) {
-    list2 = [list2];
-  }
-  ["core", "block", "inline"].forEach(function(chain) {
-    result = result.concat(this[chain].ruler.disable(list2, true));
-  }, this);
-  result = result.concat(this.inline.ruler2.disable(list2, true));
-  const missed = list2.filter(function(name) {
-    return result.indexOf(name) < 0;
-  });
-  if (missed.length && !ignoreInvalid) {
-    throw new Error("MarkdownIt. Failed to disable unknown rule(s): " + missed);
-  }
-  return this;
-};
-MarkdownIt.prototype.use = function(plugin) {
-  const args = [this].concat(Array.prototype.slice.call(arguments, 1));
-  plugin.apply(plugin, args);
-  return this;
-};
-MarkdownIt.prototype.parse = function(src, env) {
-  if (typeof src !== "string") {
-    throw new Error("Input data should be a String");
-  }
-  const state = new this.core.State(src, this, env);
-  this.core.process(state);
-  return state.tokens;
-};
-MarkdownIt.prototype.render = function(src, env) {
-  env = env || {};
-  return this.renderer.render(this.parse(src, env), this.options, env);
-};
-MarkdownIt.prototype.parseInline = function(src, env) {
-  const state = new this.core.State(src, this, env);
-  state.inlineMode = true;
-  this.core.process(state);
-  return state.tokens;
-};
-MarkdownIt.prototype.renderInline = function(src, env) {
-  env = env || {};
-  return this.renderer.render(this.parseInline(src, env), this.options, env);
-};
-function interactiveFigureReference(tokens) {
-  if (tokens?.length !== 3) return;
-  const [link2, image2, close] = tokens;
-  if (link2.type !== "link_open" || image2.type !== "image" || close.type !== "link_close") return;
-  if (!["交互图", "interactive figure"].includes(String(link2.attrGet("title") || "").trim().toLowerCase())) return;
-  const source = String(link2.attrGet("href") || "");
-  const poster = String(image2.attrGet("src") || "");
-  const local = (value) => !!value && !/^(?:[a-z][a-z0-9+.-]*:|[\\/#])|[?#\u0000-\u001f]/i.test(value);
-  if (!local(source) || !/\.html?$/i.test(source) || !local(poster) || !/\.(?:svg|png|jpe?g|webp|gif)$/i.test(poster)) return;
-  return { source, poster, title: image2.content || "" };
-}
-const markdown$1 = new MarkdownIt({ html: false });
-function staticFigureMarkdown(line) {
-  const tokens = markdown$1.parseInline(line.trim(), {});
-  const figure = interactiveFigureReference(tokens[0]?.children);
-  if (!figure) return line;
-  const indent = line.match(/^\s*/)?.[0] || "";
-  const title2 = figure.title.replace(/\\/g, "\\\\").replace(/\[/g, "\\[").replace(/\]/g, "\\]");
-  return `${indent}![${title2}](<${figure.poster.replace(/>/g, "%3E")}>)`;
-}
 function splitFigureCaption(source, knownFigure = false) {
-  const text2 = source.trim();
-  if (!knownFigure && !/^(?:\*\*)?(?:图|Figure)\s+(?:[A-Z]\.)?\d+(?:\.\d+)*(?:\s*[（(]|(?:\*\*)?\s*[:：]|(?:\*\*)?$)/i.test(text2)) return;
-  if (text2.startsWith("**")) {
-    const end = text2.indexOf("**", 2);
-    if (end >= 2) return { title: text2.slice(0, end + 2), description: text2.slice(end + 2).replace(/^\s*[:：]?\s*/, "") };
+  const text = source.trim();
+  if (!knownFigure && !/^(?:\*\*)?(?:图|Figure)\s+(?:[A-Z]\.)?\d+(?:\.\d+)*(?:\s*[（(]|(?:\*\*)?\s*[:：]|(?:\*\*)?$)/i.test(text)) return;
+  if (text.startsWith("**")) {
+    const end = text.indexOf("**", 2);
+    if (end >= 2) return { title: text.slice(0, end + 2), description: text.slice(end + 2).replace(/^\s*[:：]?\s*/, "") };
   }
   let depth = 0, math = false;
-  for (let i = 0; i < text2.length; i++) {
-    const c = text2[i];
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
     if (c === "\\") {
       i++;
       continue;
@@ -5336,14 +47,14 @@ function splitFigureCaption(source, knownFigure = false) {
     if (math) continue;
     if (c === "(" || c === "（") depth++;
     else if (c === ")" || c === "）") depth = Math.max(0, depth - 1);
-    else if (!depth && (c === ":" || c === "：")) return { title: text2.slice(0, i).trim(), description: text2.slice(i + 1).trim() };
+    else if (!depth && (c === ":" || c === "：")) return { title: text.slice(0, i).trim(), description: text.slice(i + 1).trim() };
   }
-  return { title: text2, description: "" };
+  return { title: text, description: "" };
 }
 function isImageParagraph(tokens, index) {
-  const [open, inline2, close] = tokens.slice(index, index + 3);
-  if (open?.type !== "paragraph_open" || open.level !== 0 || inline2?.type !== "inline" || close?.type !== "paragraph_close") return false;
-  const children = inline2.children;
+  const [open, inline, close] = tokens.slice(index, index + 3);
+  if (open?.type !== "paragraph_open" || open.level !== 0 || inline?.type !== "inline" || close?.type !== "paragraph_close") return false;
+  const children = inline.children;
   return children?.length === 1 && (children[0].type === "image" || children[0].type === "html_inline" && children[0].content.startsWith('<span class="reader-interactive-figure"'));
 }
 function figureCaptionPairs(tokens, captions) {
@@ -5361,10 +72,10 @@ function figureCaptionPairs(tokens, captions) {
     }];
   });
 }
-const markdown = new MarkdownIt({ html: false });
-const latex = (source) => "```{=latex}\n" + source + "\n```";
+const markdown$1 = new publication.MarkdownIt({ html: false });
+const latex$1 = (source) => "```{=latex}\n" + source + "\n```";
 function figureMarkdownForPdf(source) {
-  const lines2 = source.split("\n"), tokens = markdown.parse(source, {});
+  const lines2 = source.split("\n"), tokens = markdown$1.parse(source, {});
   const changes = [];
   const captions = /* @__PURE__ */ new Map();
   for (let i = 0; i < tokens.length - 2; i++) {
@@ -5377,24 +88,150 @@ function figureMarkdownForPdf(source) {
     const { imageIndex, captionIndex, caption } = pair;
     const imageMap = tokens[imageIndex + 1].map, captionMap = tokens[captionIndex + 1].map;
     if (!imageMap || !captionMap) continue;
-    const image2 = lines2.slice(imageMap[0], imageMap[1]).join("\n");
+    const image = lines2.slice(imageMap[0], imageMap[1]).join("\n");
     const title2 = caption.title.startsWith("**") ? caption.title : "**" + caption.title + "**";
     const captionBlock = [
-      latex("\\begin{minipage}{0.92\\linewidth}\n\\small\\color[gray]{0.25}\\centering"),
+      latex$1("\\begin{minipage}{0.92\\linewidth}\n\\small\\color[gray]{0.25}\\centering"),
       title2,
-      ...caption.description ? [latex("\\par\\vspace{0.3\\baselineskip}\\raggedright"), caption.description] : [],
-      latex("\\par\\end{minipage}")
+      ...caption.description ? [latex$1("\\par\\vspace{0.3\\baselineskip}\\raggedright"), caption.description] : [],
+      latex$1("\\par\\end{minipage}")
     ];
-    const gap = latex("\\par\\vspace{0.45\\baselineskip}");
-    const contents = captionIndex < imageIndex ? [...captionBlock, gap, image2] : [image2, gap, ...captionBlock];
+    const gap = latex$1("\\par\\vspace{0.45\\baselineskip}");
+    const contents = captionIndex < imageIndex ? [...captionBlock, gap, image] : [image, gap, ...captionBlock];
     changes.push({ start: Math.min(imageMap[0], captionMap[0]), end: Math.max(imageMap[1], captionMap[1]), text: [
-      latex("\\par\\addvspace{0.8\\baselineskip}\n\\noindent\\begin{minipage}{\\linewidth}\n\\centering"),
+      latex$1("\\par\\addvspace{0.8\\baselineskip}\n\\noindent\\begin{minipage}{\\linewidth}\n\\centering"),
       ...contents,
-      latex("\\par\\end{minipage}\\par\\addvspace{1.2\\baselineskip}")
+      latex$1("\\par\\end{minipage}\\par\\addvspace{1.2\\baselineskip}")
     ].join("\n\n") });
   }
   for (const change of changes.reverse()) lines2.splice(change.start, change.end - change.start, change.text);
   return lines2.join("\n");
+}
+const markdown = new publication.MarkdownIt({ html: false });
+const latex = (text) => "```{=latex}\n" + text + "\n```";
+const label = /^(?:注|Note|Remark)(?:[ \t]*[（(][^\n]*[）)])?$/i;
+function noteHeading(content) {
+  const strong = /^(\*\*|__)([^\n]+?)\1/.exec(content);
+  if (strong && label.test(strong[2].replace(/[:：]\s*$/, "").trim())) return { bold: true, titleEnd: strong[0].length };
+  const plain = /^(?:注|Note|Remark)(?:[ \t]*[（(][^\n]*?[）)])?[ \t]*[:：]/i.exec(content);
+  if (plain) return { bold: false, titleEnd: plain[0].length - 1 };
+  return;
+}
+function noteMarkdownForPdf(source) {
+  const lines2 = source.split("\n"), tokens = markdown.parse(source, {});
+  const changes = [];
+  for (let index = 0; index < tokens.length - 2; index++) {
+    const quote = tokens[index], paragraph = tokens[index + 1], inline = tokens[index + 2];
+    if (quote.type !== "blockquote_open" || quote.level !== 0 || !quote.map || paragraph.type !== "paragraph_open" || inline.type !== "inline" || !inline.map || !noteHeading(inline.content)) continue;
+    const [start, end] = quote.map;
+    const body = lines2.slice(start, end).map((line) => line.replace(/^ {0,3}>[ \t]?/, ""));
+    const first = inline.map[0] - start;
+    const indent = /^\s*/.exec(body[first])[0], heading = noteHeading(body[first].slice(indent.length));
+    if (!heading) continue;
+    if (!heading.bold) {
+      const text = body[first].slice(indent.length);
+      body[first] = indent + "**" + text.slice(0, heading.titleEnd).trimEnd() + "**" + text.slice(heading.titleEnd);
+    }
+    changes.push({ start, end, text: [
+      latex("\\par\\addvspace{0.6\\baselineskip}\n\\begingroup\\normalfont\\normalsize\n\\setlength{\\parindent}{0pt}\n\\setlength{\\parskip}{0.3\\baselineskip}"),
+      body.join("\n"),
+      latex("\\par\\endgroup\n\\addvspace{0.6\\baselineskip}")
+    ].join("\n\n") });
+  }
+  for (const change of changes.reverse()) lines2.splice(change.start, change.end - change.start, change.text);
+  return lines2.join("\n");
+}
+const path$1 = require("node:path");
+const fs$6 = require("node:fs/promises");
+async function outputPath(absolute) {
+  const root = path$1.parse(absolute).root;
+  let current = root;
+  for (const component of path$1.relative(root, absolute).split(path$1.sep).filter(Boolean)) {
+    current = path$1.join(current, component);
+    try {
+      if ((await fs$6.lstat(current)).isSymbolicLink()) {
+        if (process.platform === "darwin" && path$1.dirname(current) === "/" && ["tmp", "var"].includes(component) && await fs$6.realpath(current) === `/private/${component}`) continue;
+        throw new Error(`Export output cannot follow symbolic links: ${current}`);
+      }
+    } catch (error) {
+      if (error.code !== "ENOENT") throw error;
+    }
+  }
+}
+async function writeMarkdownExport(root, files, manuscripts, resources, protectedSources) {
+  publication.assertPortablePaths(files.keys());
+  publication.validatePublicationMedia(files, manuscripts, { normalizedMath: true });
+  root = path$1.resolve(root);
+  await outputPath(root);
+  const key = (name) => path$1.resolve(name).normalize("NFC").toLowerCase();
+  const writes = /* @__PURE__ */ new Map(), protectedPaths = new Set(await Promise.all(protectedSources.map(async (name) => key(await fs$6.realpath(name)))));
+  for (const [name, bytes] of files) {
+    const destination = path$1.join(root, name);
+    await outputPath(destination);
+    const identity = await fs$6.realpath(destination).catch((error) => {
+      if (error.code !== "ENOENT") throw error;
+      return destination;
+    });
+    if (manuscripts.includes(name) && protectedPaths.has(key(identity))) throw new Error(`Export would overwrite a source manuscript: ${destination}`);
+    let existing;
+    try {
+      const stat = await fs$6.lstat(destination);
+      if (!stat.isFile()) throw new Error(`Conflicting output path: ${destination}`);
+      existing = await fs$6.readFile(destination);
+    } catch (error) {
+      if (error.code !== "ENOENT") throw error;
+    }
+    if (existing?.equals(bytes)) continue;
+    if (existing && resources.has(name)) throw new Error(`Conflicting resource at output path: ${destination}; use a fresh output directory.`);
+    writes.set(name, bytes);
+  }
+  if (!writes.size) return;
+  await fs$6.mkdir(path$1.dirname(root), { recursive: true });
+  const stage = await fs$6.mkdtemp(path$1.join(path$1.dirname(root), ".math-workspace-export-"));
+  const installed = [], backups = /* @__PURE__ */ new Map();
+  try {
+    for (const [name, bytes] of writes) {
+      const staged = path$1.join(stage, "files", name);
+      await fs$6.mkdir(path$1.dirname(staged), { recursive: true });
+      await fs$6.writeFile(staged, bytes, { flag: "wx" });
+    }
+    try {
+      await fs$6.lstat(root);
+    } catch (error) {
+      if (error.code !== "ENOENT") throw error;
+      await outputPath(root);
+      await fs$6.rename(path$1.join(stage, "files"), root);
+      return;
+    }
+    for (const name of [...writes.keys()].sort((a, b) => Number(manuscripts.includes(a)) - Number(manuscripts.includes(b)) || a.localeCompare(b))) {
+      const destination = path$1.join(root, name);
+      await outputPath(destination);
+      await fs$6.mkdir(path$1.dirname(destination), { recursive: true });
+      if (resources.has(name)) {
+        const current = await fs$6.readFile(destination).catch((error) => {
+          if (error.code !== "ENOENT") throw error;
+          return void 0;
+        });
+        if (current && !current.equals(writes.get(name))) throw new Error(`Conflicting resource at output path: ${destination}`);
+      }
+      try {
+        const backup = path$1.join(stage, "previous", name);
+        await fs$6.mkdir(path$1.dirname(backup), { recursive: true });
+        await fs$6.rename(destination, backup);
+        backups.set(destination, backup);
+      } catch (error) {
+        if (error.code !== "ENOENT") throw error;
+      }
+      await fs$6.rename(path$1.join(stage, "files", name), destination);
+      installed.push(destination);
+    }
+  } catch (error) {
+    for (const destination of installed.reverse()) await fs$6.rm(destination, { force: true });
+    for (const [destination, backup] of backups) await fs$6.rename(backup, destination);
+    throw error;
+  } finally {
+    await fs$6.rm(stage, { recursive: true, force: true });
+  }
 }
 const FIGURE_CSP = [
   "sandbox allow-scripts",
@@ -5520,8 +357,8 @@ function projectReaderDependencyMarkers(graph2, filePath, leanIndex) {
     addAdjacent(dependencies2, from, to);
     addAdjacent(dependents, to, from);
   }
-  for (const reference2 of ambientReferences) {
-    const target = reference2?.to;
+  for (const reference of ambientReferences) {
+    const target = reference?.to;
     if (typeof target !== "string" || !nodeIds.has(target)) continue;
     ambientReferenceCounts.set(target, (ambientReferenceCounts.get(target) || 0) + 1);
   }
@@ -5566,7 +403,7 @@ function defaultProjectStateFilePath() {
   return mathWorkspaceStatePath("workspace-projects.json");
 }
 require("node:os");
-const nodeFs$9 = require("node:fs");
+const nodeFs$a = require("node:fs");
 const { spawn: spawn$3 } = require("node:child_process");
 const { randomBytes: randomBytes$2 } = require("node:crypto");
 const MAX_RECENT_PROJECTS = 12;
@@ -5641,7 +478,7 @@ class ReaderProjectRegistry {
     if (!await this.isFormalProject(resolvedPath)) {
       throw new Error("Selected directory needs .math-workspace/config.json. Run `math-workspace init` in the project first.");
     }
-    const canonicalPath = await nodeFs$9.promises.realpath(resolvedPath);
+    const canonicalPath = await nodeFs$a.promises.realpath(resolvedPath);
     const record2 = {
       rootPath: canonicalPath,
       rootName: path__namespace.basename(canonicalPath),
@@ -5649,13 +486,13 @@ class ReaderProjectRegistry {
     };
     try {
       await this.updateStored((previous) => [record2, ...previous.filter((item2) => item2.rootPath !== canonicalPath)].slice(0, MAX_RECENT_PROJECTS));
-    } catch (error2) {
-      console.warn(`[math-workspace] Could not save Math Workspace recent projects: ${error2 instanceof Error ? error2.message : String(error2)}`);
+    } catch (error) {
+      console.warn(`[math-workspace] Could not save Math Workspace recent projects: ${error instanceof Error ? error.message : String(error)}`);
     }
     return record2;
   }
   async forget(rootPath) {
-    const resolvedPath = await nodeFs$9.promises.realpath(path__namespace.resolve(rootPath)).catch(() => path__namespace.resolve(rootPath));
+    const resolvedPath = await nodeFs$a.promises.realpath(path__namespace.resolve(rootPath)).catch(() => path__namespace.resolve(rootPath));
     await this.updateStored((previous) => previous.filter((item2) => path__namespace.resolve(item2.rootPath) !== resolvedPath));
   }
   async updateStored(update) {
@@ -5665,7 +502,7 @@ class ReaderProjectRegistry {
       const temporary = `${this.stateFilePath}.${randomBytes$2(8).toString("hex")}.tmp`;
       try {
         await fs__namespace.writeFile(temporary, JSON.stringify({ version: 1, projects }, null, 2) + "\n", { encoding: "utf8", flag: "wx" });
-        await nodeFs$9.promises.rename(temporary, this.stateFilePath);
+        await nodeFs$a.promises.rename(temporary, this.stateFilePath);
       } finally {
         await fs__namespace.rm(temporary, { force: true });
       }
@@ -5695,11 +532,162 @@ class ReaderProjectRegistry {
         rootName: typeof item2.rootName === "string" ? item2.rootName : path__namespace.basename(item2.rootPath),
         openedAt: item2.openedAt
       }));
-    } catch (error2) {
-      if (error2?.code === "ENOENT") return [];
+    } catch (error) {
+      if (error?.code === "ENOENT") return [];
       return [];
     }
   }
+}
+const nodeFs$9 = require("node:fs");
+const MAX_DOCUMENT_BYTES = 8 * 1024 * 1024;
+class PlainReaderSource {
+  constructor(rootPath, initialPagePath) {
+    this.rootPath = rootPath;
+    this.initialPagePath = initialPagePath;
+    this.snapshot = {
+      revision: 0,
+      refreshedAt: "",
+      documents: /* @__PURE__ */ new Map(),
+      state: { mode: "reading", config: { language: "zh" }, pages: [], labels: {}, definitions: [], symbols: [], issues: [], analysisPending: false }
+    };
+    this.listeners = /* @__PURE__ */ new Set();
+    this.watched = /* @__PURE__ */ new Map();
+    this.closed = false;
+  }
+  async start() {
+    if (this.initialPagePath) await this.loadPage(this.initialPagePath);
+    else {
+      for (const candidate of ["README.md", "readme.md", "index.md"]) {
+        try {
+          await this.loadPage(candidate);
+          break;
+        } catch (error) {
+          if (error.code !== "ENOENT") throw error;
+        }
+      }
+    }
+    this.snapshot.state.initialPagePath = this.initialPagePath || this.snapshot.state.pages[0]?.filePath;
+  }
+  current() {
+    return this.snapshot;
+  }
+  onChange(listener) {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
+  }
+  async close() {
+    this.closed = true;
+    for (const [file, listener] of this.watched) nodeFs$9.unwatchFile(file, listener);
+    this.watched.clear();
+    this.listeners.clear();
+  }
+  async reload() {
+    for (const name of [...this.snapshot.documents.keys()]) await this.loadPage(name);
+    return this.current();
+  }
+  /** Only regular, in-root files are read. Directory and file symlinks are excluded. */
+  async safePath(relative, directory2 = false) {
+    if (!relative && !directory2 || path__namespace.isAbsolute(relative) || /[\\\x00-\x1f]/.test(relative) || relative.split("/").some((part) => part === ".." || part === "." || part.startsWith(".math-workspace") || part === ".git")) throw new Error("The reading path is outside the selected folder.");
+    let result = this.rootPath;
+    for (const part of relative.split("/").filter(Boolean)) {
+      result = path__namespace.join(result, part);
+      if ((await nodeFs$9.promises.lstat(result)).isSymbolicLink()) throw new Error("Reading mode cannot follow symbolic links.");
+    }
+    const stat = await fs__namespace.stat(result);
+    if (directory2 ? !stat.isDirectory() : !stat.isFile()) throw new Error("The reading path is not a regular " + (directory2 ? "folder." : "file."));
+    return result;
+  }
+  async loadPage(filePath) {
+    if (this.closed) throw new Error("The Reader is closed.");
+    if (path__namespace.extname(filePath).toLowerCase() !== ".md") throw new Error("Reading mode opens Markdown files.");
+    const absolute = await this.safePath(filePath);
+    if ((await fs__namespace.stat(absolute)).size > MAX_DOCUMENT_BYTES) throw new Error("The Markdown file exceeds the 8 MiB reading limit.");
+    const content = await fs__namespace.readFile(absolute, "utf8");
+    if (content.includes("\0") || Buffer.byteLength(content) > MAX_DOCUMENT_BYTES) throw new Error("The selected file is not a supported Markdown document.");
+    if (this.snapshot.documents.get(filePath) === content) return this.current();
+    const documents = new Map(this.snapshot.documents);
+    documents.set(filePath, content);
+    const heading = content.replace(/^[ \t]*(`{3,}|~{3,})[^\n]*\n[\s\S]*?^[ \t]*\1[ \t]*$/gm, "").split(/\r?\n/).find((line) => /^ {0,3}#\s+/.test(line));
+    const title2 = heading?.replace(/^ {0,3}#\s+/, "").trim() || path__namespace.posix.basename(filePath, ".md");
+    const page = { filePath, title: title2, kind: "reading", documentMode: "reading", displayHeading: title2 };
+    const pages = [...this.snapshot.state.pages.filter((item2) => item2.filePath !== filePath), page];
+    this.snapshot = {
+      revision: this.snapshot.revision + 1,
+      refreshedAt: (/* @__PURE__ */ new Date()).toISOString(),
+      documents,
+      state: { ...this.snapshot.state, pages }
+    };
+    if (!this.watched.has(absolute)) {
+      const listener = () => {
+        void this.loadPage(filePath).then((snapshot) => {
+          if (!this.closed) this.listeners.forEach((notify) => notify({ snapshot, changedPaths: [filePath] }));
+        }).catch(() => {
+        });
+      };
+      this.watched.set(absolute, listener);
+      nodeFs$9.watchFile(absolute, { persistent: false, interval: 600 }, listener);
+    }
+    return this.current();
+  }
+  async directory(relative = "") {
+    const folder = await this.safePath(relative, true), entries = await fs__namespace.readdir(folder, { withFileTypes: true });
+    const visible = entries.filter((item2) => !item2.name.startsWith(".") && item2.name !== "node_modules" && item2.name !== "out" && item2.name !== "dist" && (item2.isDirectory() || item2.isFile() && item2.name.toLowerCase().endsWith(".md")));
+    if (visible.length > 500) throw new Error("This folder has more than 500 reading entries. Choose a smaller folder.");
+    return { directory: relative, entries: visible.sort((a, b) => Number(b.isDirectory()) - Number(a.isDirectory()) || a.name.localeCompare(b.name)).map((item2) => ({
+      path: [relative, item2.name].filter(Boolean).join("/"),
+      name: item2.name,
+      directory: item2.isDirectory()
+    })) };
+  }
+}
+const nodeFs$8 = require("node:fs");
+async function isMathWorkspaceProject(rootPath) {
+  try {
+    return (await fs__namespace.stat(path__namespace.join(rootPath, ".math-workspace", "config.json"))).isFile();
+  } catch (_error) {
+    return false;
+  }
+}
+async function findMathWorkspaceRoot(startPath) {
+  let current = path__namespace.resolve(startPath);
+  try {
+    const stat = await fs__namespace.stat(current);
+    if (!stat.isDirectory()) current = path__namespace.dirname(current);
+  } catch (_error) {
+    return void 0;
+  }
+  while (true) {
+    if (await isMathWorkspaceProject(current)) return nodeFs$8.promises.realpath(current);
+    const parent2 = path__namespace.dirname(current);
+    if (parent2 === current) return void 0;
+    current = parent2;
+  }
+}
+async function resolveReaderTarget(input, readingOnly = false) {
+  const selected = await fs__namespace.realpath(path__namespace.resolve(input)), stat = await fs__namespace.stat(selected);
+  if (!stat.isDirectory() && (!stat.isFile() || path__namespace.extname(selected).toLowerCase() !== ".md")) throw new Error("Choose a Markdown file or a local folder.");
+  const configured = await findMathWorkspaceRoot(selected);
+  const rootPath = configured || (stat.isDirectory() ? selected : path__namespace.dirname(selected));
+  const target = {
+    rootPath,
+    mode: configured && !readingOnly ? "workspace" : "reading",
+    ...!stat.isDirectory() ? { pagePath: path__namespace.relative(rootPath, selected).split(path__namespace.sep).join("/") } : {}
+  };
+  if (configured && !readingOnly) {
+    try {
+      const config2 = JSON.parse(await fs__namespace.readFile(path__namespace.join(configured, ".math-workspace/config.json"), "utf8"));
+      if (!config2 || typeof config2 !== "object" || Array.isArray(config2)) throw new Error("Configuration must be a JSON object.");
+    } catch (error) {
+      target.configurationError = error instanceof Error ? error.message : String(error);
+    }
+  }
+  return target;
+}
+function isReadingMode(value) {
+  return value?.mode === "reading";
+}
+function readingRouteAllowed(route) {
+  return ["/api/page", "/api/search", "/api/asset", "/api/formula-runtime", "/api/plugin-context", "/api/reading/directory"].includes(route);
 }
 const crypto = require("node:crypto");
 class ArchiveReaderApi {
@@ -5767,9 +755,9 @@ class ArchiveReaderApi {
           job.result = await archive.import(converted.exchange, progress);
         }
         job.state = "completed";
-      } catch (error2) {
+      } catch (error) {
         job.state = "failed";
-        job.error = error2 instanceof Error ? error2.message : String(error2);
+        job.error = error instanceof Error ? error.message : String(error);
       } finally {
         delete job.authentication;
       }
@@ -5784,7 +772,7 @@ class PublicationReaderError extends Error {
     this.status = status;
   }
 }
-const ACTIONS$1 = /* @__PURE__ */ new Set(["save", "save-metadata", "review", "build", "reserve-doi", "attach-zenodo", "review-upload", "upload", "publish", "verify-published", "review-repository", "publish-repository", "verify-repository"]);
+const ACTIONS$1 = /* @__PURE__ */ new Set(["save", "save-metadata", "review", "build", "reserve-doi", "attach-zenodo", "review-upload", "upload", "publish", "verify-published", "review-repository", "publish-repository", "verify-repository", "validate-package", "cancel-package-validation"]);
 const ARTIFACTS = /* @__PURE__ */ new Set(["publication.pdf", "compiled.md", "manifest.json", "citation.json", "source.zip", "lean.zip", "verification.json", "CITATION.cff", "release.json", "checksums.sha256"]);
 class PublicationReaderApi {
   constructor(options = {}) {
@@ -5819,6 +807,14 @@ class PublicationReaderApi {
     if (input.action === "publish" && input.confirmedPublication !== true) throw new PublicationReaderError("Review this edition and explicitly confirm public publication.");
     if (input.action === "publish-repository" && input.confirmedRepository !== true) throw new PublicationReaderError("Review the repository file and ref changes and explicitly confirm publication.");
     if (input.action === "reserve-doi" && input.mode === "new-version" && input.confirmedNewVersion !== true) throw new PublicationReaderError("Explicitly confirm a new version of the same work.");
+    if (input.action === "validate-package" && input.confirmedRebuild !== true) throw new PublicationReaderError("Explicitly approve executing the frozen Lean package in a clean directory.");
+    if (input.action === "cancel-package-validation") {
+      const job2 = this.jobs.get(root);
+      if (!job2 || job2.action !== "validate-package" || job2.state !== "running") throw new PublicationReaderError("No package rebuild is active.");
+      if (job2.profileId !== input.profileId || job2.buildId !== input.buildId || job2.manifestSha256 !== input.manifestSha256) throw new PublicationReaderError("The active package rebuild identity changed.");
+      this.service(root).cancelPackageRebuild(input.profileId, input.buildId, input.manifestSha256);
+      return job2;
+    }
     if (this.jobs.get(root)?.state === "running") throw new PublicationReaderError("A publication operation is already running in this project.", 409);
     const body = JSON.parse(JSON.stringify(input));
     const job = {
@@ -5826,7 +822,8 @@ class PublicationReaderApi {
       action: body.action,
       state: "running",
       phase: "Preparing",
-      startedAt: (/* @__PURE__ */ new Date()).toISOString()
+      startedAt: (/* @__PURE__ */ new Date()).toISOString(),
+      ...body.action === "validate-package" ? { profileId: body.profileId, buildId: body.buildId, manifestSha256: body.manifestSha256 } : {}
     };
     this.jobs.set(root, job);
     void (async () => {
@@ -5867,6 +864,9 @@ class PublicationReaderApi {
           body.buildId,
           { pdfSha256: body.pdfSha256, recordId: body.recordId }
         );
+        else if (body.action === "validate-package") job.result = await service.validatePackage(body.profileId, body.buildId, { artifact: body.artifact, manifestSha256: body.manifestSha256, packageSha256: body.packageSha256, allowDependencies: body.allowDependencies === true, timeoutMs: body.timeoutMs }, { onProgress: (message) => {
+          job.phase = message;
+        } });
         else if (body.action === "review-repository") job.result = await service.reviewRepository(body.profileId, body.buildId, body.manifestSha256);
         else if (body.action === "publish-repository") job.result = await service.publishRepository(body.profileId, body.buildId, { manifestSha256: body.manifestSha256, fingerprint: body.fingerprint });
         else if (body.action === "verify-repository") job.result = await service.verifyRepository(body.profileId, body.buildId, body.manifestSha256);
@@ -5877,10 +877,10 @@ class PublicationReaderApi {
         );
         job.state = "completed";
         job.phase = "Completed";
-      } catch (error2) {
+      } catch (error) {
         job.state = "failed";
         job.phase = "Failed";
-        job.error = error2 instanceof Error ? error2.message : String(error2);
+        job.error = error instanceof Error ? error.message : String(error);
       } finally {
         job.finishedAt = (/* @__PURE__ */ new Date()).toISOString();
       }
@@ -5919,8 +919,8 @@ async function readPublicationPdfRuntime(staticRoot, requested) {
     const bytes = await boundedRead$1(staticRoot, `pdfjs/${requested}`, MAX_RUNTIME_BYTES);
     if (bytes.length !== entry.bytes || sha256$3(bytes) !== entry.sha256) throw new Error("PDF preview runtime asset changed.");
     return { bytes, contentType: MODULES.includes(requested) ? "text/javascript; charset=utf-8" : "application/octet-stream" };
-  } catch (error2) {
-    if (error2 instanceof PublicationPdfRuntimeError) throw error2;
+  } catch (error) {
+    if (error instanceof PublicationPdfRuntimeError) throw error;
     throw new PublicationPdfRuntimeError("The bundled PDF preview runtime is unavailable or changed. Reopen the Reader after updating its local plugin.", 503);
   }
 }
@@ -5957,7 +957,7 @@ async function readFormulaRuntime(staticRoot, requested) {
     const bytes = await boundedRead(staticRoot, "mathjax/" + FORMULA_RUNTIME_FILE, MAX_MODULE_BYTES);
     if (bytes.length !== entry.bytes || sha256$2(bytes) !== entry.sha256) throw new Error("Formula runtime identity changed.");
     return { bytes, contentType: "text/javascript; charset=utf-8" };
-  } catch (error2) {
+  } catch (error) {
     throw new FormulaRuntimeError("The bundled formula renderer is unavailable or changed. Reopen the Reader after updating its local plugin.", 503);
   }
 }
@@ -6035,8 +1035,8 @@ async function processSnapshot() {
   });
   const result = /* @__PURE__ */ new Map();
   for (const line of snapshot.split("\n")) {
-    const match2 = line.match(/^\s*(\d+)\s+(\d+)\s+(.+)$/);
-    if (match2) result.set(Number(match2[1]), { parent: Number(match2[2]), identity: match2[3].trim() });
+    const match = line.match(/^\s*(\d+)\s+(\d+)\s+(.+)$/);
+    if (match) result.set(Number(match[1]), { parent: Number(match[2]), identity: match[3].trim() });
   }
   return result;
 }
@@ -6079,13 +1079,13 @@ async function killProcessTree(child, remembered = /* @__PURE__ */ new Map()) {
 }
 async function lakeEnvironment(cwd, toolchainRoot, boundaries, operation) {
   operation.check();
-  const base2 = leanEnvironment(toolchainRoot);
+  const base = leanEnvironment(toolchainRoot);
   const query = "process.stdout.write(JSON.stringify({LEAN_PATH:process.env.LEAN_PATH,LEAN_SRC_PATH:process.env.LEAN_SRC_PATH}))";
   const result = await new Promise((resolve2, reject) => {
     const child = readonlySpawn(
       path.join(toolchainRoot, "bin", "lake"),
       ["--offline", "--no-build", "--no-cache", "env", process.execPath, "-e", query],
-      { cwd, env: base2, stdio: ["ignore", "pipe", "pipe"], detached: process.platform !== "win32" }
+      { cwd, env: base, stdio: ["ignore", "pipe", "pipe"], detached: process.platform !== "win32" }
     );
     let output = "", errorOutput = "", size = 0, failure;
     const stop = (reason) => {
@@ -6105,10 +1105,10 @@ async function lakeEnvironment(cwd, toolchainRoot, boundaries, operation) {
     };
     child.stdout.on("data", (chunk) => receive(chunk, false));
     child.stderr.on("data", (chunk) => receive(chunk, true));
-    child.once("error", (error2) => {
+    child.once("error", (error) => {
       clearTimeout(timer);
       unsubscribe();
-      reject(error2);
+      reject(error);
     });
     child.once("close", (code2) => {
       clearTimeout(timer);
@@ -6129,8 +1129,8 @@ async function lakeEnvironment(cwd, toolchainRoot, boundaries, operation) {
         try {
           resolved = await fs$4.realpath(candidate);
           break;
-        } catch (error2) {
-          if (error2?.code !== "ENOENT") throw error2;
+        } catch (error) {
+          if (error?.code !== "ENOENT") throw error;
         }
         const parent2 = path.dirname(candidate);
         if (parent2 === candidate) break;
@@ -6146,7 +1146,7 @@ async function lakeEnvironment(cwd, toolchainRoot, boundaries, operation) {
       }
     }
   }
-  return { ...base2, ...selected };
+  return { ...base, ...selected };
 }
 class LeanLanguageConnection {
   constructor(filePath) {
@@ -6207,7 +1207,7 @@ exec ${quote(process.execPath)} ${quote(entry)} "$@"
       if (this.stderr.length < 16e3) this.stderr += String(chunk);
       if (this.outputBytes > SESSION_OUTPUT_LIMIT) this.fail(new Error("Lean session exceeded its bounded output limit."));
     });
-    this.child.once("error", (error2) => this.fail(error2));
+    this.child.once("error", (error) => this.fail(error));
     this.child.once("close", (code2) => this.fail(new Error(`Lean language server closed (${code2}). ${this.stderr.slice(0, 16e3)}`)));
     const initialized = await this.request("initialize", {
       processId: process.pid,
@@ -6243,7 +1243,7 @@ exec ${quote(process.execPath)} ${quote(entry)} "$@"
     if (this.pending.size >= 16) throw new publication.LeanReviewError(429, "Too many simultaneous Lean language requests.");
     const id2 = this.nextId++;
     return new Promise((resolve2, reject) => {
-      const abandon = (error2) => {
+      const abandon = (error) => {
         const pending2 = this.pending.get(id2);
         if (!pending2) return;
         this.pending.delete(id2);
@@ -6253,7 +1253,7 @@ exec ${quote(process.execPath)} ${quote(entry)} "$@"
           this.notify("$/cancelRequest", { id: id2 });
         } catch (_error) {
         }
-        reject(error2);
+        reject(error);
       };
       const pending = {
         resolve: resolve2,
@@ -6267,8 +1267,8 @@ exec ${quote(process.execPath)} ${quote(entry)} "$@"
       if (!this.pending.has(id2)) return;
       try {
         this.write({ jsonrpc: "2.0", id: id2, method, params });
-      } catch (error2) {
-        abandon(error2);
+      } catch (error) {
+        abandon(error);
       }
     });
   }
@@ -6276,8 +1276,8 @@ exec ${quote(process.execPath)} ${quote(entry)} "$@"
     try {
       await this.request("textDocument/waitForDiagnostics", { uri: this.uri, version: this.version }, operation, timeout);
       this.complete = true;
-    } catch (error2) {
-      if (operation.cancelled || this.closed) throw error2;
+    } catch (error) {
+      if (operation.cancelled || this.closed) throw error;
       this.complete = false;
     }
     return this.complete;
@@ -6306,8 +1306,8 @@ exec ${quote(process.execPath)} ${quote(entry)} "$@"
         this.buffer = this.buffer.subarray(headerEnd + 4 + size);
         this.handle(message);
       }
-    } catch (error2) {
-      this.fail(error2);
+    } catch (error) {
+      this.fail(error);
     }
   }
   handle(message) {
@@ -6332,16 +1332,16 @@ exec ${quote(process.execPath)} ${quote(entry)} "$@"
     clearTimeout(pending.timer);
     pending.unsubscribe();
     if (message.error) {
-      const error2 = new Error(String(message.error.message || "Lean language request failed."));
-      error2.code = message.error.code;
-      pending.reject(error2);
+      const error = new Error(String(message.error.message || "Lean language request failed."));
+      error.code = message.error.code;
+      pending.reject(error);
     } else pending.resolve(message.result);
   }
-  fail(error2) {
+  fail(error) {
     for (const pending of this.pending.values()) {
       clearTimeout(pending.timer);
       pending.unsubscribe();
-      pending.reject(error2);
+      pending.reject(error);
     }
     this.pending.clear();
     if (!this.closed) {
@@ -6375,15 +1375,15 @@ exec ${quote(process.execPath)} ${quote(entry)} "$@"
     return this.closing;
   }
 }
-const nodeFs$8 = require("node:fs/promises");
+const nodeFs$7 = require("node:fs/promises");
 const { fileURLToPath: fileURLToPath$1 } = require("node:url");
 const MAX_FILE_BYTES = 2 * 1024 * 1024;
 const MAX_INVENTORY_FILES = 16e4;
 const MAX_SOURCE_BYTES = 512 * 1024 * 1024;
 const MAX_SESSIONS = 2;
 const SOURCE_HASH = /^[0-9a-f]{64}$/;
-function boundedKey(value, label, max = 512) {
-  if (typeof value !== "string" || !value || value.length > max || /[\x00-\x1f]/.test(value)) throw new publication.LeanReviewError(400, `Invalid ${label}.`);
+function boundedKey(value, label2, max = 512) {
+  if (typeof value !== "string" || !value || value.length > max || /[\x00-\x1f]/.test(value)) throw new publication.LeanReviewError(400, `Invalid ${label2}.`);
   return value;
 }
 function lines(content) {
@@ -6413,17 +1413,17 @@ async function readBounded(file, max = MAX_FILE_BYTES) {
   let stat;
   try {
     stat = await fs__namespace.stat(file);
-  } catch (error2) {
-    if (error2?.code === "ENOENT") throw new publication.LeanReviewError(404, "The local source or configuration file no longer exists.");
-    throw error2;
+  } catch (error) {
+    if (error?.code === "ENOENT") throw new publication.LeanReviewError(404, "The local source or configuration file no longer exists.");
+    throw error;
   }
   if (!stat.isFile()) throw new publication.LeanReviewError(400, "Lean source must be a regular file.");
   if (stat.size > max) throw new publication.LeanReviewError(413, "Lean source exceeds the complete-file preview limit.");
   const data = await fs__namespace.readFile(file);
   if (data.length > max) throw new publication.LeanReviewError(413, "Lean source exceeds the complete-file preview limit.");
-  const text2 = data.toString("utf8");
-  if (!Buffer.from(text2, "utf8").equals(data)) throw new publication.LeanReviewError(400, "Lean source is not valid UTF-8.");
-  return text2;
+  const text = data.toString("utf8");
+  if (!Buffer.from(text, "utf8").equals(data)) throw new publication.LeanReviewError(400, "Lean source is not valid UTF-8.");
+  return text;
 }
 async function contextFor(rootInput, keyInput) {
   const root = await fs__namespace.realpath(rootInput);
@@ -6448,8 +1448,8 @@ async function contextFor(rootInput, keyInput) {
       if (await publication.reviewSafePath(root, overrideRelative, true)) throw new Error("Lake package overrides require deliberate external resolution and are not admitted by the read-only language service.");
     }
     dependencies2 = (await publication.manifestDependencies(root, projectRoot2)).map((item2) => item2.directory);
-  } catch (error2) {
-    dependencyError = error2.message;
+  } catch (error) {
+    dependencyError = error.message;
   }
   return {
     root,
@@ -6484,9 +1484,9 @@ async function openSource(context, pathInput, actualAbsolute = false) {
     } else {
       absolute = await publication.reviewSafePath(context.root, filePathInput);
     }
-  } catch (error2) {
-    if (error2?.code === "ENOENT") throw new publication.LeanReviewError(404, "The Lean source file no longer exists.");
-    throw error2;
+  } catch (error) {
+    if (error?.code === "ENOENT") throw new publication.LeanReviewError(404, "The Lean source file no longer exists.");
+    throw error;
   }
   if (!absolute.endsWith(".lean")) throw new publication.LeanReviewError(400, "Only actual Lean source files may be opened.");
   const origin = sourceOrigin(context, absolute);
@@ -6499,7 +1499,7 @@ async function openSource(context, pathInput, actualAbsolute = false) {
     let candidate = sourceBoundary;
     for (const part of lexical.split(/[\\/]/).filter((part2) => part2 && part2 !== ".")) {
       candidate = path__namespace.join(candidate, part);
-      if ((await nodeFs$8.lstat(candidate)).isSymbolicLink()) throw new publication.LeanReviewError(400, "Lean source symlinks are not admitted.");
+      if ((await nodeFs$7.lstat(candidate)).isSymbolicLink()) throw new publication.LeanReviewError(400, "Lean source symlinks are not admitted.");
     }
   }
   const content = await readBounded(absolute);
@@ -6528,7 +1528,7 @@ async function environmentFingerprint(context, operation, knownPaths) {
   };
   const record2 = async (candidate, entry) => {
     check2();
-    const stat = await nodeFs$8.lstat(candidate);
+    const stat = await nodeFs$7.lstat(candidate);
     if (++files > MAX_INVENTORY_FILES) throw new publication.LeanReviewError(413, "Lean environment exceeds its bounded file limit.");
     if (candidate.endsWith(".lean")) sourceBytes += stat.size;
     if (sourceBytes > MAX_SOURCE_BYTES) throw new publication.LeanReviewError(413, "Lean environment exceeds its bounded source-byte limit.");
@@ -6552,9 +1552,9 @@ async function environmentFingerprint(context, operation, knownPaths) {
           let stat;
           try {
             stat = await fs__namespace.stat(candidate);
-          } catch (error2) {
-            if (error2?.code === "ENOENT") continue;
-            throw error2;
+          } catch (error) {
+            if (error?.code === "ENOENT") continue;
+            throw error;
           }
           if (!stat.isDirectory()) continue;
         }
@@ -6726,10 +1726,10 @@ class LeanLanguageService {
         try {
           await session.connection.start(context.projectRoot, context.toolchainRoot, open.source.content, active.operation, context.dependencies);
           await session.connection.waitForDiagnostics(active.operation);
-        } catch (error2) {
+        } catch (error) {
           await this.retire(session, active.operation);
           if (active.operation.cancelled) return this.response(open, request, "cancelled");
-          return { ...this.response(open, request, "unavailable"), reason: error2.message };
+          return { ...this.response(open, request, "unavailable"), reason: error.message };
         }
       } else {
         boundedKey(request.sessionId, "Lean session id", 32);
@@ -6813,14 +1813,14 @@ class LeanLanguageService {
       active.operation.check();
       if (Buffer.byteLength(JSON.stringify(response)) > 8 * 1024 * 1024) throw new publication.LeanReviewError(413, "Lean semantic response exceeds its bounded 8 MiB limit.");
       return response;
-    } catch (error2) {
-      if (active.operation.cancelled && !(error2 instanceof publication.LeanReviewError && error2.status === 409)) return open ? this.response(open, request, "cancelled", session) : this.cancelledResponse(rootInput, request);
-      if (!(error2 instanceof publication.LeanReviewError)) {
+    } catch (error) {
+      if (active.operation.cancelled && !(error instanceof publication.LeanReviewError && error.status === 409)) return open ? this.response(open, request, "cancelled", session) : this.cancelledResponse(rootInput, request);
+      if (!(error instanceof publication.LeanReviewError)) {
         if (session) await this.retire(session, active.operation);
-        if (!open) throw error2;
-        return { ...this.response(open, request, "unavailable"), reason: error2.message };
+        if (!open) throw error;
+        return { ...this.response(open, request, "unavailable"), reason: error.message };
       }
-      throw error2;
+      throw error;
     } finally {
       this.operations.delete(key);
     }
@@ -6835,7 +1835,7 @@ class LeanLanguageService {
     await Promise.all([...this.sessions.values()].map((session) => this.retire(session)));
   }
 }
-const nodeFs$7 = require("node:fs/promises");
+const nodeFs$6 = require("node:fs/promises");
 const MAX_BYTES$1 = 2 * 1024 * 1024;
 const AUDIT_CATEGORIES = ["assumption", "symbol", "scope", "statement", "proof", "trust", "other"];
 const AUDIT_STATUSES = ["open", "resolved", "dismissed"];
@@ -6843,9 +1843,9 @@ const AUDIT_VERDICTS = ["aligned", "partial", "difference", "undecided"];
 const ACTIONS = ["create-link", "edit-link", "recheck-link", "create-issue", "update-issue", "recheck-issue"];
 const HASH = /^[0-9a-f]{64}$/;
 const ID = /^[A-Za-z0-9][A-Za-z0-9_-]{0,99}$/;
-function auditText(value, label, maximum, required2 = false) {
+function auditText(value, label2, maximum, required2 = false) {
   if (typeof value !== "string" || value.length > maximum || value.includes("\0") || required2 && !value.trim()) {
-    throw new publication.LeanReviewError(400, `${label} must be ${required2 ? "non-empty " : ""}text of at most ${maximum} characters.`);
+    throw new publication.LeanReviewError(400, `${label2} must be ${required2 ? "non-empty " : ""}text of at most ${maximum} characters.`);
   }
   return value;
 }
@@ -6854,11 +1854,11 @@ function auditId(value) {
   return value;
 }
 function auditPath(value) {
-  const text2 = auditText(value, "Audit path", 1e3, true);
-  if (path__namespace.isAbsolute(text2) || text2.includes("\\") || text2.split("/").some((part) => part === ".." || part === "." || !part)) {
+  const text = auditText(value, "Audit path", 1e3, true);
+  if (path__namespace.isAbsolute(text) || text.includes("\\") || text.split("/").some((part) => part === ".." || part === "." || !part)) {
     throw new publication.LeanReviewError(400, "Audit paths must be canonical project-relative paths.");
   }
-  return text2;
+  return text;
 }
 function auditRange(value) {
   const valid = (position) => !!position && Number.isSafeInteger(position.line) && position.line >= 0 && position.line <= 1e6 && Number.isSafeInteger(position.character) && position.character >= 0 && position.character <= 1e6;
@@ -6952,7 +1952,7 @@ function validTarget(value) {
 }
 function validateAuditRecord(value, root, id2) {
   const unique = (items2) => new Set(items2.map((item2) => item2.id)).size === items2.length;
-  if (!value || value.schemaVersion !== 1 || value.formalId !== publication.formalReviewId(id2) || value.projectToken !== publication.reviewHash(root) || !Number.isSafeInteger(value.revision) || value.revision < 1 || !validDate(value.updatedAt) || !Array.isArray(value.links) || value.links.length > 80 || !value.links.every(validLink) || !unique(value.links) || !Array.isArray(value.issues) || value.issues.length > 120 || !value.issues.every(validIssue) || !unique(value.issues) || value.issues.some((issue2) => !value.links.some((link2) => link2.id === issue2.linkId)) || !Array.isArray(value.history) || value.history.length > 120 || !Number.isSafeInteger(value.historyDropped) || value.historyDropped < 0 || value.history.some((event, index) => !ACTIONS.includes(event?.action) || !ID.test(event.targetId) || !Number.isSafeInteger(event.revision) || event.revision < 1 || event.revision > value.revision || index > 0 && event.revision <= value.history[index - 1].revision || !validDate(event.at) || typeof event.reviewer !== "string" || event.reviewer.length > 300 || !validTarget(event.after) || event.after.id !== event.targetId || event.before !== void 0 && (!validTarget(event.before) || event.before.id !== event.targetId))) {
+  if (!value || value.schemaVersion !== 1 || value.formalId !== publication.formalReviewId(id2) || value.projectToken !== publication.reviewHash(root) || !Number.isSafeInteger(value.revision) || value.revision < 1 || !validDate(value.updatedAt) || !Array.isArray(value.links) || value.links.length > 80 || !value.links.every(validLink) || !unique(value.links) || !Array.isArray(value.issues) || value.issues.length > 120 || !value.issues.every(validIssue) || !unique(value.issues) || value.issues.some((issue2) => !value.links.some((link) => link.id === issue2.linkId)) || !Array.isArray(value.history) || value.history.length > 120 || !Number.isSafeInteger(value.historyDropped) || value.historyDropped < 0 || value.history.some((event, index) => !ACTIONS.includes(event?.action) || !ID.test(event.targetId) || !Number.isSafeInteger(event.revision) || event.revision < 1 || event.revision > value.revision || index > 0 && event.revision <= value.history[index - 1].revision || !validDate(event.at) || typeof event.reviewer !== "string" || event.reviewer.length > 300 || !validTarget(event.after) || event.after.id !== event.targetId || event.before !== void 0 && (!validTarget(event.before) || event.before.id !== event.targetId))) {
     throw new publication.LeanReviewError(409, "Lean audit record is malformed or belongs to another object/project; its bytes were preserved.");
   }
   return value;
@@ -7005,10 +2005,10 @@ async function updateAuditRecord(root, idInput, expectedRevision, mutate) {
   const dir = await directory$1(root, true), lockPath = path__namespace.join(dir, `${id2}.lock`);
   let lock;
   try {
-    lock = await nodeFs$7.open(lockPath, "wx", 384);
-  } catch (error2) {
-    if (error2?.code === "EEXIST") throw new publication.LeanReviewError(409, "Another audit save owns this object. Reload before retrying; a crashed save may leave a .lock file.");
-    throw error2;
+    lock = await nodeFs$6.open(lockPath, "wx", 384);
+  } catch (error) {
+    if (error?.code === "EEXIST") throw new publication.LeanReviewError(409, "Another audit save owns this object. Reload before retrying; a crashed save may leave a .lock file.");
+    throw error;
   }
   let temporary = "";
   try {
@@ -7033,14 +2033,14 @@ async function updateAuditRecord(root, idInput, expectedRevision, mutate) {
     const content = JSON.stringify(record2, null, 2) + "\n";
     if (Buffer.byteLength(content) > MAX_BYTES$1) throw new publication.LeanReviewError(413, "This audit artifact exceeds 2 MiB; narrow the excerpts or notes.");
     temporary = path__namespace.join(dir, `.${id2}-${crypto__namespace.randomBytes(8).toString("hex")}.tmp`);
-    const file = await nodeFs$7.open(temporary, "wx", 384);
+    const file = await nodeFs$6.open(temporary, "wx", 384);
     try {
       await file.writeFile(content, "utf8");
       await file.sync();
     } finally {
       await file.close();
     }
-    await nodeFs$7.rename(temporary, path__namespace.join(dir, `${id2}.json`));
+    await nodeFs$6.rename(temporary, path__namespace.join(dir, `${id2}.json`));
     return record2;
   } finally {
     if (temporary) await fs__namespace.rm(temporary, { force: true });
@@ -7079,8 +2079,8 @@ function proseSnippets(response) {
 function subclaimHashes(claims = []) {
   return new Map(claims.map((claim) => [claim.id, publication.reviewHash(JSON.stringify(claim))]));
 }
-function linkFingerprint(link2) {
-  return publication.reviewHash(JSON.stringify({ prose: link2.prose, lean: link2.lean, correspondences: link2.correspondences }));
+function linkFingerprint(link) {
+  return publication.reviewHash(JSON.stringify({ prose: link.prose, lean: link.lean, correspondences: link.correspondences }));
 }
 function manualDecision(response) {
   const record2 = response.review.record;
@@ -7114,8 +2114,8 @@ async function currentAnchor(root, side, value, response, cache2) {
   } else {
     const key = auditText(value?.declarationKey, "Lean declaration identity", 500, true);
     const projectKey = auditText(value?.projectKey, "Lean project identity", 100, true);
-    const declaration2 = [...response.evidence.declarations, ...response.evidence.definitions].find((item2) => item2.key === key && item2.projectKey === projectKey && item2.source?.filePath === filePath);
-    if (!declaration2) throw new publication.LeanReviewError(400, "The Lean range must come from an actual declaration/definition source of this formal object and project.");
+    const declaration = [...response.evidence.declarations, ...response.evidence.definitions].find((item2) => item2.key === key && item2.projectKey === projectKey && item2.source?.filePath === filePath);
+    if (!declaration) throw new publication.LeanReviewError(400, "The Lean range must come from an actual declaration/definition source of this formal object and project.");
     identity = { declarationKey: key, projectKey };
   }
   const file = await sourceFile(root, filePath, cache2);
@@ -7137,21 +2137,21 @@ async function anchorFreshness(root, anchor, cache2) {
   }
   return reasons;
 }
-async function linkFreshness(root, link2, evidenceFingerprint, cache2, claims = /* @__PURE__ */ new Map()) {
-  const reasons = [...await anchorFreshness(root, link2.prose, cache2), ...await anchorFreshness(root, link2.lean, cache2)];
-  if (link2.checkedEvidenceFingerprint !== evidenceFingerprint) reasons.push("Object evidence, inputs or source associations changed since the human check");
-  if (link2.prose.subclaimId && claims.get(link2.prose.subclaimId) !== link2.prose.subclaimHash) reasons.push("The linked human subclaim changed or was deleted");
+async function linkFreshness(root, link, evidenceFingerprint, cache2, claims = /* @__PURE__ */ new Map()) {
+  const reasons = [...await anchorFreshness(root, link.prose, cache2), ...await anchorFreshness(root, link.lean, cache2)];
+  if (link.checkedEvidenceFingerprint !== evidenceFingerprint) reasons.push("Object evidence, inputs or source associations changed since the human check");
+  if (link.prose.subclaimId && claims.get(link.prose.subclaimId) !== link.prose.subclaimHash) reasons.push("The linked human subclaim changed or was deleted");
   return { freshness: reasons.length ? "stale" : "current", reasons };
 }
 async function projectRecord(root, record2, evidenceFingerprint, cache2, claimIdentity) {
-  if (!claimIdentity && record2?.links.some((link2) => link2.prose.subclaimId)) claimIdentity = subclaimHashes((await publication.readReviewRecord(root, record2.formalId))?.subclaims);
+  if (!claimIdentity && record2?.links.some((link) => link.prose.subclaimId)) claimIdentity = subclaimHashes((await publication.readReviewRecord(root, record2.formalId))?.subclaims);
   const links = [];
-  for (const link2 of record2?.links || []) links.push({ link: link2, ...await linkFreshness(root, link2, evidenceFingerprint, cache2, claimIdentity) });
+  for (const link of record2?.links || []) links.push({ link, ...await linkFreshness(root, link, evidenceFingerprint, cache2, claimIdentity) });
   const issues = (record2?.issues || []).map((issue2) => {
-    const link2 = links.find((item2) => item2.link.id === issue2.linkId);
-    const reasons = [...link2?.reasons || ["Linked source association is missing"]];
+    const link = links.find((item2) => item2.link.id === issue2.linkId);
+    const reasons = [...link?.reasons || ["Linked source association is missing"]];
     if (issue2.checkedEvidenceFingerprint !== evidenceFingerprint) reasons.push("Issue decision predates the current object evidence");
-    if (link2 && issue2.checkedLinkFingerprint !== linkFingerprint(link2.link)) reasons.push("Linked ranges or assumption/symbol correspondences changed after this issue decision");
+    if (link && issue2.checkedLinkFingerprint !== linkFingerprint(link.link)) reasons.push("Linked ranges or assumption/symbol correspondences changed after this issue decision");
     const stale = reasons.length > 0;
     return { issue: issue2, freshness: stale ? "stale" : "current", reasons, unresolved: issue2.status === "open" || stale };
   });
@@ -7174,14 +2174,14 @@ class LeanAuditService {
       return [...new Map(result.map((item2) => [item2.key, item2])).values()];
     };
     const proseSources = await sources(proseSnippets(response)), leanSources = [];
-    for (const declaration2 of [...response.evidence.declarations, ...response.evidence.definitions]) {
-      if (!declaration2.source) continue;
-      const file = await sourceFile(root, declaration2.source.filePath, cache2);
+    for (const declaration of [...response.evidence.declarations, ...response.evidence.definitions]) {
+      if (!declaration.source) continue;
+      const file = await sourceFile(root, declaration.source.filePath, cache2);
       if (file) leanSources.push({
-        key: declaration2.key,
-        declarationKey: declaration2.key,
-        projectKey: declaration2.projectKey,
-        source: declaration2.source,
+        key: declaration.key,
+        declarationKey: declaration.key,
+        projectKey: declaration.projectKey,
+        source: declaration.source,
         fileHash: file.hash
       });
     }
@@ -7226,7 +2226,7 @@ class LeanAuditService {
           throw new publication.LeanReviewError(409, "This source link is stale. Select and explicitly recheck both ranges before updating a verdict.");
         }
         const rebinding = body.action !== "edit-link";
-        const link2 = {
+        const link = {
           id: previous?.id || newAuditId("link"),
           prose: rebinding ? await currentAnchor(root, "prose", body.prose, response, cache2) : previous.prose,
           lean: rebinding ? await currentAnchor(root, "lean", body.lean, response, cache2) : previous.lean,
@@ -7238,21 +2238,21 @@ class LeanAuditService {
           createdAt: previous?.createdAt || record2.updatedAt,
           checkedAt: record2.updatedAt
         };
-        if (previous) record2.links[record2.links.indexOf(previous)] = link2;
-        else record2.links.push(link2);
-        auditEvent(record2, body.action, link2, previous);
+        if (previous) record2.links[record2.links.indexOf(previous)] = link;
+        else record2.links.push(link);
+        auditEvent(record2, body.action, link, previous);
       } else {
         const previous = body.action === "create-issue" ? void 0 : record2.issues.find((item2) => item2.id === auditId(body.issueId));
         if (body.action !== "create-issue" && !previous) throw new publication.LeanReviewError(404, "Issue not found in this formal object.");
         if (!previous && record2.issues.length >= 120) throw new publication.LeanReviewError(413, "An object can retain at most 120 issues.");
-        const linkId = previous?.linkId || auditId(body.linkId), link2 = record2.links.find((item2) => item2.id === linkId);
-        if (!link2) throw new publication.LeanReviewError(400, "Each issue must reference a link with both prose and Lean ranges in this object.");
+        const linkId = previous?.linkId || auditId(body.linkId), link = record2.links.find((item2) => item2.id === linkId);
+        if (!link) throw new publication.LeanReviewError(400, "Each issue must reference a link with both prose and Lean ranges in this object.");
         if (!AUDIT_CATEGORIES.includes(body.category) || !AUDIT_STATUSES.includes(body.status)) throw new publication.LeanReviewError(400, "Choose a valid issue category and status.");
-        const fresh = await linkFreshness(root, link2, fingerprint, cache2, subclaimHashes(response.review.record?.subclaims));
+        const fresh = await linkFreshness(root, link, fingerprint, cache2, subclaimHashes(response.review.record?.subclaims));
         if (fresh.freshness !== "current") throw new publication.LeanReviewError(409, "Explicitly recheck the linked source ranges before recording an issue decision.");
         const resolution = auditText(body.resolution ?? "", "Resolution/recheck note", 8e3);
         if ((body.status !== "open" || body.action === "recheck-issue") && !resolution.trim()) throw new publication.LeanReviewError(400, "Resolving, dismissing or rechecking an issue requires a human explanation.");
-        if (previous && body.action === "update-issue" && (previous.checkedEvidenceFingerprint !== fingerprint || previous.checkedLinkFingerprint !== linkFingerprint(link2))) {
+        if (previous && body.action === "update-issue" && (previous.checkedEvidenceFingerprint !== fingerprint || previous.checkedLinkFingerprint !== linkFingerprint(link))) {
           throw new publication.LeanReviewError(409, "This issue predates current evidence. Use the explicit recheck action.");
         }
         const issue2 = {
@@ -7265,7 +2265,7 @@ class LeanAuditService {
           reviewer,
           resolution,
           checkedEvidenceFingerprint: fingerprint,
-          checkedLinkFingerprint: linkFingerprint(link2),
+          checkedLinkFingerprint: linkFingerprint(link),
           createdAt: previous?.createdAt || record2.updatedAt,
           updatedAt: record2.updatedAt
         };
@@ -7294,7 +2294,7 @@ class LeanAuditService {
       items2.push({
         ...item2,
         links: projected.links.length,
-        staleLinks: projected.links.filter((link2) => link2.freshness === "stale").length,
+        staleLinks: projected.links.filter((link) => link.freshness === "stale").length,
         issues: projected.issues.length,
         staleIssues: projected.issues.filter((issue2) => issue2.freshness === "stale").length,
         unresolvedIssues: projected.issues.filter((issue2) => issue2.unresolved).length
@@ -7360,20 +2360,20 @@ class LeanAuditService {
         `Audit revision: ${record2.revision}; retained actions: ${record2.history.length}; dropped actions: ${record2.historyDropped}.`
       );
       for (const projected of projection.links) {
-        const link2 = projected.link;
+        const link = projected.link;
         lines2.push(
           "",
-          `### ${link2.id}: ${link2.verdict}, ${projected.freshness}`,
+          `### ${link.id}: ${link.verdict}, ${projected.freshness}`,
           "",
-          `Prose: ${escape2(link2.prose.filePath)}:${link2.prose.range.start.line + 1}:${link2.prose.range.start.character + 1}–${link2.prose.range.end.line + 1}:${link2.prose.range.end.character + 1}; file SHA-256 ${link2.prose.fileHash}.`,
-          `> ${escape2(link2.prose.quote)}`,
-          `Lean: ${escape2(link2.lean.projectKey)} / ${escape2(link2.lean.declarationKey)} / ${escape2(link2.lean.filePath)}:${link2.lean.range.start.line + 1}:${link2.lean.range.start.character + 1}–${link2.lean.range.end.line + 1}:${link2.lean.range.end.character + 1}; file SHA-256 ${link2.lean.fileHash}.`,
-          `> ${escape2(link2.lean.quote)}`,
-          `Reviewer: ${escape2(link2.reviewer)}; note: ${escape2(link2.note)}.`
+          `Prose: ${escape2(link.prose.filePath)}:${link.prose.range.start.line + 1}:${link.prose.range.start.character + 1}–${link.prose.range.end.line + 1}:${link.prose.range.end.character + 1}; file SHA-256 ${link.prose.fileHash}.`,
+          `> ${escape2(link.prose.quote)}`,
+          `Lean: ${escape2(link.lean.projectKey)} / ${escape2(link.lean.declarationKey)} / ${escape2(link.lean.filePath)}:${link.lean.range.start.line + 1}:${link.lean.range.start.character + 1}–${link.lean.range.end.line + 1}:${link.lean.range.end.character + 1}; file SHA-256 ${link.lean.fileHash}.`,
+          `> ${escape2(link.lean.quote)}`,
+          `Reviewer: ${escape2(link.reviewer)}; note: ${escape2(link.note)}.`
         );
-        for (const pair of link2.correspondences) lines2.push(`- ${pair.kind}: ${escape2(pair.prose)} ↔ ${escape2(pair.lean)}. ${escape2(pair.note)}`);
+        for (const pair of link.correspondences) lines2.push(`- ${pair.kind}: ${escape2(pair.prose)} ↔ ${escape2(pair.lean)}. ${escape2(pair.note)}`);
         for (const reason of projected.reasons) lines2.push(`- Recheck: ${escape2(reason)}`);
-        for (const issue2 of projection.issues.filter((value) => value.issue.linkId === link2.id)) lines2.push(`- Issue ${issue2.issue.id} [${issue2.issue.category}/${issue2.issue.status}/${issue2.freshness}${issue2.unresolved ? "/unresolved" : ""}]: ${escape2(issue2.issue.title)}. ${escape2(issue2.issue.note)} Resolution: ${escape2(issue2.issue.resolution)}`);
+        for (const issue2 of projection.issues.filter((value) => value.issue.linkId === link.id)) lines2.push(`- Issue ${issue2.issue.id} [${issue2.issue.category}/${issue2.issue.status}/${issue2.freshness}${issue2.unresolved ? "/unresolved" : ""}]: ${escape2(issue2.issue.title)}. ${escape2(issue2.issue.note)} Resolution: ${escape2(issue2.issue.resolution)}`);
       }
       lines2.push("", "### Human action history", "");
       for (const event of record2.history) lines2.push(`- Revision ${event.revision}, ${event.at}, ${escape2(event.reviewer)}: ${event.action} ${event.targetId}; ${"verdict" in event.after ? event.after.verdict : event.after.status}. ${escape2("resolution" in event.after ? event.after.resolution : event.after.note)}`);
@@ -7392,7 +2392,7 @@ async function handleLeanAuditRoute(service, root, method, pathname, query, body
   if (method === "POST" && pathname === "/api/lean-audit/action") return { status: 200, value: await service.action(root, body) };
   throw new publication.LeanReviewError(404, "Lean audit route not found.");
 }
-const nodeFs$6 = require("node:fs/promises");
+const nodeFs$5 = require("node:fs/promises");
 const MAX_BYTES = 1024 * 1024;
 function assistanceTask(value) {
   if (!["assumptions", "statement", "proof", "changes"].includes(value)) throw new publication.LeanReviewError(400, "Choose assumptions, statement, proof, or changes.");
@@ -7428,9 +2428,9 @@ function assistanceItem(value) {
 async function directory(root, create = false) {
   const metadata2 = await publication.reviewSafePath(root, ".math-workspace"), dir = path__namespace.join(metadata2, "lean-assistance");
   try {
-    if ((await nodeFs$6.lstat(dir)).isSymbolicLink()) throw new publication.LeanReviewError(400, "Candidate metadata must not be a symlink.");
-  } catch (error2) {
-    if (error2?.code !== "ENOENT") throw error2;
+    if ((await nodeFs$5.lstat(dir)).isSymbolicLink()) throw new publication.LeanReviewError(400, "Candidate metadata must not be a symlink.");
+  } catch (error) {
+    if (error?.code !== "ENOENT") throw error;
   }
   if (create) await fs__namespace.mkdir(dir, { recursive: true });
   return publication.reviewSafePath(root, path__namespace.relative(root, dir), true);
@@ -7441,10 +2441,10 @@ async function readAssistanceRecord(root, idInput) {
   const file = path__namespace.join(dir, id2 + ".json");
   let stat;
   try {
-    stat = await nodeFs$6.lstat(file);
-  } catch (error2) {
-    if (error2?.code === "ENOENT") return void 0;
-    throw error2;
+    stat = await nodeFs$5.lstat(file);
+  } catch (error) {
+    if (error?.code === "ENOENT") return void 0;
+    throw error;
   }
   if (!stat.isFile() || stat.size > MAX_BYTES) throw new publication.LeanReviewError(409, "Candidate metadata is not a bounded regular file; its bytes were preserved.");
   let record2;
@@ -7471,10 +2471,10 @@ async function updateAssistanceRecord(root, binding2, mutate) {
   const dir = await directory(root, true), lockPath = path__namespace.join(dir, binding2.id + ".lock");
   let lock;
   try {
-    lock = await nodeFs$6.open(lockPath, "wx", 384);
-  } catch (error2) {
-    if (error2?.code === "EEXIST") throw new publication.LeanReviewError(409, "Another candidate save owns this object. Reload before retrying.");
-    throw error2;
+    lock = await nodeFs$5.open(lockPath, "wx", 384);
+  } catch (error) {
+    if (error?.code === "EEXIST") throw new publication.LeanReviewError(409, "Another candidate save owns this object. Reload before retrying.");
+    throw error;
   }
   let temporary = "";
   try {
@@ -7488,14 +2488,14 @@ async function updateAssistanceRecord(root, binding2, mutate) {
       record2.dropped++;
     }
     temporary = path__namespace.join(dir, `.${binding2.id}-${crypto__namespace.randomBytes(8).toString("hex")}.tmp`);
-    const file = await nodeFs$6.open(temporary, "wx", 384);
+    const file = await nodeFs$5.open(temporary, "wx", 384);
     try {
       await file.writeFile(JSON.stringify(record2, null, 2) + "\n", "utf8");
       await file.sync();
     } finally {
       await file.close();
     }
-    await nodeFs$6.rename(temporary, path__namespace.join(dir, binding2.id + ".json"));
+    await nodeFs$5.rename(temporary, path__namespace.join(dir, binding2.id + ".json"));
     return record2;
   } finally {
     if (temporary) await fs__namespace.rm(temporary, { force: true });
@@ -7521,23 +2521,23 @@ function materials(response, task2) {
   source("statement", response.evidence.statement);
   if (task2 === "proof") response.evidence.proofs.forEach((item2) => source("proof", item2));
   response.evidence.contexts.forEach((item2) => source("context", item2));
-  for (const declaration2 of response.evidence.declarations) {
+  for (const declaration of response.evidence.declarations) {
     all.push({
       kind: "declaration",
-      label: declaration2.qualifiedName,
-      declarationKey: declaration2.key,
-      filePath: declaration2.source?.filePath,
-      startLine: declaration2.source?.startLine,
-      fingerprint: declaration2.source?.fingerprint,
+      label: declaration.qualifiedName,
+      declarationKey: declaration.key,
+      filePath: declaration.source?.filePath,
+      startLine: declaration.source?.startLine,
+      fingerprint: declaration.source?.fingerprint,
       text: JSON.stringify({
-        projectKey: declaration2.projectKey,
-        evidenceState: declaration2.evidenceState,
-        type: declaration2.elaboratedType,
-        source: declaration2.source?.content,
-        ...task2 === "proof" ? { proofDependencies: declaration2.proofDependencies, axioms: declaration2.axioms } : {},
-        diagnostic: declaration2.diagnostic
+        projectKey: declaration.projectKey,
+        evidenceState: declaration.evidenceState,
+        type: declaration.elaboratedType,
+        source: declaration.source?.content,
+        ...task2 === "proof" ? { proofDependencies: declaration.proofDependencies, axioms: declaration.axioms } : {},
+        diagnostic: declaration.diagnostic
       }),
-      truncated: declaration2.truncated || declaration2.source?.truncated
+      truncated: declaration.truncated || declaration.source?.truncated
     });
   }
   for (const definition of response.evidence.definitions) all.push({
@@ -7652,7 +2652,7 @@ async function handleLeanAssistanceRoute(service, root, method, pathname, query,
   if (method === "POST" && pathname === "/api/lean-assistance/action" && body?.action === "dismiss") return { status: 200, value: await service.dismiss(root, body) };
   throw new publication.LeanReviewError(404, "Lean assistance route not found.");
 }
-const nodeFs$5 = require("node:fs");
+const nodeFs$4 = require("node:fs");
 const SYMBOL_AUDIT_PROMPT_VERSION = "symbol-audit-v2";
 const SYMBOL_AUDIT_REVIEW_VERSION = "symbol-audit-reconciliation-v2";
 const MAX_EXTRACTION_CACHE_ENTRIES = 640;
@@ -7711,7 +2711,7 @@ function normalizeSymbolAuditBindings(rawBindings, source) {
     const startLine = Math.min(lineCount, positiveLine(value.startLine, 1));
     const endLine = Math.max(startLine, Math.min(lineCount, positiveLine(value.endLine, startLine)));
     const structureValue = value.structure && typeof value.structure === "object" ? value.structure : {};
-    const base2 = stringValue(structureValue.base, 80) || expression;
+    const base = stringValue(structureValue.base, 80) || expression;
     const modifiers = Array.isArray(structureValue.modifiers) ? structureValue.modifiers.map((item22) => stringValue(item22, 80)).filter(Boolean).slice(0, 8) : [];
     const kind = enumValue(value.kind, ["special", "temporary"], "temporary");
     const scope2 = enumValue(value.scope, ["book", "chapter", "section", "local"], kind === "special" ? "book" : "local");
@@ -7725,7 +2725,7 @@ function normalizeSymbolAuditBindings(rawBindings, source) {
       endLine,
       expression,
       normalizedExpression,
-      structure: { base: base2, modifiers },
+      structure: { base, modifiers },
       kind,
       scope: scope2,
       bindingKey,
@@ -7773,8 +2773,8 @@ function analyzeSymbolAuditBindings(bindings) {
   const byHint = /* @__PURE__ */ new Map();
   for (const binding2 of uniqueBindings(bindings)) {
     const meaning = meaningHint(binding2);
-    const base2 = publication.normalizeLatexSymbol(binding2.structure?.base || "");
-    const hints = [`key:${binding2.bindingKey}`, ...meaning ? [`meaning:${meaning}`] : [], ...base2 ? [`base:${base2}`] : []];
+    const base = publication.normalizeLatexSymbol(binding2.structure?.base || "");
+    const hints = [`key:${binding2.bindingKey}`, ...meaning ? [`meaning:${meaning}`] : [], ...base ? [`base:${base}`] : []];
     for (const hint of hints) {
       const group = byHint.get(hint) || [];
       group.push(binding2);
@@ -7922,8 +2922,8 @@ class SymbolAuditStore {
         state.projects[rootPath] = project;
         await this.write(state);
         resolveResult(value);
-      } catch (error2) {
-        rejectResult(error2);
+      } catch (error) {
+        rejectResult(error);
       }
     });
     await this.sequence;
@@ -7934,8 +2934,8 @@ class SymbolAuditStore {
       const parsed = JSON.parse(await fs__namespace.readFile(this.stateFilePath, "utf8"));
       const projects = parsed?.projects && typeof parsed.projects === "object" ? Object.fromEntries(Object.entries(parsed.projects).map(([rootPath, project]) => [rootPath, validProjectState(project)])) : {};
       return { version: 1, projects };
-    } catch (error2) {
-      if (error2?.code === "ENOENT") return emptyState();
+    } catch (error) {
+      if (error?.code === "ENOENT") return emptyState();
       return emptyState();
     }
   }
@@ -7944,10 +2944,10 @@ class SymbolAuditStore {
     const temporaryPath = `${this.stateFilePath}.${process.pid}.${crypto__namespace.randomBytes(4).toString("hex")}.tmp`;
     try {
       await fs__namespace.writeFile(temporaryPath, JSON.stringify(state, null, 2) + "\n", "utf8");
-      await nodeFs$5.promises.rename(temporaryPath, this.stateFilePath);
-    } catch (error2) {
-      await nodeFs$5.promises.unlink(temporaryPath).catch(() => void 0);
-      throw error2;
+      await nodeFs$4.promises.rename(temporaryPath, this.stateFilePath);
+    } catch (error) {
+      await nodeFs$4.promises.unlink(temporaryPath).catch(() => void 0);
+      throw error;
     }
   }
 }
@@ -8043,7 +3043,7 @@ function tokenUsage(value) {
 }
 function addTokenUsage$1(accumulated, reported) {
   if (!reported) return accumulated;
-  const base2 = accumulated || {
+  const base = accumulated || {
     totalTokens: 0,
     inputTokens: 0,
     cachedInputTokens: 0,
@@ -8052,12 +3052,12 @@ function addTokenUsage$1(accumulated, reported) {
     reasoningOutputTokens: 0
   };
   return {
-    totalTokens: base2.totalTokens + reported.totalTokens,
-    inputTokens: base2.inputTokens + reported.inputTokens,
-    cachedInputTokens: base2.cachedInputTokens + reported.cachedInputTokens,
-    cacheWriteInputTokens: base2.cacheWriteInputTokens + reported.cacheWriteInputTokens,
-    outputTokens: base2.outputTokens + reported.outputTokens,
-    reasoningOutputTokens: base2.reasoningOutputTokens + reported.reasoningOutputTokens
+    totalTokens: base.totalTokens + reported.totalTokens,
+    inputTokens: base.inputTokens + reported.inputTokens,
+    cachedInputTokens: base.cachedInputTokens + reported.cachedInputTokens,
+    cacheWriteInputTokens: base.cacheWriteInputTokens + reported.cacheWriteInputTokens,
+    outputTokens: base.outputTokens + reported.outputTokens,
+    reasoningOutputTokens: base.reasoningOutputTokens + reported.reasoningOutputTokens
   };
 }
 function parseJsonObject(value) {
@@ -8362,7 +3362,7 @@ class CodexSymbolAuditRunner {
         activeTurn.queuedDeltas = [];
         const completedTurn = activeTurn.completedTurns.get(turnId);
         if (completedTurn) this.finishCompletedTurn(activeTurn, completedTurn);
-      }, (error2) => this.finishTurn(activeTurn, error2 instanceof Error ? error2 : new Error(String(error2))));
+      }, (error) => this.finishTurn(activeTurn, error instanceof Error ? error : new Error(String(error))));
     }).then((result) => ({ ...result, text: result.text.trim() }));
   }
   async request(method, params, timeoutMs = REQUEST_TIMEOUT_MS) {
@@ -8376,10 +3376,10 @@ class CodexSymbolAuditRunner {
       this.pending.set(id2, { resolve: resolve2, reject, timer });
       try {
         this.write({ method, id: id2, params });
-      } catch (error2) {
+      } catch (error) {
         clearTimeout(timer);
         this.pending.delete(id2);
-        reject(error2 instanceof Error ? error2 : new Error(String(error2)));
+        reject(error instanceof Error ? error : new Error(String(error)));
       }
     });
   }
@@ -8406,9 +3406,9 @@ class CodexSymbolAuditRunner {
       child.stderr.on("data", (chunk) => {
         this.stderr = (this.stderr + String(chunk)).slice(-4e3);
       });
-      child.once("error", (error2) => {
-        this.fail(error2);
-        reject(new Error(`Could not start Codex app-server: ${error2.message}`));
+      child.once("error", (error) => {
+        this.fail(error);
+        reject(new Error(`Could not start Codex app-server: ${error.message}`));
       });
       child.once("exit", (code2) => {
         this.fail(new Error(this.stderr.trim() || `Codex app-server exited with status ${code2}.`));
@@ -8424,13 +3424,13 @@ class CodexSymbolAuditRunner {
           try {
             this.write({ method: "initialized", params: {} });
             resolve2();
-          } catch (error2) {
-            reject(error2 instanceof Error ? error2 : new Error(String(error2)));
+          } catch (error) {
+            reject(error instanceof Error ? error : new Error(String(error)));
           }
         },
-        reject: (error2) => {
+        reject: (error) => {
           clearTimeout(timer);
-          reject(error2);
+          reject(error);
         },
         timer
       });
@@ -8443,10 +3443,10 @@ class CodexSymbolAuditRunner {
             capabilities: { experimentalApi: true }
           }
         });
-      } catch (error2) {
+      } catch (error) {
         clearTimeout(timer);
         this.pending.delete(id2);
-        reject(error2 instanceof Error ? error2 : new Error(String(error2)));
+        reject(error instanceof Error ? error : new Error(String(error)));
       }
     }).finally(() => {
       this.startPromise = void 0;
@@ -8549,11 +3549,11 @@ class CodexSymbolAuditRunner {
     }
     this.finishTurn(activeTurn);
   }
-  finishTurn(turn, error2) {
+  finishTurn(turn, error) {
     if (this.activeTurn !== turn) return;
     this.activeTurn = void 0;
     clearTimeout(turn.timer);
-    if (error2) turn.reject(error2);
+    if (error) turn.reject(error);
     else {
       const usage2 = turn.tokenUsage || turn.rawResponseUsage;
       turn.resolve({ text: turn.finalText || turn.text || "", ...usage2 ? { tokenUsage: usage2 } : {} });
@@ -8563,22 +3563,22 @@ class CodexSymbolAuditRunner {
     if (!this.child?.stdin?.writable) throw new Error("Codex app-server is not available.");
     this.child.stdin.write(JSON.stringify(message) + "\n");
   }
-  fail(error2) {
+  fail(error) {
     this.pending.forEach((pending) => {
       clearTimeout(pending.timer);
-      pending.reject(error2);
+      pending.reject(error);
     });
     this.pending.clear();
-    if (this.activeTurn) this.finishTurn(this.activeTurn, error2);
+    if (this.activeTurn) this.finishTurn(this.activeTurn, error);
   }
 }
-function cleanError(error2) {
-  const message = error2 instanceof Error ? error2.message : String(error2 || "Unknown audit error.");
+function cleanError(error) {
+  const message = error instanceof Error ? error.message : String(error || "Unknown audit error.");
   return message.replace(/\s+/g, " ").trim().slice(0, 720);
 }
 function addTokenUsage(accumulated, reported) {
   if (!reported) return accumulated;
-  const base2 = accumulated || {
+  const base = accumulated || {
     totalTokens: 0,
     inputTokens: 0,
     cachedInputTokens: 0,
@@ -8587,12 +3587,12 @@ function addTokenUsage(accumulated, reported) {
     reasoningOutputTokens: 0
   };
   return {
-    totalTokens: base2.totalTokens + reported.totalTokens,
-    inputTokens: base2.inputTokens + reported.inputTokens,
-    cachedInputTokens: base2.cachedInputTokens + reported.cachedInputTokens,
-    cacheWriteInputTokens: base2.cacheWriteInputTokens + reported.cacheWriteInputTokens,
-    outputTokens: base2.outputTokens + reported.outputTokens,
-    reasoningOutputTokens: base2.reasoningOutputTokens + reported.reasoningOutputTokens
+    totalTokens: base.totalTokens + reported.totalTokens,
+    inputTokens: base.inputTokens + reported.inputTokens,
+    cachedInputTokens: base.cachedInputTokens + reported.cachedInputTokens,
+    cacheWriteInputTokens: base.cacheWriteInputTokens + reported.cacheWriteInputTokens,
+    outputTokens: base.outputTokens + reported.outputTokens,
+    reasoningOutputTokens: base.reasoningOutputTokens + reported.reasoningOutputTokens
   };
 }
 function sourceForFile(snapshot, filePath, content) {
@@ -8798,9 +3798,9 @@ class SymbolAuditService {
       }
       job.status = "complete";
       job.completedAt = (/* @__PURE__ */ new Date()).toISOString();
-    } catch (error2) {
+    } catch (error) {
       job.status = job.cancelled ? "cancelled" : "failed";
-      job.error = cleanError(error2);
+      job.error = cleanError(error);
       job.completedAt = (/* @__PURE__ */ new Date()).toISOString();
     } finally {
       job.currentFilePath = void 0;
@@ -8840,7 +3840,7 @@ async function readSymbolAuditStatus(rootPath, snapshot, store = new SymbolAudit
   };
 }
 const http$1 = require("node:http");
-const nodeFs$4 = require("node:fs");
+const nodeFs$3 = require("node:fs");
 const { URL: URL$2 } = require("node:url");
 const MAX_READER_INSTANCES = 12;
 function defaultReaderInstancesPath() {
@@ -8861,8 +3861,8 @@ async function readState(stateFilePath) {
       version: 1,
       instances: parsed.instances.filter((item2) => typeof item2?.rootPath === "string" && typeof item2?.url === "string" && typeof item2?.token === "string" && Number.isInteger(item2?.pid) && typeof item2?.updatedAt === "string")
     };
-  } catch (error2) {
-    if (error2?.code === "ENOENT") return { version: 1, instances: [] };
+  } catch (error) {
+    if (error?.code === "ENOENT") return { version: 1, instances: [] };
     return { version: 1, instances: [] };
   }
 }
@@ -8870,7 +3870,7 @@ async function writeState(stateFilePath, instances) {
   await fs__namespace.mkdir(path__namespace.dirname(stateFilePath), { recursive: true });
   const temporaryPath = `${stateFilePath}.${process.pid}.tmp`;
   await fs__namespace.writeFile(temporaryPath, JSON.stringify({ version: 1, instances }, null, 2) + "\n", { encoding: "utf8", mode: 384 });
-  await nodeFs$4.promises.rename(temporaryPath, stateFilePath);
+  await nodeFs$3.promises.rename(temporaryPath, stateFilePath);
 }
 async function registerReaderInstance(record2, stateFilePath = defaultReaderInstancesPath()) {
   const state = await readState(stateFilePath);
@@ -8914,8 +3914,8 @@ function postLocation(record2, location) {
         try {
           const parsed = JSON.parse(responseBody);
           resolve2(Number.isInteger(parsed?.delivered) ? parsed.delivered : 0);
-        } catch (error2) {
-          reject(error2);
+        } catch (error) {
+          reject(error);
         }
       });
     });
@@ -8941,7 +3941,7 @@ async function dispatchReaderLocation(rootPath, location, stateFilePath = defaul
   return void 0;
 }
 const fs$3 = require("node:fs/promises");
-const nodeFs$3 = require("node:fs");
+const nodeFs$2 = require("node:fs");
 const kinds = /* @__PURE__ */ new Set(["chapter", "front-matter", "back-matter", "continued"]);
 const controls = /[\u0000-\u001f\u007f-\u009f\u2028\u2029]/;
 const sha256 = (value) => crypto$1.createHash("sha256").update(value).digest("hex");
@@ -8970,15 +3970,15 @@ async function safePath(root, relative) {
       const stat = await fs$3.lstat(current);
       if (stat.isSymbolicLink()) throw new Error("Manuscript paths cannot follow symbolic links.");
       if (index < parts.length - 1 && !stat.isDirectory()) throw new Error("A manuscript parent path is not a directory.");
-    } catch (error2) {
-      if (error2.code !== "ENOENT") throw error2;
+    } catch (error) {
+      if (error.code !== "ENOENT") throw error;
     }
   }
   return current;
 }
 async function readSource(root, relative) {
   const file = await safePath(root, relative);
-  const handle = await fs$3.open(file, nodeFs$3.constants.O_RDONLY | (nodeFs$3.constants.O_NOFOLLOW || 0));
+  const handle = await fs$3.open(file, nodeFs$2.constants.O_RDONLY | (nodeFs$2.constants.O_NOFOLLOW || 0));
   try {
     if (!(await handle.stat()).isFile()) throw new Error("Manuscript inputs must be regular files.");
     return await handle.readFile("utf8");
@@ -9034,9 +4034,9 @@ async function readSnapshot(rootPath) {
   let configText;
   try {
     configText = await readSource(root, ".math-workspace/config.json");
-  } catch (error2) {
-    if (error2.code === "ENOENT") throw new Error("Create pages only in a prepared project with .math-workspace/config.json.");
-    throw error2;
+  } catch (error) {
+    if (error.code === "ENOENT") throw new Error("Create pages only in a prepared project with .math-workspace/config.json.");
+    throw error;
   }
   const config2 = publication.mergeConfig(JSON.parse(configText));
   const entries = [];
@@ -9153,17 +4153,17 @@ async function createManuscriptPage(rootPath, input, options = {}) {
   const root = await projectRoot(rootPath);
   try {
     await readSource(root, ".math-workspace/config.json");
-  } catch (error2) {
-    if (error2.code === "ENOENT") throw new Error("Create pages only in a prepared project with .math-workspace/config.json.");
-    throw error2;
+  } catch (error) {
+    if (error.code === "ENOENT") throw new Error("Create pages only in a prepared project with .math-workspace/config.json.");
+    throw error;
   }
   const lockPath = await safePath(root, ".math-workspace/create-page.lock");
   let lock;
   for (let attempt = 0; !lock; attempt++) {
     try {
       lock = await fs$3.open(lockPath, "wx", 384);
-    } catch (error2) {
-      if (error2.code !== "EEXIST") throw error2;
+    } catch (error) {
+      if (error.code !== "EEXIST") throw error;
       if (attempt >= 150) throw new Error("Another page creation owns .math-workspace/create-page.lock. Retry after it finishes; inspect the lock after an interrupted operation.");
       await new Promise((resolve2) => setTimeout(resolve2, 20));
     }
@@ -9193,8 +4193,8 @@ async function createManuscriptPage(rootPath, input, options = {}) {
     if (directory2 !== ".") {
       try {
         await fs$3.mkdir(absoluteDirectory);
-      } catch (error2) {
-        if (error2.code !== "EEXIST") throw error2;
+      } catch (error) {
+        if (error.code !== "EEXIST") throw error;
       }
       if (!(await fs$3.lstat(await safePath(root, directory2))).isDirectory()) throw new Error("The manuscript destination is not a directory.");
     }
@@ -9256,8 +4256,8 @@ async function handleReaderCreatePageRoute(root, method, pathname, query) {
           "--json"
         ]
       } };
-    } catch (error2) {
-      throw new ReaderCreatePageError(400, error2 instanceof Error ? error2.message : String(error2));
+    } catch (error) {
+      throw new ReaderCreatePageError(400, error instanceof Error ? error.message : String(error));
     }
   }
   throw new ReaderCreatePageError(404, "Page creation preview route not found.");
@@ -9276,7 +4276,7 @@ function git(cwd, args, input) {
       "git",
       ["--no-optional-locks", "-c", "core.fsmonitor=false", ...args],
       { cwd, env: environment(), encoding: "utf8", timeout: 2500, maxBuffer: 8 * 1024 * 1024, windowsHide: true },
-      (error2, stdout) => resolve2({ code: error2 ? typeof error2.code === "number" ? error2.code : -1 : 0, stdout: stdout || "" })
+      (error, stdout) => resolve2({ code: error ? typeof error.code === "number" ? error.code : -1 : 0, stdout: stdout || "" })
     );
     child.stdin.on("error", () => {
     });
@@ -9299,8 +4299,8 @@ async function readReaderGitFileChanges(root, documents) {
     if (tree.code !== 0 || tracked.code !== 0) return unavailable;
     const blobs = /* @__PURE__ */ new Map();
     for (const entry of tree.stdout.split("\0")) {
-      const match2 = /^(\d+) blob ([a-f0-9]+)\t([\s\S]*)$/.exec(entry);
-      if (match2) blobs.set(match2[3], match2[2]);
+      const match = /^(\d+) blob ([a-f0-9]+)\t([\s\S]*)$/.exec(entry);
+      if (match) blobs.set(match[3], match[2]);
     }
     const trackedPaths = new Set(tracked.stdout.split("\0"));
     const files = {};
@@ -9310,7 +4310,7 @@ async function readReaderGitFileChanges(root, documents) {
       if (!filePath || path__namespace.isAbsolute(filePath) || filePath.split(/[\\/]/).some((part) => part === "..")) continue;
       const blob = blobs.get(prefix ? prefix + "/" + filePath : filePath);
       if (blob) {
-        const blobHash = (text2) => createHash$1(blob.length === 64 ? "sha256" : "sha1").update(`blob ${Buffer.byteLength(text2, "utf8")}\0`).update(text2).digest("hex");
+        const blobHash = (text) => createHash$1(blob.length === 64 ? "sha256" : "sha1").update(`blob ${Buffer.byteLength(text, "utf8")}\0`).update(text).digest("hex");
         const contentHash = blobHash(content.replace(/\r\n/g, "\n"));
         if (blob !== blobHash(content) && blob !== contentHash) {
           const key = `${blob}:${contentHash}`, known = blobComparisons.get(key);
@@ -9387,9 +4387,9 @@ async function readReaderGitChanges(root, filePath, content) {
       await fs$2.writeFile(path__namespace.join(temporary, "after"), content);
       const diff = await git(temporary, ["diff", "--no-index", "--no-ext-diff", "--no-textconv", "--no-color", "--text", "--unified=0", "--ignore-cr-at-eol", "--", "before", "after"]);
       if (diff.code !== 0 && diff.code !== 1) return { ...result, status: "unavailable" };
-      for (const match2 of diff.stdout.matchAll(/^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@/gm)) {
-        const beforeStartLine = Number(match2[1]), beforeCount = match2[2] === void 0 ? 1 : Number(match2[2]);
-        const startLine = Number(match2[3]), count = match2[4] === void 0 ? 1 : Number(match2[4]);
+      for (const match of diff.stdout.matchAll(/^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@/gm)) {
+        const beforeStartLine = Number(match[1]), beforeCount = match[2] === void 0 ? 1 : Number(match[2]);
+        const startLine = Number(match[3]), count = match[4] === void 0 ? 1 : Number(match[4]);
         result.hunks.push({ startLine, count, beforeStartLine, beforeCount });
         if (count) result.ranges.push({ startLine, endLine: startLine + count - 1 });
         else result.deletions.push({ afterLine: startLine, count: beforeCount });
@@ -9564,11 +4564,11 @@ function fractions(source, depth = 0) {
     }
   };
   const pattern2 = /\\(?:dfrac|tfrac|frac)\b/g;
-  let result = "", last = 0, match2;
-  while (match2 = pattern2.exec(source)) {
+  let result = "", last = 0, match;
+  while (match = pattern2.exec(source)) {
     const numerator = group(pattern2.lastIndex), denominator = numerator && group(numerator.end);
     if (!numerator || !denominator) continue;
-    result += source.slice(last, match2.index) + "(" + fractions(numerator.value, depth + 1) + ")/(" + fractions(denominator.value, depth + 1) + ")";
+    result += source.slice(last, match.index) + "(" + fractions(numerator.value, depth + 1) + ")/(" + fractions(denominator.value, depth + 1) + ")";
     last = denominator.end;
     pattern2.lastIndex = last;
   }
@@ -9728,14 +4728,14 @@ function pathInside(rootPath, candidatePath) {
 function stripUndefinedFields(value) {
   return Object.fromEntries(Object.entries(value).filter(([, item2]) => item2 !== void 0));
 }
-function displayLabel(label, config2, pagesByPath) {
-  const page = pagesByPath.get(label.filePath);
-  if (page && publication.isPageLabelType(label.type)) {
+function displayLabel(label2, config2, pagesByPath) {
+  const page = pagesByPath.get(label2.filePath);
+  if (page && publication.isPageLabelType(label2.type)) {
     return publication.formatPageReference(page, config2);
   }
-  const number2 = publication.formatDisplayNumber(label);
-  const name = publication.typeName(config2, label.type);
-  if (label.type === "solution") return config2.language === "en" ? `Solution to Exercise ${number2}` : `习题 ${number2} 的解答`;
+  const number2 = publication.formatDisplayNumber(label2);
+  const name = publication.typeName(config2, label2.type);
+  if (label2.type === "solution") return config2.language === "en" ? `Solution to Exercise ${number2}` : `习题 ${number2} 的解答`;
   return number2 ? name + " " + number2 : name;
 }
 function decoratePage(page, config2, lifecycle) {
@@ -9746,21 +4746,21 @@ function decoratePage(page, config2, lifecycle) {
     displayReference: publication.formatPageReference(page, config2)
   };
 }
-function labelSummary(label, config2, pagesByPath) {
-  const { content: _content, proofContent: _proof, supportContent: _support, ...summary } = label;
-  return { ...summary, display: displayLabel(label, config2, pagesByPath) };
+function labelSummary(label2, config2, pagesByPath) {
+  const { content: _content, proofContent: _proof, supportContent: _support, ...summary } = label2;
+  return { ...summary, display: displayLabel(label2, config2, pagesByPath) };
 }
 function labelsForContent(snapshot, content) {
   const pagesByPath = new Map((snapshot.state.pages || []).map((page) => [page.filePath, page]));
   const ids = /* @__PURE__ */ new Set();
   const marker = /(?:@|#)([A-Za-z0-9_-]+)\b/g;
-  let match2;
-  while (match2 = marker.exec(content)) {
-    if (snapshot.state.labels?.[match2[1]]) ids.add(match2[1]);
+  let match;
+  while (match = marker.exec(content)) {
+    if (snapshot.state.labels?.[match[1]]) ids.add(match[1]);
   }
   for (const id2 of [...ids]) {
-    const label = snapshot.state.labels[id2];
-    for (const related of [...label.solutions || [], ...label.solutionOf ? [label.solutionOf] : []]) {
+    const label2 = snapshot.state.labels[id2];
+    for (const related of [...label2.solutions || [], ...label2.solutionOf ? [label2.solutionOf] : []]) {
       if (snapshot.state.labels[related]) ids.add(related);
     }
   }
@@ -9769,9 +4769,9 @@ function labelsForContent(snapshot, content) {
 function sectionRecallPreview(content, startLine) {
   const lines2 = content.split(/\r?\n/);
   const start = Math.max(0, Math.min(lines2.length - 1, startLine));
-  const heading2 = lines2[start]?.match(/^\s{0,3}(#{1,6})\s+/);
-  if (!heading2) return "";
-  const level = heading2[1].length;
+  const heading = lines2[start]?.match(/^\s{0,3}(#{1,6})\s+/);
+  if (!heading) return "";
+  const level = heading[1].length;
   const preview2 = [lines2[start]];
   let chars = preview2[0].length;
   let inDisplayMath = false;
@@ -9828,8 +4828,10 @@ function stateProjection(snapshot, rootPath) {
     refreshedAt: snapshot.refreshedAt,
     rootName: path__namespace.basename(rootPath),
     projectId: createHash("sha256").update(rootPath).digest("hex"),
+    mode: snapshot.state.mode || "workspace",
+    initialPagePath: snapshot.state.initialPagePath,
     language: snapshot.state.config?.language || "zh",
-    pages: pages.map((page) => decoratePage(page, snapshot.state.config, snapshot.state.documentState?.lifecycles?.[page.filePath])),
+    pages: isReadingMode(snapshot.state) ? pages : pages.map((page) => decoratePage(page, snapshot.state.config, snapshot.state.documentState?.lifecycles?.[page.filePath])),
     definitions: definitions2.map(definitionSummary),
     issues: snapshot.state.issues || [],
     dependencySummary: snapshot.state.dependencyGraph?.summary || {},
@@ -9839,7 +4841,7 @@ function stateProjection(snapshot, rootPath) {
     projectAnalysis: snapshot.state.projectAnalysis || { schemaVersion: 1, sources: [], summary: {} }
   };
 }
-async function readerStateProjection(workspace, rootPath, projects, requestToken) {
+async function readerStateProjection(workspace, rootPath, projects, requestToken, configurationError) {
   if (workspace && rootPath) {
     return {
       available: true,
@@ -9859,6 +4861,7 @@ async function readerStateProjection(workspace, rootPath, projects, requestToken
     dependencySummary: {},
     projectAnalysis: { schemaVersion: 1, sources: [], summary: {} },
     requestToken,
+    ...configurationError ? { configurationError } : {},
     recentProjects: await recentProjectsProjection(projects)
   };
 }
@@ -9939,14 +4942,13 @@ function documentStateInput(value) {
   if (!filePath || filePath.startsWith("../") || filePath.includes("/../")) throw new Error("Document path is invalid.");
   const stage = record2.stage;
   if (stage !== void 0 && !["draft", "revising", "stable"].includes(stage)) throw new Error("Document stage is invalid.");
-  const checkpointLabel = record2.checkpointLabel;
-  if (checkpointLabel !== void 0 && typeof checkpointLabel !== "string") throw new Error("Version label is invalid.");
+  if ("checkpointLabel" in record2 || "checkpointId" in record2) throw new Error("Milestones are created by successful publication. Use the publication workflow.");
   const clearCheckpoint = record2.clearCheckpoint;
   if (clearCheckpoint !== void 0 && typeof clearCheckpoint !== "boolean") throw new Error("Checkpoint operation is invalid.");
   return {
     filePath,
     ...stage !== void 0 ? { stage } : {},
-    ...checkpointLabel !== void 0 ? { checkpointLabel } : {},
+    ...typeof record2.expectedContentHash === "string" ? { expectedContentHash: record2.expectedContentHash } : {},
     ...clearCheckpoint === true ? { clearCheckpoint: true } : {}
   };
 }
@@ -10024,6 +5026,8 @@ async function startReaderServer(options) {
   const publicationApi = new PublicationReaderApi();
   let rootPath;
   let workspace;
+  let configurationError;
+  let pendingTarget;
   let unsubscribe = () => {
   };
   const eventResponses = /* @__PURE__ */ new Set();
@@ -10048,14 +5052,14 @@ data: ${JSON.stringify(value)}
     });
   };
   const leanReview = new publication.LeanReviewService((projectRoot2, formalId) => {
-    if (rootPath === projectRoot2) workspace?.notifyMetadataChange([`.math-workspace/lean-reviews/${formalId}.json`]);
+    if (rootPath === projectRoot2 && workspace instanceof publication.ReaderWorkspace) workspace.notifyMetadataChange([`.math-workspace/lean-reviews/${formalId}.json`]);
   });
   const leanLanguage = new LeanLanguageService();
   const leanAudit = new LeanAuditService(leanReview, (projectRoot2, formalId) => {
-    if (rootPath === projectRoot2) workspace?.notifyMetadataChange([`.math-workspace/lean-audits/${formalId}.json`]);
+    if (rootPath === projectRoot2 && workspace instanceof publication.ReaderWorkspace) workspace.notifyMetadataChange([`.math-workspace/lean-audits/${formalId}.json`]);
   });
   const leanAssistance = new LeanAssistanceService(leanReview, (projectRoot2, formalId) => {
-    if (rootPath === projectRoot2) workspace?.notifyMetadataChange([`.math-workspace/lean-assistance/${formalId}.json`]);
+    if (rootPath === projectRoot2 && workspace instanceof publication.ReaderWorkspace) workspace.notifyMetadataChange([`.math-workspace/lean-assistance/${formalId}.json`]);
   });
   const syncReaderInstance = async (previousRoot) => {
     if (!serverUrl) return;
@@ -10066,37 +5070,52 @@ data: ${JSON.stringify(value)}
       if (rootPath) {
         await registerReaderInstance({ rootPath, url: serverUrl, token: bridgeToken }, options.locationRegistryPath);
       }
-    } catch (error2) {
-      console.warn(`[math-workspace] Could not publish Reader location bridge: ${error2 instanceof Error ? error2.message : String(error2)}`);
+    } catch (error) {
+      console.warn(`[math-workspace] Could not publish Reader location bridge: ${error instanceof Error ? error.message : String(error)}`);
     }
   };
-  const activateProject = async (inputPath) => {
+  const activateProject = async (inputPath, readingOnly = false, initialPagePath) => {
     projectChanging = true;
     try {
       const previousRoot = rootPath;
       if (rootPath) await symbolAudit.cancel(rootPath);
       if (rootPath) await leanLanguage.closeProject(rootPath);
-      const project = await projects.remember(inputPath);
-      const nextWorkspace = new publication.ReaderWorkspace(project.rootPath, { deferLean: true });
-      await nextWorkspace.start();
+      const target = await resolveReaderTarget(inputPath, readingOnly);
+      if (initialPagePath) target.pagePath = initialPagePath;
+      let nextWorkspace;
+      configurationError = target.configurationError;
+      if (!configurationError) {
+        nextWorkspace = target.mode === "reading" ? new PlainReaderSource(target.rootPath, target.pagePath) : new publication.ReaderWorkspace(target.rootPath, { deferLean: true });
+        try {
+          await nextWorkspace.start();
+        } catch (error) {
+          await nextWorkspace.close();
+          if (target.mode === "reading") throw error;
+          configurationError = error instanceof Error ? error.message : String(error);
+          nextWorkspace = void 0;
+        }
+      }
+      if (nextWorkspace && target.mode === "workspace") await projects.remember(target.rootPath);
+      pendingTarget = configurationError ? target : void 0;
       const previousWorkspace = workspace;
       const previousUnsubscribe = unsubscribe;
       workspace = nextWorkspace;
-      rootPath = project.rootPath;
-      unsubscribe = nextWorkspace.onChange(({ snapshot, changedPaths }) => broadcast(snapshot, changedPaths));
+      rootPath = target.rootPath;
+      unsubscribe = nextWorkspace?.onChange(({ snapshot, changedPaths }) => broadcast(snapshot, changedPaths)) || (() => {
+      });
       previousUnsubscribe();
       await previousWorkspace?.close();
       await syncReaderInstance(previousRoot);
-      broadcast(nextWorkspace.current(), [], true);
+      broadcast(nextWorkspace?.current(), [], true);
     } finally {
       projectChanging = false;
     }
   };
-  if (options.rootPath) await activateProject(options.rootPath);
+  if (options.rootPath) await activateProject(options.rootPath, false, options.initialPagePath);
   const server = http.createServer(async (request, response) => {
     try {
       const url2 = new URL$1(request.url || "/", "http://127.0.0.1");
-      if (url2.pathname.startsWith("/api/lean-") || url2.pathname === "/api/publication" || url2.pathname.startsWith("/api/publication/") || url2.pathname === "/api/formula-runtime" || url2.pathname === "/api/create-page" || url2.pathname.startsWith("/api/create-page/") || url2.pathname === "/api/projects/recent/remove") {
+      if (url2.pathname.startsWith("/api/lean-") || url2.pathname === "/api/publication" || url2.pathname.startsWith("/api/publication/") || url2.pathname === "/api/formula-runtime" || url2.pathname.startsWith("/api/reading/") || url2.pathname === "/api/create-page" || url2.pathname.startsWith("/api/create-page/") || url2.pathname === "/api/projects/recent/remove") {
         if (projectChanging) {
           sendText(response, 409, "The Reader is changing its bound project. Retry after it finishes.");
           return;
@@ -10110,7 +5129,22 @@ data: ${JSON.stringify(value)}
       if (request.method === "POST" && url2.pathname === "/api/projects/pick") {
         const selectedPath = await projects.choose();
         if (selectedPath) await activateProject(selectedPath);
-        sendJson(response, 200, await readerStateProjection(workspace, rootPath, projects, requestToken));
+        sendJson(response, 200, await readerStateProjection(workspace, rootPath, projects, requestToken, configurationError));
+        return;
+      }
+      if (url2.pathname === "/api/reading/only") {
+        if (request.method !== "POST") {
+          sendText(response, 405, "Choosing reading mode uses POST.");
+          return;
+        }
+        if (!requireRequestToken(request, response, requestToken)) return;
+        const target = pendingTarget;
+        if (!target) {
+          sendText(response, 409, "No configuration error is awaiting a reading-mode choice.");
+          return;
+        }
+        await activateProject(target.rootPath, true, target.pagePath);
+        sendJson(response, 200, await readerStateProjection(workspace, rootPath, projects, requestToken, configurationError));
         return;
       }
       if (request.method === "POST" && url2.pathname === "/api/projects/recent") {
@@ -10128,7 +5162,7 @@ data: ${JSON.stringify(value)}
           return;
         }
         await activateProject(selectedProject.rootPath);
-        sendJson(response, 200, await readerStateProjection(workspace, rootPath, projects, requestToken));
+        sendJson(response, 200, await readerStateProjection(workspace, rootPath, projects, requestToken, configurationError));
         return;
       }
       if (url2.pathname === "/api/projects/recent/remove") {
@@ -10156,7 +5190,7 @@ data: ${JSON.stringify(value)}
           sendText(response, 405, "Math Workspace is read-only.");
           return;
         }
-        sendJson(response, 200, await readerStateProjection(workspace, rootPath, projects, requestToken));
+        sendJson(response, 200, await readerStateProjection(workspace, rootPath, projects, requestToken, configurationError));
         return;
       }
       if (url2.pathname === "/api/events") {
@@ -10193,6 +5227,10 @@ data: ${JSON.stringify({
           sendText(response, 403, "Reader location bridge token is missing or invalid.");
           return;
         }
+        if (pendingTarget) {
+          sendJson(response, 200, { delivered: 0 });
+          return;
+        }
         if (!workspace || !rootPath) {
           sendText(response, 409, "Choose a Math Workspace project first.");
           return;
@@ -10201,6 +5239,14 @@ data: ${JSON.stringify({
         const filePath = publication.toPosix(typeof body?.filePath === "string" ? body.filePath : "").replace(/^\/+/, "");
         const line = body?.line === void 0 ? void 0 : Number(body.line);
         const column = body?.column === void 0 ? void 0 : Number(body.column);
+        if (workspace instanceof PlainReaderSource) {
+          const bound = workspace;
+          await bound.loadPage(filePath);
+          if (workspace !== bound || projectChanging) {
+            sendText(response, 409, "The reading folder changed.");
+            return;
+          }
+        }
         if (!workspace.current().state.pages.some((page) => page.filePath === filePath)) {
           sendText(response, 404, "Markdown page not found in the bound project.");
           return;
@@ -10222,6 +5268,79 @@ data: ${JSON.stringify({
         return;
       }
       const snapshot = workspace.current();
+      if (workspace instanceof PlainReaderSource) {
+        if (url2.pathname.startsWith("/api/") && !readingRouteAllowed(url2.pathname)) {
+          sendText(response, 403, "Project operations are unavailable in reading mode.");
+          return;
+        }
+        if (url2.pathname.startsWith("/api/") && request.method !== "GET") {
+          sendText(response, 405, "Reading mode supports document reads only.");
+          return;
+        }
+        if (url2.pathname === "/api/reading/directory") {
+          if (!requireRequestToken(request, response, requestToken)) return;
+          if (request.headers?.["x-math-workspace-project"] !== createHash("sha256").update(rootPath).digest("hex")) {
+            sendText(response, 409, "The reading folder changed.");
+            return;
+          }
+          const bound = workspace, entries = await bound.directory(url2.searchParams.get("path") || "");
+          if (workspace !== bound || projectChanging) {
+            sendText(response, 409, "The reading folder changed.");
+            return;
+          }
+          sendJson(response, 200, entries);
+          return;
+        }
+        if (url2.pathname === "/api/page") {
+          const filePath = url2.searchParams.get("path") || "";
+          const bound = workspace, loaded = await bound.loadPage(filePath), content = loaded.documents.get(filePath);
+          if (workspace !== bound || projectChanging) {
+            sendText(response, 409, "The reading folder changed.");
+            return;
+          }
+          sendJson(response, 200, {
+            revision: loaded.revision,
+            filePath,
+            content,
+            sourceHash: publication.documentHash(content),
+            page: loaded.state.pages.find((page) => page.filePath === filePath),
+            readingPages: loaded.state.pages,
+            labels: {},
+            dependencyMarkers: {},
+            symbols: []
+          });
+          return;
+        }
+        if (url2.pathname === "/api/asset") {
+          const filePath = url2.searchParams.get("path") || "";
+          if (![".gif", ".jpeg", ".jpg", ".png", ".svg", ".webp"].includes(path__namespace.extname(filePath).toLowerCase())) {
+            sendText(response, 403, "Only local images are available.");
+            return;
+          }
+          const bound = workspace, absolute = await bound.safePath(filePath);
+          if ((await fs__namespace.stat(absolute)).size > 8 * 1024 * 1024) {
+            sendText(response, 413, "The local image exceeds the reading limit.");
+            return;
+          }
+          const bytes = await fs__namespace.readFile(absolute);
+          if (workspace !== bound || projectChanging) {
+            sendText(response, 409, "The reading folder changed.");
+            return;
+          }
+          response.writeHead(200, {
+            "content-type": mimeType(absolute),
+            "content-length": bytes.length,
+            "cache-control": STATIC_CACHE_CONTROL,
+            "x-content-type-options": "nosniff"
+          });
+          response.end(bytes);
+          return;
+        }
+        if (url2.pathname === "/api/plugin-context") {
+          sendJson(response, 200, { projectRoot: rootPath });
+          return;
+        }
+      }
       if (url2.pathname === "/api/create-page" || url2.pathname.startsWith("/api/create-page/")) {
         if (!requireRequestToken(request, response, requestToken)) return;
         const boundRoot = rootPath;
@@ -10328,7 +5447,7 @@ data: ${JSON.stringify({
         }
         if (request.method === "GET") {
           if (url2.pathname === "/api/lean-review") sendJson(response, 200, await leanReview.get(reviewRoot, url2.searchParams.get("id")));
-          else if (url2.pathname === "/api/lean-review/queue") sendJson(response, 200, await leanReview.queue(reviewRoot, url2.searchParams.get("filePath") || ""));
+          else if (url2.pathname === "/api/lean-review/queue") sendJson(response, 200, await leanReview.queue(reviewRoot, url2.searchParams.get("filePath") || "", false, url2.searchParams.get("includeFirst") === "1"));
           else if (url2.pathname === "/api/lean-review/definition") sendJson(response, 200, await leanReview.definition(
             reviewRoot,
             url2.searchParams.get("id"),
@@ -10403,6 +5522,92 @@ data: ${JSON.stringify({
           const body = await readJsonRequest(request, 32 * 1024);
           sendJson(response, 202, await archiveApi.start(archiveRoot, body));
         } else sendText(response, 405, "Archive reads use GET; explicit actions use POST.");
+        return;
+      }
+      if (url2.pathname === "/api/document-history" || url2.pathname === "/api/document-history/preview" || url2.pathname === "/api/document-history/import") {
+        if (!requireRequestToken(request, response, requestToken)) return;
+        const boundRoot = rootPath, boundWorkspace = workspace;
+        if (request.headers?.["x-math-workspace-project"] !== createHash("sha256").update(boundRoot).digest("hex")) {
+          sendText(response, 409, "The history project changed.");
+          return;
+        }
+        const importing = url2.pathname.endsWith("/import");
+        if (request.method !== (importing ? "POST" : "GET")) {
+          sendText(response, 405, "History reads use GET; importing a snapshot uses POST.");
+          return;
+        }
+        const body = importing ? await readJsonRequest(request, 8 * 1024) : void 0;
+        const filePath = importing ? body.filePath : url2.searchParams.get("path") || "";
+        const content = snapshot.documents.get(filePath);
+        const page = snapshot.state.pages.find((item2) => item2.filePath === filePath);
+        if (content === void 0 || !page || page.documentMode === "draft") {
+          sendText(response, 404, "Formal manuscript page not found.");
+          return;
+        }
+        const sourceHash = publication.documentHash(content);
+        const current = async () => rootPath === boundRoot && workspace === boundWorkspace && !projectChanging && publication.documentHash(await fs__namespace.readFile(await publication.documentSafePath(boundRoot, filePath), "utf8")) === sourceHash;
+        const history = (await publication.readDocumentState(boundRoot, snapshot.state.config, snapshot.documents)).records[filePath]?.history || [];
+        if (url2.pathname === "/api/document-history") {
+          const discovered = await documentHistorySources.documentHistorySources(boundRoot, filePath);
+          const items2 = new Map(discovered.sources.map((item2) => [item2.id, { ...item2, saved: false }]));
+          for (const entry of history) {
+            const available = await fs__namespace.stat(await publication.documentSafePath(boundRoot, `.math-workspace/document-snapshots/${entry.contentHash}.md`)).then((stat) => stat.isFile(), () => false);
+            items2.set(entry.id, { ...items2.get(entry.id), ...entry, source: { ...items2.get(entry.id)?.source, ...entry.source }, available: available || !!items2.get(entry.id)?.available, saved: true });
+          }
+          if (!await current()) {
+            sendText(response, 409, "The manuscript changed. Reload its history.");
+            return;
+          }
+          sendJson(response, 200, { filePath, sourceHash, items: [...items2.values()].sort((a, b) => b.recordedAt.localeCompare(a.recordedAt)), warnings: discovered.warnings });
+          return;
+        }
+        const id2 = importing ? body.id : url2.searchParams.get("id") || "";
+        if (typeof id2 !== "string" || !/^[a-f0-9]{32}$/.test(id2)) {
+          sendText(response, 400, "Invalid historical snapshot identity.");
+          return;
+        }
+        const saved = history.find((item2) => item2.id === id2);
+        const savedContent = saved ? await publication.readDocumentSnapshot(boundRoot, saved.contentHash) : void 0;
+        const prior = saved && savedContent !== void 0 ? { entry: saved, content: savedContent } : await documentHistorySources.readDocumentHistorySource(boundRoot, filePath, id2);
+        if (!await current() || importing && body.expectedContentHash !== sourceHash) {
+          sendText(response, 409, "The manuscript changed. Reload before choosing a baseline.");
+          return;
+        }
+        if (importing) {
+          if (prior.entry.kind !== "publication") {
+            sendText(response, 400, "Only a published edition can restore a milestone. Git tags remain available for comparison.");
+            return;
+          }
+          const documentState = await publication.updateDocumentState(
+            boundRoot,
+            snapshot.state.config,
+            snapshot.documents,
+            { filePath, expectedContentHash: sourceHash, milestone: prior }
+          );
+          const refreshed = boundWorkspace.applyDocumentState(documentState, [documentState.stateFile]);
+          sendJson(response, 200, { documentState, state: stateProjection(refreshed, boundRoot) });
+          return;
+        }
+        const hunks = await documentHistorySources.documentHistoryHunks(prior.content, content);
+        const formalPaths = new Set(snapshot.state.pages.filter((item2) => item2.documentMode !== "draft").map((item2) => item2.filePath));
+        const sources = [...snapshot.documents].filter(([name]) => formalPaths.has(name)).map(([name, source]) => ({ filePath: name, content: name === filePath ? prior.content : source }));
+        const priorState = publication.scanFormalDocuments(sources, snapshot.state.config, snapshot.state.symbols, snapshot.state.definitions);
+        if (!await current()) {
+          sendText(response, 409, "The manuscript changed during comparison.");
+          return;
+        }
+        sendJson(response, 200, {
+          filePath,
+          sourceHash,
+          commit: id2,
+          status: "ready",
+          baseline: "HEAD",
+          content: prior.content,
+          milestone: prior.entry,
+          hunks,
+          labels: labelsForContent({ ...snapshot, state: { ...snapshot.state, ...priorState } }, prior.content),
+          pages: priorState.pages.map((item2) => decoratePage(item2, snapshot.state.config))
+        });
         return;
       }
       if (url2.pathname === "/api/document-state") {
@@ -10509,7 +5714,13 @@ data: ${JSON.stringify({
             sendText(response, 400, "Invalid search query.");
             return;
           }
-          const result = searchReaderDocuments(snapshot.documents, snapshot.state.pages || [], query, mode);
+          const searchPath = workspace instanceof PlainReaderSource ? url2.searchParams.get("path") : void 0;
+          if (workspace instanceof PlainReaderSource && (!searchPath || !snapshot.documents.has(searchPath))) {
+            sendText(response, 400, "Choose an open document to search.");
+            return;
+          }
+          const documents = searchPath ? /* @__PURE__ */ new Map([[searchPath, snapshot.documents.get(searchPath)]]) : snapshot.documents;
+          const result = searchReaderDocuments(documents, snapshot.state.pages || [], query, mode);
           sendJson(response, 200, { ...result, revision: snapshot.revision });
           return;
         }
@@ -10551,7 +5762,7 @@ data: ${JSON.stringify({
           return;
         }
         const rawPage = (snapshot.state.pages || []).find((item2) => item2.filePath === filePath);
-        const symbols2 = publication.findSymbolsInMarkdown(content, snapshot.state.symbols || []).map((match2) => ({ ...match2.symbol, index: match2.index }));
+        const symbols2 = publication.findSymbolsInMarkdown(content, snapshot.state.symbols || []).map((match) => ({ ...match.symbol, index: match.index }));
         sendJson(response, 200, stripUndefinedFields({
           revision: snapshot.revision,
           filePath,
@@ -10567,19 +5778,19 @@ data: ${JSON.stringify({
       }
       if (url2.pathname === "/api/recall") {
         const id2 = url2.searchParams.get("id") || "";
-        const label = snapshot.state.labels?.[id2];
-        const document = label ? snapshot.documents.get(label.filePath) : void 0;
-        const content = label?.content || (label?.type === "section" && document && label.startLine ? sectionRecallPreview(document, label.startLine) : "");
-        if (!label || !content) {
+        const label2 = snapshot.state.labels?.[id2];
+        const document = label2 ? snapshot.documents.get(label2.filePath) : void 0;
+        const content = label2?.content || (label2?.type === "section" && document && label2.startLine ? sectionRecallPreview(document, label2.startLine) : "");
+        if (!label2 || !content) {
           sendText(response, 404, "Recall content not found.");
           return;
         }
         const pagesByPath = new Map((snapshot.state.pages || []).map((page) => [page.filePath, page]));
         sendJson(response, 200, {
           id: id2,
-          ...label,
+          ...label2,
           content,
-          display: displayLabel(label, snapshot.state.config, pagesByPath),
+          display: displayLabel(label2, snapshot.state.config, pagesByPath),
           labels: labelsForContent(snapshot, content)
         });
         return;
@@ -10616,7 +5827,7 @@ data: ${JSON.stringify({
           sendText(response, 404, "Lean anchor not found.");
           return;
         }
-        const projectKeys = [...new Set((anchor.declarations || []).map((declaration2) => declaration2.projectKey).filter((key) => typeof key === "string" && key.length > 0))];
+        const projectKeys = [...new Set((anchor.declarations || []).map((declaration) => declaration.projectKey).filter((key) => typeof key === "string" && key.length > 0))];
         const [build, dependencies2] = await Promise.all([
           publication.readLeanBuild(rootPath),
           publication.readLeanDependencyArtifact(rootPath)
@@ -10641,8 +5852,8 @@ data: ${JSON.stringify({
         return;
       }
       await sendStaticFile(response, staticRoot, url2.pathname);
-    } catch (error2) {
-      sendText(response, error2 instanceof publication.LeanReviewError || error2 instanceof PublicationReaderError || error2 instanceof PublicationPdfRuntimeError || error2 instanceof FormulaRuntimeError || error2 instanceof ReaderCreatePageError ? error2.status : 500, error2 instanceof Error ? error2.message : String(error2));
+    } catch (error) {
+      sendText(response, error instanceof publication.LeanReviewError || error instanceof PublicationReaderError || error instanceof PublicationPdfRuntimeError || error instanceof FormulaRuntimeError || error instanceof ReaderCreatePageError ? error.status : 500, error instanceof Error ? error.message : String(error));
     }
   });
   const requestedPort = parsePort(options.port === void 0 ? void 0 : String(options.port));
@@ -10676,7 +5887,7 @@ data: ${JSON.stringify({
       await leanLanguage.close();
       await leanReview.close();
       await workspace?.close();
-      await new Promise((resolve2, reject) => server.close((error2) => error2 ? reject(error2) : resolve2()));
+      await new Promise((resolve2, reject) => server.close((error) => error ? reject(error) : resolve2()));
     }
   };
 }
@@ -10857,8 +6068,8 @@ class ZodError extends Error {
       return issue2.message;
     };
     const fieldErrors = { _errors: [] };
-    const processError = (error2) => {
-      for (const issue2 of error2.issues) {
+    const processError = (error) => {
+      for (const issue2 of error.issues) {
         if (issue2.code === "invalid_union") {
           issue2.unionErrors.map(processError);
         } else if (issue2.code === "invalid_return_type") {
@@ -10921,8 +6132,8 @@ class ZodError extends Error {
   }
 }
 ZodError.create = (issues) => {
-  const error2 = new ZodError(issues);
-  return error2;
+  const error = new ZodError(issues);
+  return error;
 };
 const errorMap = (issue2, _ctx) => {
   let message;
@@ -11044,8 +6255,8 @@ const makeIssue = (params) => {
   }
   let errorMessage2 = "";
   const maps = errorMaps.filter((m) => !!m).slice().reverse();
-  for (const map2 of maps) {
-    errorMessage2 = map2(fullIssue, { data, defaultError: errorMessage2 }).message;
+  for (const map of maps) {
+    errorMessage2 = map(fullIssue, { data, defaultError: errorMessage2 }).message;
   }
   return {
     ...issueData,
@@ -11171,8 +6382,8 @@ const handleResult = (ctx, result) => {
       get error() {
         if (this._error)
           return this._error;
-        const error2 = new ZodError(ctx.common.issues);
-        this._error = error2;
+        const error = new ZodError(ctx.common.issues);
+        this._error = error;
         return this._error;
       }
     };
@@ -11516,13 +6727,13 @@ function timeRegex(args) {
   return new RegExp(`^${timeRegexSource(args)}$`);
 }
 function datetimeRegex(args) {
-  let regex2 = `${dateRegexSource}T${timeRegexSource(args)}`;
+  let regex = `${dateRegexSource}T${timeRegexSource(args)}`;
   const opts = [];
   opts.push(args.local ? `Z?` : `Z`);
   if (args.offset)
     opts.push(`([+-]\\d{2}:?\\d{2})`);
-  regex2 = `${regex2}(${opts.join("|")})`;
-  return new RegExp(`^${regex2}$`);
+  regex = `${regex}(${opts.join("|")})`;
+  return new RegExp(`^${regex}$`);
 }
 function isValidIP(ip, version2) {
   if ((version2 === "v4" || !version2) && ipv4Regex.test(ip)) {
@@ -11768,8 +6979,8 @@ let ZodString$1 = class ZodString extends ZodType$1 {
           status.dirty();
         }
       } else if (check2.kind === "datetime") {
-        const regex2 = datetimeRegex(check2);
-        if (!regex2.test(input.data)) {
+        const regex = datetimeRegex(check2);
+        if (!regex.test(input.data)) {
           ctx = this._getOrReturnCtx(input, ctx);
           addIssueToContext(ctx, {
             code: ZodIssueCode.invalid_string,
@@ -11779,8 +6990,8 @@ let ZodString$1 = class ZodString extends ZodType$1 {
           status.dirty();
         }
       } else if (check2.kind === "date") {
-        const regex2 = dateRegex;
-        if (!regex2.test(input.data)) {
+        const regex = dateRegex;
+        if (!regex.test(input.data)) {
           ctx = this._getOrReturnCtx(input, ctx);
           addIssueToContext(ctx, {
             code: ZodIssueCode.invalid_string,
@@ -11790,8 +7001,8 @@ let ZodString$1 = class ZodString extends ZodType$1 {
           status.dirty();
         }
       } else if (check2.kind === "time") {
-        const regex2 = timeRegex(check2);
-        if (!regex2.test(input.data)) {
+        const regex = timeRegex(check2);
+        if (!regex.test(input.data)) {
           ctx = this._getOrReturnCtx(input, ctx);
           addIssueToContext(ctx, {
             code: ZodIssueCode.invalid_string,
@@ -11866,8 +7077,8 @@ let ZodString$1 = class ZodString extends ZodType$1 {
     }
     return { status: status.value, value: input.data };
   }
-  _regex(regex2, validation2, message) {
-    return this.refinement((data) => regex2.test(data), {
+  _regex(regex, validation2, message) {
+    return this.refinement((data) => regex.test(data), {
       validation: validation2,
       code: ZodIssueCode.invalid_string,
       ...errorUtil.errToObj(message)
@@ -11959,10 +7170,10 @@ let ZodString$1 = class ZodString extends ZodType$1 {
   duration(message) {
     return this._addCheck({ kind: "duration", ...errorUtil.errToObj(message) });
   }
-  regex(regex2, message) {
+  regex(regex, message) {
     return this._addCheck({
       kind: "regex",
-      regex: regex2,
+      regex,
       ...errorUtil.errToObj(message)
     });
   }
@@ -13983,23 +9194,23 @@ class ZodEffects extends ZodType$1 {
     }
     if (effect.type === "transform") {
       if (ctx.common.async === false) {
-        const base2 = this._def.schema._parseSync({
+        const base = this._def.schema._parseSync({
           data: ctx.data,
           path: ctx.path,
           parent: ctx
         });
-        if (!isValid(base2))
+        if (!isValid(base))
           return INVALID;
-        const result = effect.transform(base2.value, checkCtx);
+        const result = effect.transform(base.value, checkCtx);
         if (result instanceof Promise) {
           throw new Error(`Asynchronous transform encountered during synchronous parse operation. Use .parseAsync instead.`);
         }
         return { status: status.value, value: result };
       } else {
-        return this._def.schema._parseAsync({ data: ctx.data, path: ctx.path, parent: ctx }).then((base2) => {
-          if (!isValid(base2))
+        return this._def.schema._parseAsync({ data: ctx.data, path: ctx.path, parent: ctx }).then((base) => {
+          if (!isValid(base))
             return INVALID;
-          return Promise.resolve(effect.transform(base2.value, checkCtx)).then((result) => ({
+          return Promise.resolve(effect.transform(base.value, checkCtx)).then((result) => ({
             status: status.value,
             value: result
           }));
@@ -14308,12 +9519,12 @@ ZodOptional$1.create;
 ZodNullable$1.create;
 function $constructor(name, initializer2, params) {
   function init(inst, def) {
-    var _a2;
+    var _a;
     Object.defineProperty(inst, "_zod", {
       value: inst._zod ?? {},
       enumerable: false
     });
-    (_a2 = inst._zod).traits ?? (_a2.traits = /* @__PURE__ */ new Set());
+    (_a = inst._zod).traits ?? (_a.traits = /* @__PURE__ */ new Set());
     inst._zod.traits.add(name);
     initializer2(inst, def);
     for (const k in _.prototype) {
@@ -14328,10 +9539,10 @@ function $constructor(name, initializer2, params) {
   }
   Object.defineProperty(Definition, "name", { value: name });
   function _(def) {
-    var _a2;
+    var _a;
     const inst = params?.Parent ? new Definition() : this;
     init(inst, def);
-    (_a2 = inst._zod).deferred ?? (_a2.deferred = []);
+    (_a = inst._zod).deferred ?? (_a.deferred = []);
     for (const fn of inst._zod.deferred) {
       fn();
     }
@@ -14623,8 +9834,8 @@ function aborted(x, startIndex = 0) {
 }
 function prefixIssues(path2, issues) {
   return issues.map((iss) => {
-    var _a2;
-    (_a2 = iss).path ?? (_a2.path = []);
+    var _a;
+    (_a = iss).path ?? (_a.path = []);
     iss.path.unshift(path2);
     return iss;
   });
@@ -14688,10 +9899,10 @@ const initializer$1 = (inst, def) => {
 };
 const $ZodError = $constructor("$ZodError", initializer$1);
 const $ZodRealError = $constructor("$ZodError", initializer$1, { Parent: Error });
-function flattenError(error2, mapper = (issue2) => issue2.message) {
+function flattenError(error, mapper = (issue2) => issue2.message) {
   const fieldErrors = {};
   const formErrors = [];
-  for (const sub of error2.issues) {
+  for (const sub of error.issues) {
     if (sub.path.length > 0) {
       fieldErrors[sub.path[0]] = fieldErrors[sub.path[0]] || [];
       fieldErrors[sub.path[0]].push(mapper(sub));
@@ -14701,13 +9912,13 @@ function flattenError(error2, mapper = (issue2) => issue2.message) {
   }
   return { formErrors, fieldErrors };
 }
-function formatError(error2, _mapper) {
+function formatError(error, _mapper) {
   const mapper = _mapper || function(issue2) {
     return issue2.message;
   };
   const fieldErrors = { _errors: [] };
-  const processError = (error3) => {
-    for (const issue2 of error3.issues) {
+  const processError = (error2) => {
+    for (const issue2 of error2.issues) {
       if (issue2.code === "invalid_union" && issue2.errors.length) {
         issue2.errors.map((issues) => processError({ issues }));
       } else if (issue2.code === "invalid_key") {
@@ -14734,7 +9945,7 @@ function formatError(error2, _mapper) {
       }
     }
   };
-  processError(error2);
+  processError(error);
   return fieldErrors;
 }
 const _parse = (_Err) => (schema, value, _ctx, _params) => {
@@ -14817,8 +10028,8 @@ const dateSource = `(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468
 const date$1 = /* @__PURE__ */ new RegExp(`^${dateSource}$`);
 function timeSource(args) {
   const hhmm = `(?:[01]\\d|2[0-3]):[0-5]\\d`;
-  const regex2 = typeof args.precision === "number" ? args.precision === -1 ? `${hhmm}` : args.precision === 0 ? `${hhmm}:[0-5]\\d` : `${hhmm}:[0-5]\\d\\.\\d{${args.precision}}` : `${hhmm}(?::[0-5]\\d(?:\\.\\d+)?)?`;
-  return regex2;
+  const regex = typeof args.precision === "number" ? args.precision === -1 ? `${hhmm}` : args.precision === 0 ? `${hhmm}:[0-5]\\d` : `${hhmm}:[0-5]\\d\\.\\d{${args.precision}}` : `${hhmm}(?::[0-5]\\d(?:\\.\\d+)?)?`;
+  return regex;
 }
 function time$1(args) {
   return new RegExp(`^${timeSource(args)}$`);
@@ -14834,8 +10045,8 @@ function datetime$1(args) {
   return new RegExp(`^${dateSource}T(?:${timeRegex2})$`);
 }
 const string$1 = (params) => {
-  const regex2 = params ? `[\\s\\S]{${params?.minimum ?? 0},${params?.maximum ?? ""}}` : `[\\s\\S]*`;
-  return new RegExp(`^${regex2}$`);
+  const regex = params ? `[\\s\\S]{${params?.minimum ?? 0},${params?.maximum ?? ""}}` : `[\\s\\S]*`;
+  return new RegExp(`^${regex}$`);
 };
 const integer = /^\d+$/;
 const number$1 = /^-?\d+(?:\.\d+)?/i;
@@ -14844,10 +10055,10 @@ const _null$2 = /null/i;
 const lowercase = /^[^A-Z]*$/;
 const uppercase = /^[^a-z]*$/;
 const $ZodCheck = /* @__PURE__ */ $constructor("$ZodCheck", (inst, def) => {
-  var _a2;
+  var _a;
   inst._zod ?? (inst._zod = {});
   inst._zod.def = def;
-  (_a2 = inst._zod).onattach ?? (_a2.onattach = []);
+  (_a = inst._zod).onattach ?? (_a.onattach = []);
 });
 const numericOriginMap = {
   number: "number",
@@ -14913,8 +10124,8 @@ const $ZodCheckGreaterThan = /* @__PURE__ */ $constructor("$ZodCheckGreaterThan"
 const $ZodCheckMultipleOf = /* @__PURE__ */ $constructor("$ZodCheckMultipleOf", (inst, def) => {
   $ZodCheck.init(inst, def);
   inst._zod.onattach.push((inst2) => {
-    var _a2;
-    (_a2 = inst2._zod.bag).multipleOf ?? (_a2.multipleOf = def.value);
+    var _a;
+    (_a = inst2._zod.bag).multipleOf ?? (_a.multipleOf = def.value);
   });
   inst._zod.check = (payload) => {
     if (typeof payload.value !== typeof def.value)
@@ -15007,9 +10218,9 @@ const $ZodCheckNumberFormat = /* @__PURE__ */ $constructor("$ZodCheckNumberForma
   };
 });
 const $ZodCheckMaxLength = /* @__PURE__ */ $constructor("$ZodCheckMaxLength", (inst, def) => {
-  var _a2;
+  var _a;
   $ZodCheck.init(inst, def);
-  (_a2 = inst._zod.def).when ?? (_a2.when = (payload) => {
+  (_a = inst._zod.def).when ?? (_a.when = (payload) => {
     const val = payload.value;
     return !nullish(val) && val.length !== void 0;
   });
@@ -15036,9 +10247,9 @@ const $ZodCheckMaxLength = /* @__PURE__ */ $constructor("$ZodCheckMaxLength", (i
   };
 });
 const $ZodCheckMinLength = /* @__PURE__ */ $constructor("$ZodCheckMinLength", (inst, def) => {
-  var _a2;
+  var _a;
   $ZodCheck.init(inst, def);
-  (_a2 = inst._zod.def).when ?? (_a2.when = (payload) => {
+  (_a = inst._zod.def).when ?? (_a.when = (payload) => {
     const val = payload.value;
     return !nullish(val) && val.length !== void 0;
   });
@@ -15065,9 +10276,9 @@ const $ZodCheckMinLength = /* @__PURE__ */ $constructor("$ZodCheckMinLength", (i
   };
 });
 const $ZodCheckLengthEquals = /* @__PURE__ */ $constructor("$ZodCheckLengthEquals", (inst, def) => {
-  var _a2;
+  var _a;
   $ZodCheck.init(inst, def);
-  (_a2 = inst._zod.def).when ?? (_a2.when = (payload) => {
+  (_a = inst._zod.def).when ?? (_a.when = (payload) => {
     const val = payload.value;
     return !nullish(val) && val.length !== void 0;
   });
@@ -15096,7 +10307,7 @@ const $ZodCheckLengthEquals = /* @__PURE__ */ $constructor("$ZodCheckLengthEqual
   };
 });
 const $ZodCheckStringFormat = /* @__PURE__ */ $constructor("$ZodCheckStringFormat", (inst, def) => {
-  var _a2, _b;
+  var _a, _b;
   $ZodCheck.init(inst, def);
   inst._zod.onattach.push((inst2) => {
     const bag = inst2._zod.bag;
@@ -15107,7 +10318,7 @@ const $ZodCheckStringFormat = /* @__PURE__ */ $constructor("$ZodCheckStringForma
     }
   });
   if (def.pattern)
-    (_a2 = inst._zod).check ?? (_a2.check = (payload) => {
+    (_a = inst._zod).check ?? (_a.check = (payload) => {
       def.pattern.lastIndex = 0;
       if (def.pattern.test(payload.value))
         return;
@@ -15266,7 +10477,7 @@ const version = {
   patch: 0
 };
 const $ZodType = /* @__PURE__ */ $constructor("$ZodType", (inst, def) => {
-  var _a2;
+  var _a;
   inst ?? (inst = {});
   inst._zod.def = def;
   inst._zod.bag = inst._zod.bag || {};
@@ -15281,7 +10492,7 @@ const $ZodType = /* @__PURE__ */ $constructor("$ZodType", (inst, def) => {
     }
   }
   if (checks.length === 0) {
-    (_a2 = inst._zod).deferred ?? (_a2.deferred = []);
+    (_a = inst._zod).deferred ?? (_a.deferred = []);
     inst._zod.deferred?.push(() => {
       inst._zod.run = inst._zod.parse;
     });
@@ -15880,7 +11091,7 @@ const $ZodObject = /* @__PURE__ */ $constructor("$ZodObject", (inst, def) => {
     return (payload, ctx) => fn(shape, payload, ctx);
   };
   let fastpass;
-  const isObject$12 = isObject;
+  const isObject$1 = isObject;
   const jit = !globalConfig.jitless;
   const allowsEval$1 = allowsEval;
   const fastEnabled = jit && allowsEval$1.value;
@@ -15889,7 +11100,7 @@ const $ZodObject = /* @__PURE__ */ $constructor("$ZodObject", (inst, def) => {
   inst._zod.parse = (payload, ctx) => {
     value ?? (value = _normalized.value);
     const input = payload.value;
-    if (!isObject$12(input)) {
+    if (!isObject$1(input)) {
       payload.issues.push({
         expected: "object",
         code: "invalid_type",
@@ -16032,19 +11243,19 @@ const $ZodDiscriminatedUnion = /* @__PURE__ */ $constructor("$ZodDiscriminatedUn
   });
   const disc = cached(() => {
     const opts = def.options;
-    const map2 = /* @__PURE__ */ new Map();
+    const map = /* @__PURE__ */ new Map();
     for (const o of opts) {
       const values = o._zod.propValues[def.discriminator];
       if (!values || values.size === 0)
         throw new Error(`Invalid discriminated union option at index "${def.options.indexOf(o)}"`);
       for (const v of values) {
-        if (map2.has(v)) {
+        if (map.has(v)) {
           throw new Error(`Duplicate discriminator value "${String(v)}"`);
         }
-        map2.set(v, o);
+        map.set(v, o);
       }
     }
-    return map2;
+    return map;
   });
   inst._zod.parse = (payload, ctx) => {
     const input = payload.value;
@@ -16996,7 +12207,7 @@ class JSONSchemaGenerator {
     this.seen = /* @__PURE__ */ new Map();
   }
   process(schema, _params = { path: [], schemaPath: [] }) {
-    var _a2;
+    var _a;
     const def = schema._zod.def;
     const formatMap = {
       guid: "uuid",
@@ -17055,9 +12266,9 @@ class JSONSchemaGenerator {
                 json.pattern = regexes[0].source;
               else if (regexes.length > 1) {
                 result.schema.allOf = [
-                  ...regexes.map((regex2) => ({
+                  ...regexes.map((regex) => ({
                     ...this.target === "draft-7" ? { type: "string" } : {},
-                    pattern: regex2.source
+                    pattern: regex.source
                   }))
                 ];
               }
@@ -17454,7 +12665,7 @@ class JSONSchemaGenerator {
       delete result.schema.default;
     }
     if (this.io === "input" && result.schema._prefault)
-      (_a2 = result.schema).default ?? (_a2.default = result.schema._prefault);
+      (_a = result.schema).default ?? (_a.default = result.schema._prefault);
     delete result.schema._prefault;
     const _result = this.seen.get(schema);
     return _result.schema;
@@ -17870,24 +13081,24 @@ function normalizeObjectSchema(schema) {
   }
   return void 0;
 }
-function getParseErrorMessage(error2) {
-  if (error2 && typeof error2 === "object") {
-    if ("message" in error2 && typeof error2.message === "string") {
-      return error2.message;
+function getParseErrorMessage(error) {
+  if (error && typeof error === "object") {
+    if ("message" in error && typeof error.message === "string") {
+      return error.message;
     }
-    if ("issues" in error2 && Array.isArray(error2.issues) && error2.issues.length > 0) {
-      const firstIssue = error2.issues[0];
+    if ("issues" in error && Array.isArray(error.issues) && error.issues.length > 0) {
+      const firstIssue = error.issues[0];
       if (firstIssue && typeof firstIssue === "object" && "message" in firstIssue) {
         return String(firstIssue.message);
       }
     }
     try {
-      return JSON.stringify(error2);
+      return JSON.stringify(error);
     } catch {
-      return String(error2);
+      return String(error);
     }
   }
-  return String(error2);
+  return String(error);
 }
 function getSchemaDescription(schema) {
   return schema.description;
@@ -20638,7 +15849,7 @@ function addFormat(schema, value, message, refs) {
     setResponseValueAndErrors(schema, "format", value, message, refs);
   }
 }
-function addPattern(schema, regex2, message, refs) {
+function addPattern(schema, regex, message, refs) {
   if (schema.pattern || schema.allOf?.some((x) => x.pattern)) {
     if (!schema.allOf) {
       schema.allOf = [];
@@ -20659,24 +15870,24 @@ function addPattern(schema, regex2, message, refs) {
       }
     }
     schema.allOf.push({
-      pattern: stringifyRegExpWithFlags(regex2, refs),
+      pattern: stringifyRegExpWithFlags(regex, refs),
       ...message && refs.errorMessages && { errorMessage: { pattern: message } }
     });
   } else {
-    setResponseValueAndErrors(schema, "pattern", stringifyRegExpWithFlags(regex2, refs), message, refs);
+    setResponseValueAndErrors(schema, "pattern", stringifyRegExpWithFlags(regex, refs), message, refs);
   }
 }
-function stringifyRegExpWithFlags(regex2, refs) {
-  if (!refs.applyRegexFlags || !regex2.flags) {
-    return regex2.source;
+function stringifyRegExpWithFlags(regex, refs) {
+  if (!refs.applyRegexFlags || !regex.flags) {
+    return regex.source;
   }
   const flags = {
-    i: regex2.flags.includes("i"),
-    m: regex2.flags.includes("m"),
-    s: regex2.flags.includes("s")
+    i: regex.flags.includes("i"),
+    m: regex.flags.includes("m"),
+    s: regex.flags.includes("s")
     // `.` matches newlines
   };
-  const source = flags.i ? regex2.source.toLowerCase() : regex2.source;
+  const source = flags.i ? regex.source.toLowerCase() : regex.source;
   let pattern2 = "";
   let isEscaped = false;
   let inCharGroup = false;
@@ -20737,7 +15948,7 @@ function stringifyRegExpWithFlags(regex2, refs) {
     new RegExp(pattern2);
   } catch {
     console.warn(`Could not convert regex pattern at ${refs.currentPath.join("/")} to a flag-independent form! Falling back to the flag-ignorant source`);
-    return regex2.source;
+    return regex.source;
   }
   return pattern2;
 }
@@ -20924,19 +16135,19 @@ function parseNullableDef(def, refs) {
     };
   }
   if (refs.target === "openApi3") {
-    const base3 = parseDef(def.innerType._def, {
+    const base2 = parseDef(def.innerType._def, {
       ...refs,
       currentPath: [...refs.currentPath]
     });
-    if (base3 && "$ref" in base3)
-      return { allOf: [base3], nullable: true };
-    return base3 && { ...base3, nullable: true };
+    if (base2 && "$ref" in base2)
+      return { allOf: [base2], nullable: true };
+    return base2 && { ...base2, nullable: true };
   }
-  const base2 = parseDef(def.innerType._def, {
+  const base = parseDef(def.innerType._def, {
     ...refs,
     currentPath: [...refs.currentPath, "anyOf", "0"]
   });
-  return base2 && { anyOf: [base2, { type: "null" }] };
+  return base && { anyOf: [base, { type: "null" }] };
 }
 function parseNumberDef(def, refs) {
   const res = {
@@ -21427,8 +16638,8 @@ class Protocol {
                     resolver(message);
                   } else {
                     const errorMessage2 = message;
-                    const error2 = new McpError(errorMessage2.error.code, errorMessage2.error.message, errorMessage2.error.data);
-                    resolver(error2);
+                    const error = new McpError(errorMessage2.error.code, errorMessage2.error.message, errorMessage2.error.data);
+                    resolver(error);
                   }
                 } else {
                   const messageType = queuedMessage.type === "response" ? "Response" : "Error";
@@ -21472,8 +16683,8 @@ class Protocol {
             nextCursor,
             _meta: {}
           };
-        } catch (error2) {
-          throw new McpError(ErrorCode.InvalidParams, `Failed to list tasks: ${error2 instanceof Error ? error2.message : String(error2)}`);
+        } catch (error) {
+          throw new McpError(ErrorCode.InvalidParams, `Failed to list tasks: ${error instanceof Error ? error.message : String(error)}`);
         }
       });
       this.setRequestHandler(CancelTaskRequestSchema, async (request, extra) => {
@@ -21495,11 +16706,11 @@ class Protocol {
             _meta: {},
             ...cancelledTask
           };
-        } catch (error2) {
-          if (error2 instanceof McpError) {
-            throw error2;
+        } catch (error) {
+          if (error instanceof McpError) {
+            throw error;
           }
-          throw new McpError(ErrorCode.InvalidRequest, `Failed to cancel task: ${error2 instanceof Error ? error2.message : String(error2)}`);
+          throw new McpError(ErrorCode.InvalidRequest, `Failed to cancel task: ${error instanceof Error ? error.message : String(error)}`);
         }
       });
     }
@@ -21560,9 +16771,9 @@ class Protocol {
       this._onclose();
     };
     const _onerror = this.transport?.onerror;
-    this._transport.onerror = (error2) => {
-      _onerror?.(error2);
-      this._onerror(error2);
+    this._transport.onerror = (error) => {
+      _onerror?.(error);
+      this._onerror(error);
     };
     const _onmessage = this._transport?.onmessage;
     this._transport.onmessage = (message, extra) => {
@@ -21593,22 +16804,22 @@ class Protocol {
       controller.abort();
     }
     this._requestHandlerAbortControllers.clear();
-    const error2 = McpError.fromError(ErrorCode.ConnectionClosed, "Connection closed");
+    const error = McpError.fromError(ErrorCode.ConnectionClosed, "Connection closed");
     this._transport = void 0;
     this.onclose?.();
     for (const handler of responseHandlers.values()) {
-      handler(error2);
+      handler(error);
     }
   }
-  _onerror(error2) {
-    this.onerror?.(error2);
+  _onerror(error) {
+    this.onerror?.(error);
   }
   _onnotification(notification) {
     const handler = this._notificationHandlers.get(notification.method) ?? this.fallbackNotificationHandler;
     if (handler === void 0) {
       return;
     }
-    Promise.resolve().then(() => handler(notification)).catch((error2) => this._onerror(new Error(`Uncaught error in notification handler: ${error2}`)));
+    Promise.resolve().then(() => handler(notification)).catch((error) => this._onerror(new Error(`Uncaught error in notification handler: ${error}`)));
   }
   _onrequest(request, extra) {
     const handler = this._requestHandlers.get(request.method) ?? this.fallbackRequestHandler;
@@ -21628,9 +16839,9 @@ class Protocol {
           type: "error",
           message: errorResponse,
           timestamp: Date.now()
-        }, capturedTransport?.sessionId).catch((error2) => this._onerror(new Error(`Failed to enqueue error response: ${error2}`)));
+        }, capturedTransport?.sessionId).catch((error) => this._onerror(new Error(`Failed to enqueue error response: ${error}`)));
       } else {
-        capturedTransport?.send(errorResponse).catch((error2) => this._onerror(new Error(`Failed to send an error response: ${error2}`)));
+        capturedTransport?.send(errorResponse).catch((error) => this._onerror(new Error(`Failed to send an error response: ${error}`)));
       }
       return;
     }
@@ -21696,7 +16907,7 @@ class Protocol {
       } else {
         await capturedTransport?.send(response);
       }
-    }, async (error2) => {
+    }, async (error) => {
       if (abortController.signal.aborted) {
         return;
       }
@@ -21704,9 +16915,9 @@ class Protocol {
         jsonrpc: "2.0",
         id: request.id,
         error: {
-          code: Number.isSafeInteger(error2["code"]) ? error2["code"] : ErrorCode.InternalError,
-          message: error2.message ?? "Internal error",
-          ...error2["data"] !== void 0 && { data: error2["data"] }
+          code: Number.isSafeInteger(error["code"]) ? error["code"] : ErrorCode.InternalError,
+          message: error.message ?? "Internal error",
+          ...error["data"] !== void 0 && { data: error["data"] }
         }
       };
       if (relatedTaskId && this._taskMessageQueue) {
@@ -21718,7 +16929,7 @@ class Protocol {
       } else {
         await capturedTransport?.send(errorResponse);
       }
-    }).catch((error2) => this._onerror(new Error(`Failed to send response: ${error2}`))).finally(() => {
+    }).catch((error) => this._onerror(new Error(`Failed to send response: ${error}`))).finally(() => {
       if (this._requestHandlerAbortControllers.get(request.id) === abortController) {
         this._requestHandlerAbortControllers.delete(request.id);
       }
@@ -21737,11 +16948,11 @@ class Protocol {
     if (timeoutInfo && responseHandler && timeoutInfo.resetTimeoutOnProgress) {
       try {
         this._resetTimeout(messageId);
-      } catch (error2) {
+      } catch (error) {
         this._responseHandlers.delete(messageId);
         this._progressHandlers.delete(messageId);
         this._cleanupTimeout(messageId);
-        responseHandler(error2);
+        responseHandler(error);
         return;
       }
     }
@@ -21755,8 +16966,8 @@ class Protocol {
       if (isJSONRPCResultResponse(response)) {
         resolver(response);
       } else {
-        const error2 = new McpError(response.error.code, response.error.message, response.error.data);
-        resolver(error2);
+        const error = new McpError(response.error.code, response.error.message, response.error.data);
+        resolver(error);
       }
       return;
     }
@@ -21784,8 +16995,8 @@ class Protocol {
     if (isJSONRPCResultResponse(response)) {
       handler(response);
     } else {
-      const error2 = McpError.fromError(response.error.code, response.error.message, response.error.data);
-      handler(error2);
+      const error = McpError.fromError(response.error.code, response.error.message, response.error.data);
+      handler(error);
     }
   }
   get transport() {
@@ -21830,10 +17041,10 @@ class Protocol {
       try {
         const result = await this.request(request, resultSchema, options);
         yield { type: "result", result };
-      } catch (error2) {
+      } catch (error) {
         yield {
           type: "error",
-          error: error2 instanceof McpError ? error2 : new McpError(ErrorCode.InternalError, String(error2))
+          error: error instanceof McpError ? error : new McpError(ErrorCode.InternalError, String(error))
         };
       }
       return;
@@ -21876,10 +17087,10 @@ class Protocol {
         await new Promise((resolve2) => setTimeout(resolve2, pollInterval));
         options?.signal?.throwIfAborted();
       }
-    } catch (error2) {
+    } catch (error) {
       yield {
         type: "error",
-        error: error2 instanceof McpError ? error2 : new McpError(ErrorCode.InternalError, String(error2))
+        error: error instanceof McpError ? error : new McpError(ErrorCode.InternalError, String(error))
       };
     }
   }
@@ -21891,8 +17102,8 @@ class Protocol {
   request(request, resultSchema, options) {
     const { relatedRequestId, resumptionToken, onresumptiontoken, task: task2, relatedTask } = options ?? {};
     return new Promise((resolve2, reject) => {
-      const earlyReject = (error2) => {
-        reject(error2);
+      const earlyReject = (error) => {
+        reject(error);
       };
       if (!this._transport) {
         earlyReject(new Error("Not connected"));
@@ -21952,9 +17163,9 @@ class Protocol {
             requestId: messageId,
             reason: String(reason)
           }
-        }, { relatedRequestId, resumptionToken, onresumptiontoken }).catch((error3) => this._onerror(new Error(`Failed to send cancellation: ${error3}`)));
-        const error2 = reason instanceof McpError ? reason : new McpError(ErrorCode.RequestTimeout, String(reason));
-        reject(error2);
+        }, { relatedRequestId, resumptionToken, onresumptiontoken }).catch((error2) => this._onerror(new Error(`Failed to send cancellation: ${error2}`)));
+        const error = reason instanceof McpError ? reason : new McpError(ErrorCode.RequestTimeout, String(reason));
+        reject(error);
       };
       this._responseHandlers.set(messageId, (response) => {
         if (options?.signal?.aborted) {
@@ -21970,8 +17181,8 @@ class Protocol {
           } else {
             resolve2(parseResult.data);
           }
-        } catch (error2) {
-          reject(error2);
+        } catch (error) {
+          reject(error);
         }
       });
       options?.signal?.addEventListener("abort", () => {
@@ -21995,14 +17206,14 @@ class Protocol {
           type: "request",
           message: jsonrpcRequest,
           timestamp: Date.now()
-        }).catch((error2) => {
+        }).catch((error) => {
           this._cleanupTimeout(messageId);
-          reject(error2);
+          reject(error);
         });
       } else {
-        this._transport.send(jsonrpcRequest, { relatedRequestId, resumptionToken, onresumptiontoken }).catch((error2) => {
+        this._transport.send(jsonrpcRequest, { relatedRequestId, resumptionToken, onresumptiontoken }).catch((error) => {
           this._cleanupTimeout(messageId);
-          reject(error2);
+          reject(error);
         });
       }
     });
@@ -22095,7 +17306,7 @@ class Protocol {
             }
           };
         }
-        this._transport?.send(jsonrpcNotification2, options).catch((error2) => this._onerror(error2));
+        this._transport?.send(jsonrpcNotification2, options).catch((error) => this._onerror(error));
       });
       return;
     }
@@ -22310,8 +17521,8 @@ class Protocol {
 function isPlainObject(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
-function mergeCapabilities(base2, additional) {
-  const result = { ...base2 };
+function mergeCapabilities(base, additional) {
+  const result = { ...base };
   for (const key in additional) {
     const k = key;
     const addValue = additional[k];
@@ -22380,12 +17591,12 @@ function requireCode$1() {
         return item2 === "" || item2 === '""';
       }
       get str() {
-        var _a2;
-        return (_a2 = this._str) !== null && _a2 !== void 0 ? _a2 : this._str = this._items.reduce((s, c) => `${s}${c}`, "");
+        var _a;
+        return (_a = this._str) !== null && _a !== void 0 ? _a : this._str = this._items.reduce((s, c) => `${s}${c}`, "");
       }
       get names() {
-        var _a2;
-        return (_a2 = this._names) !== null && _a2 !== void 0 ? _a2 : this._names = this._items.reduce((names2, c) => {
+        var _a;
+        return (_a = this._names) !== null && _a !== void 0 ? _a : this._names = this._items.reduce((names2, c) => {
           if (c instanceof Name)
             names2[c.str] = (names2[c.str] || 0) + 1;
           return names2;
@@ -22533,8 +17744,8 @@ function requireScope() {
         return `${prefix}${ng.index++}`;
       }
       _nameGroup(prefix) {
-        var _a2, _b;
-        if (((_b = (_a2 = this._parent) === null || _a2 === void 0 ? void 0 : _a2._prefixes) === null || _b === void 0 ? void 0 : _b.has(prefix)) || this._prefixes && !this._prefixes.has(prefix)) {
+        var _a, _b;
+        if (((_b = (_a = this._parent) === null || _a === void 0 ? void 0 : _a._prefixes) === null || _b === void 0 ? void 0 : _b.has(prefix)) || this._prefixes && !this._prefixes.has(prefix)) {
           throw new Error(`CodeGen: prefix "${prefix}" is not allowed in this scope`);
         }
         return this._names[prefix] = { prefix, index: 0 };
@@ -22567,12 +17778,12 @@ function requireScope() {
         return new ValueScopeName(prefix, this._newName(prefix));
       }
       value(nameOrPrefix, value) {
-        var _a2;
+        var _a;
         if (value.ref === void 0)
           throw new Error("CodeGen: ref must be passed in value");
         const name = this.toName(nameOrPrefix);
         const { prefix } = name;
-        const valueKey = (_a2 = value.key) !== null && _a2 !== void 0 ? _a2 : value.ref;
+        const valueKey = (_a = value.key) !== null && _a !== void 0 ? _a : value.ref;
         let vs = this._values[prefix];
         if (vs) {
           const _name = vs.get(valueKey);
@@ -22759,9 +17970,9 @@ function requireCodegen() {
       }
     }
     class Label extends Node {
-      constructor(label) {
+      constructor(label2) {
         super();
-        this.label = label;
+        this.label = label2;
         this.names = {};
       }
       render({ _n }) {
@@ -22769,20 +17980,20 @@ function requireCodegen() {
       }
     }
     class Break extends Node {
-      constructor(label) {
+      constructor(label2) {
         super();
-        this.label = label;
+        this.label = label2;
         this.names = {};
       }
       render({ _n }) {
-        const label = this.label ? ` ${this.label}` : "";
-        return `break${label};` + _n;
+        const label2 = this.label ? ` ${this.label}` : "";
+        return `break${label2};` + _n;
       }
     }
     class Throw extends Node {
-      constructor(error2) {
+      constructor(error) {
         super();
-        this.error = error2;
+        this.error = error;
       }
       render({ _n }) {
         return `throw ${this.error};` + _n;
@@ -22891,8 +18102,8 @@ function requireCodegen() {
         return this;
       }
       optimizeNames(names2, constants) {
-        var _a2;
-        this.else = (_a2 = this.else) === null || _a2 === void 0 ? void 0 : _a2.optimizeNames(names2, constants);
+        var _a;
+        this.else = (_a = this.else) === null || _a === void 0 ? void 0 : _a.optimizeNames(names2, constants);
         if (!(super.optimizeNames(names2, constants) || this.else))
           return;
         this.condition = optimizeExpr(this.condition, names2, constants);
@@ -22996,16 +18207,16 @@ function requireCodegen() {
         return code2;
       }
       optimizeNodes() {
-        var _a2, _b;
+        var _a, _b;
         super.optimizeNodes();
-        (_a2 = this.catch) === null || _a2 === void 0 ? void 0 : _a2.optimizeNodes();
+        (_a = this.catch) === null || _a === void 0 ? void 0 : _a.optimizeNodes();
         (_b = this.finally) === null || _b === void 0 ? void 0 : _b.optimizeNodes();
         return this;
       }
       optimizeNames(names2, constants) {
-        var _a2, _b;
+        var _a, _b;
         super.optimizeNames(names2, constants);
-        (_a2 = this.catch) === null || _a2 === void 0 ? void 0 : _a2.optimizeNames(names2, constants);
+        (_a = this.catch) === null || _a === void 0 ? void 0 : _a.optimizeNames(names2, constants);
         (_b = this.finally) === null || _b === void 0 ? void 0 : _b.optimizeNames(names2, constants);
         return this;
       }
@@ -23019,9 +18230,9 @@ function requireCodegen() {
       }
     }
     class Catch extends BlockNode {
-      constructor(error2) {
+      constructor(error) {
         super();
-        this.error = error2;
+        this.error = error;
       }
       render(opts) {
         return `catch(${this.error})` + super.render(opts);
@@ -23188,12 +18399,12 @@ function requireCodegen() {
         return this._endBlockNode(For);
       }
       // `label` statement
-      label(label) {
-        return this._leafNode(new Label(label));
+      label(label2) {
+        return this._leafNode(new Label(label2));
       }
       // `break` statement
-      break(label) {
-        return this._leafNode(new Break(label));
+      break(label2) {
+        return this._leafNode(new Break(label2));
       }
       // `return` statement
       return(value) {
@@ -23212,9 +18423,9 @@ function requireCodegen() {
         this._blockNode(node);
         this.code(tryBody);
         if (catchCode) {
-          const error2 = this.name("e");
-          this._currNode = node.catch = new Catch(error2);
-          catchCode(error2);
+          const error = this.name("e");
+          this._currNode = node.catch = new Catch(error);
+          catchCode(error);
         }
         if (finallyCode) {
           this._currNode = node.finally = new Finally();
@@ -23223,8 +18434,8 @@ function requireCodegen() {
         return this._endBlockNode(Catch, Finally);
       }
       // `throw` statement
-      throw(error2) {
-        return this._leafNode(new Throw(error2));
+      throw(error) {
+        return this._leafNode(new Throw(error));
       }
       // start self-balancing block
       block(body, nodeCount) {
@@ -23509,8 +18720,8 @@ function requireUtil() {
   })(Type || (util.Type = Type = {}));
   function getErrorPath(dataProp, dataPropType, jsPropertySyntax) {
     if (dataProp instanceof codegen_1.Name) {
-      const isNumber2 = dataPropType === Type.Num;
-      return jsPropertySyntax ? isNumber2 ? (0, codegen_1._)`"[" + ${dataProp} + "]"` : (0, codegen_1._)`"['" + ${dataProp} + "']"` : isNumber2 ? (0, codegen_1._)`"/" + ${dataProp}` : (0, codegen_1._)`"/" + ${dataProp}.replace(/~/g, "~0").replace(/\\//g, "~1")`;
+      const isNumber = dataPropType === Type.Num;
+      return jsPropertySyntax ? isNumber ? (0, codegen_1._)`"[" + ${dataProp} + "]"` : (0, codegen_1._)`"['" + ${dataProp} + "']"` : isNumber ? (0, codegen_1._)`"/" + ${dataProp}` : (0, codegen_1._)`"/" + ${dataProp}.replace(/~/g, "~0").replace(/\\//g, "~1")`;
     }
     return jsPropertySyntax ? (0, codegen_1.getProperty)(dataProp).toString() : "/" + escapeJsonPointer(dataProp);
   }
@@ -23581,10 +18792,10 @@ function requireErrors() {
     exports.keyword$DataError = {
       message: ({ keyword: keyword2, schemaType }) => schemaType ? (0, codegen_1.str)`"${keyword2}" keyword must be ${schemaType} ($data)` : (0, codegen_1.str)`"${keyword2}" keyword is invalid ($data)`
     };
-    function reportError(cxt, error2 = exports.keywordError, errorPaths, overrideAllErrors) {
+    function reportError(cxt, error = exports.keywordError, errorPaths, overrideAllErrors) {
       const { it } = cxt;
       const { gen, compositeRule, allErrors } = it;
-      const errObj = errorObjectCode(cxt, error2, errorPaths);
+      const errObj = errorObjectCode(cxt, error, errorPaths);
       if (overrideAllErrors !== null && overrideAllErrors !== void 0 ? overrideAllErrors : compositeRule || allErrors) {
         addError(gen, errObj);
       } else {
@@ -23592,10 +18803,10 @@ function requireErrors() {
       }
     }
     exports.reportError = reportError;
-    function reportExtraError(cxt, error2 = exports.keywordError, errorPaths) {
+    function reportExtraError(cxt, error = exports.keywordError, errorPaths) {
       const { it } = cxt;
       const { gen, compositeRule, allErrors } = it;
-      const errObj = errorObjectCode(cxt, error2, errorPaths);
+      const errObj = errorObjectCode(cxt, error, errorPaths);
       addError(gen, errObj);
       if (!(compositeRule || allErrors)) {
         returnErrors(it, names_1.default.vErrors);
@@ -23646,19 +18857,19 @@ function requireErrors() {
       schema: new codegen_1.Name("schema"),
       parentSchema: new codegen_1.Name("parentSchema")
     };
-    function errorObjectCode(cxt, error2, errorPaths) {
+    function errorObjectCode(cxt, error, errorPaths) {
       const { createErrors } = cxt.it;
       if (createErrors === false)
         return (0, codegen_1._)`{}`;
-      return errorObject(cxt, error2, errorPaths);
+      return errorObject(cxt, error, errorPaths);
     }
-    function errorObject(cxt, error2, errorPaths = {}) {
+    function errorObject(cxt, error, errorPaths = {}) {
       const { gen, it } = cxt;
       const keyValues = [
         errorInstancePath(it, errorPaths),
         errorSchemaPath(cxt, errorPaths)
       ];
-      extraErrorProps(cxt, error2, keyValues);
+      extraErrorProps(cxt, error, keyValues);
       return gen.object(...keyValues);
     }
     function errorInstancePath({ errorPath }, { instancePath }) {
@@ -23787,8 +18998,8 @@ function requireApplicability() {
   }
   applicability.shouldUseGroup = shouldUseGroup;
   function shouldUseRule(schema, rule) {
-    var _a2;
-    return schema[rule.keyword] !== void 0 || ((_a2 = rule.definition.implements) === null || _a2 === void 0 ? void 0 : _a2.some((kwd) => schema[kwd] !== void 0));
+    var _a;
+    return schema[rule.keyword] !== void 0 || ((_a = rule.definition.implements) === null || _a === void 0 ? void 0 : _a.some((kwd) => schema[kwd] !== void 0));
   }
   applicability.shouldUseRule = shouldUseRule;
   return applicability;
@@ -24175,14 +19386,14 @@ function requireKeyword() {
   }
   keyword.macroKeywordCode = macroKeywordCode;
   function funcKeywordCode(cxt, def) {
-    var _a2;
+    var _a;
     const { gen, keyword: keyword2, schema, parentSchema, $data, it } = cxt;
     checkAsyncKeyword(it, def);
     const validate2 = !$data && def.compile ? def.compile.call(it.self, schema, parentSchema, it) : def.validate;
     const validateRef = useKeyword(gen, keyword2, validate2);
     const valid = gen.let("valid");
     cxt.block$data(valid, validateKeyword);
-    cxt.ok((_a2 = def.valid) !== null && _a2 !== void 0 ? _a2 : valid);
+    cxt.ok((_a = def.valid) !== null && _a !== void 0 ? _a : valid);
     function validateKeyword() {
       if (def.errors === false) {
         assignValid();
@@ -24213,8 +19424,8 @@ function requireKeyword() {
       gen.assign(valid, (0, codegen_1._)`${_await}${(0, code_1.callValidateCode)(cxt, validateRef, passCxt, passSchema)}`, def.modifying);
     }
     function reportErrs(errors2) {
-      var _a3;
-      gen.if((0, codegen_1.not)((_a3 = def.valid) !== null && _a3 !== void 0 ? _a3 : valid), errors2);
+      var _a2;
+      gen.if((0, codegen_1.not)((_a2 = def.valid) !== null && _a2 !== void 0 ? _a2 : valid), errors2);
     }
   }
   keyword.funcKeywordCode = funcKeywordCode;
@@ -24543,8 +19754,8 @@ function requireResolve() {
     }
     return count;
   }
-  function getFullPath(resolver, id2 = "", normalize3) {
-    if (normalize3 !== false)
+  function getFullPath(resolver, id2 = "", normalize) {
+    if (normalize !== false)
       id2 = normalizeId(id2);
     const p = resolver.parse(id2);
     return _getFullPath(resolver, p);
@@ -25000,8 +20211,8 @@ function requireValidate() {
       if (!this.allErrors)
         this.gen.if(cond);
     }
-    setParams(obj, assign2) {
-      if (assign2)
+    setParams(obj, assign) {
+      if (assign)
         Object.assign(this.params, obj);
       else
         this.params = obj;
@@ -25180,7 +20391,7 @@ function requireCompile() {
   const validate_1 = /* @__PURE__ */ requireValidate();
   class SchemaEnv {
     constructor(env) {
-      var _a2;
+      var _a;
       this.refs = {};
       this.dynamicAnchors = {};
       let schema;
@@ -25189,7 +20400,7 @@ function requireCompile() {
       this.schema = env.schema;
       this.schemaId = env.schemaId;
       this.root = env.root || this;
-      this.baseId = (_a2 = env.baseId) !== null && _a2 !== void 0 ? _a2 : (0, resolve_1.normalizeId)(schema === null || schema === void 0 ? void 0 : schema[env.schemaId || "$id"]);
+      this.baseId = (_a = env.baseId) !== null && _a !== void 0 ? _a : (0, resolve_1.normalizeId)(schema === null || schema === void 0 ? void 0 : schema[env.schemaId || "$id"]);
       this.schemaPath = env.schemaPath;
       this.localRefs = env.localRefs;
       this.meta = env.meta;
@@ -25285,14 +20496,14 @@ function requireCompile() {
   }
   compile.compileSchema = compileSchema;
   function resolveRef(root, baseId, ref2) {
-    var _a2;
+    var _a;
     ref2 = (0, resolve_1.resolveUrl)(this.opts.uriResolver, baseId, ref2);
     const schOrFunc = root.refs[ref2];
     if (schOrFunc)
       return schOrFunc;
     let _sch = resolve2.call(this, root, ref2);
     if (_sch === void 0) {
-      const schema = (_a2 = root.localRefs) === null || _a2 === void 0 ? void 0 : _a2[ref2];
+      const schema = (_a = root.localRefs) === null || _a === void 0 ? void 0 : _a[ref2];
       const { schemaId } = this.opts;
       if (schema)
         _sch = new SchemaEnv({ schema, schemaId, root, baseId });
@@ -25361,8 +20572,8 @@ function requireCompile() {
     "definitions"
   ]);
   function getJsonPointer(parsedRef, { baseId, schema, root }) {
-    var _a2;
-    if (((_a2 = parsedRef.fragment) === null || _a2 === void 0 ? void 0 : _a2[0]) !== "/")
+    var _a;
+    if (((_a = parsedRef.fragment) === null || _a === void 0 ? void 0 : _a[0]) !== "/")
       return;
     for (const part of parsedRef.fragment.slice(1).split("/")) {
       if (typeof schema === "boolean")
@@ -25934,7 +21145,7 @@ function requireFastUri() {
   hasRequiredFastUri = 1;
   const { normalizeIPv6, removeDotSegments, recomposeAuthority, normalizePercentEncoding, normalizePathEncoding, escapePreservingEscapes, reescapeHostDelimiters, isIPv4, nonSimpleDomain } = requireUtils();
   const { SCHEMES, getSchemeHandler } = requireSchemes();
-  function normalize3(uri2, options) {
+  function normalize(uri2, options) {
     if (typeof uri2 === "string") {
       uri2 = /** @type {T} */
       normalizeString(uri2, options);
@@ -25950,10 +21161,10 @@ function requireFastUri() {
     schemelessOptions.skipEscape = true;
     return serialize(resolved, schemelessOptions);
   }
-  function resolveComponent(base2, relative, options, skipNormalization) {
+  function resolveComponent(base, relative, options, skipNormalization) {
     const target = {};
     if (!skipNormalization) {
-      base2 = parse2(serialize(base2, options), options);
+      base = parse2(serialize(base, options), options);
       relative = parse2(serialize(relative, options), options);
     }
     options = options || {};
@@ -25973,32 +21184,32 @@ function requireFastUri() {
         target.query = relative.query;
       } else {
         if (!relative.path) {
-          target.path = base2.path;
+          target.path = base.path;
           if (relative.query !== void 0) {
             target.query = relative.query;
           } else {
-            target.query = base2.query;
+            target.query = base.query;
           }
         } else {
           if (relative.path[0] === "/") {
             target.path = removeDotSegments(relative.path);
           } else {
-            if ((base2.userinfo !== void 0 || base2.host !== void 0 || base2.port !== void 0) && !base2.path) {
+            if ((base.userinfo !== void 0 || base.host !== void 0 || base.port !== void 0) && !base.path) {
               target.path = "/" + relative.path;
-            } else if (!base2.path) {
+            } else if (!base.path) {
               target.path = relative.path;
             } else {
-              target.path = base2.path.slice(0, base2.path.lastIndexOf("/") + 1) + relative.path;
+              target.path = base.path.slice(0, base.path.lastIndexOf("/") + 1) + relative.path;
             }
             target.path = removeDotSegments(target.path);
           }
           target.query = relative.query;
         }
-        target.userinfo = base2.userinfo;
-        target.host = base2.host;
-        target.port = base2.port;
+        target.userinfo = base.userinfo;
+        target.host = base.host;
+        target.port = base.port;
       }
-      target.scheme = base2.scheme;
+      target.scheme = base.scheme;
     }
     target.fragment = relative.fragment;
     return target;
@@ -26207,7 +21418,7 @@ function requireFastUri() {
   }
   const fastUri$1 = {
     SCHEMES,
-    normalize: normalize3,
+    normalize,
     resolve: resolve2,
     resolveComponent,
     equal: equal2,
@@ -26311,9 +21522,9 @@ function requireCore$1() {
     };
     const MAX_EXPRESSION = 200;
     function requiredOptions(o) {
-      var _a2, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s, _t, _u, _v, _w, _x, _y, _z, _0;
+      var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s, _t, _u, _v, _w, _x, _y, _z, _0;
       const s = o.strict;
-      const _optz = (_a2 = o.code) === null || _a2 === void 0 ? void 0 : _a2.optimize;
+      const _optz = (_a = o.code) === null || _a === void 0 ? void 0 : _a.optimize;
       const optimize = _optz === true || _optz === void 0 ? 1 : _optz || 0;
       const regExp = (_c = (_b = o.code) === null || _b === void 0 ? void 0 : _b.regExp) !== null && _c !== void 0 ? _c : defaultRegExp;
       const uriResolver = (_d = o.uriResolver) !== null && _d !== void 0 ? _d : uri_1.default;
@@ -26622,7 +21833,7 @@ function requireCore$1() {
       errorsText(errors2 = this.errors, { separator = ", ", dataVar = "data" } = {}) {
         if (!errors2 || errors2.length === 0)
           return "No errors";
-        return errors2.map((e) => `${dataVar}${e.instancePath} ${e.message}`).reduce((text2, msg) => text2 + separator + msg);
+        return errors2.map((e) => `${dataVar}${e.instancePath} ${e.message}`).reduce((text, msg) => text + separator + msg);
       }
       $dataMetaSchema(metaSchema, keywordsJsonPointers) {
         const rules2 = this.RULES.all;
@@ -26644,10 +21855,10 @@ function requireCore$1() {
         }
         return metaSchema;
       }
-      _removeAllSchemas(schemas, regex2) {
+      _removeAllSchemas(schemas, regex) {
         for (const keyRef in schemas) {
           const sch = schemas[keyRef];
-          if (!regex2 || regex2.test(keyRef)) {
+          if (!regex || regex.test(keyRef)) {
             if (typeof sch == "string") {
               delete schemas[keyRef];
             } else if (sch && !sch.meta) {
@@ -26787,7 +21998,7 @@ function requireCore$1() {
       }
     }
     function addRule(keyword2, definition, dataType2) {
-      var _a2;
+      var _a;
       const post = definition === null || definition === void 0 ? void 0 : definition.post;
       if (dataType2 && post)
         throw new Error('keyword with "post" flag cannot have "type"');
@@ -26813,7 +22024,7 @@ function requireCore$1() {
       else
         ruleGroup.rules.push(rule);
       RULES.all[keyword2] = rule;
-      (_a2 = definition.implements) === null || _a2 === void 0 ? void 0 : _a2.forEach((kwd) => this.addKeyword(kwd));
+      (_a = definition.implements) === null || _a === void 0 ? void 0 : _a.forEach((kwd) => this.addKeyword(kwd));
     }
     function addBeforeRule(ruleGroup, rule, before) {
       const i = ruleGroup.rules.findIndex((_rule) => _rule.keyword === before);
@@ -26950,10 +22161,10 @@ function requireRef() {
       gen.assign(names_1.default.errors, (0, codegen_1._)`${names_1.default.vErrors}.length`);
     }
     function addEvaluatedFrom(source) {
-      var _a2;
+      var _a;
       if (!it.opts.unevaluated)
         return;
-      const schEvaluated = (_a2 = sch === null || sch === void 0 ? void 0 : sch.validate) === null || _a2 === void 0 ? void 0 : _a2.evaluated;
+      const schEvaluated = (_a = sch === null || sch === void 0 ? void 0 : sch.validate) === null || _a === void 0 ? void 0 : _a.evaluated;
       if (it.props !== true) {
         if (schEvaluated && !schEvaluated.dynamicProps) {
           if (schEvaluated.props !== void 0) {
@@ -27015,7 +22226,7 @@ function requireLimitNumber() {
     exclusiveMaximum: { okStr: "<", ok: ops.LT, fail: ops.GTE },
     exclusiveMinimum: { okStr: ">", ok: ops.GT, fail: ops.LTE }
   };
-  const error2 = {
+  const error = {
     message: ({ keyword: keyword2, schemaCode }) => (0, codegen_1.str)`must be ${KWDs[keyword2].okStr} ${schemaCode}`,
     params: ({ keyword: keyword2, schemaCode }) => (0, codegen_1._)`{comparison: ${KWDs[keyword2].okStr}, limit: ${schemaCode}}`
   };
@@ -27024,7 +22235,7 @@ function requireLimitNumber() {
     type: "number",
     schemaType: "number",
     $data: true,
-    error: error2,
+    error,
     code(cxt) {
       const { keyword: keyword2, data, schemaCode } = cxt;
       cxt.fail$data((0, codegen_1._)`${data} ${KWDs[keyword2].fail} ${schemaCode} || isNaN(${data})`);
@@ -27040,7 +22251,7 @@ function requireMultipleOf() {
   hasRequiredMultipleOf = 1;
   Object.defineProperty(multipleOf, "__esModule", { value: true });
   const codegen_1 = /* @__PURE__ */ requireCodegen();
-  const error2 = {
+  const error = {
     message: ({ schemaCode }) => (0, codegen_1.str)`must be multiple of ${schemaCode}`,
     params: ({ schemaCode }) => (0, codegen_1._)`{multipleOf: ${schemaCode}}`
   };
@@ -27049,7 +22260,7 @@ function requireMultipleOf() {
     type: "number",
     schemaType: "number",
     $data: true,
-    error: error2,
+    error,
     code(cxt) {
       const { gen, data, schemaCode, it } = cxt;
       const prec = it.opts.multipleOfPrecision;
@@ -27096,7 +22307,7 @@ function requireLimitLength() {
   const codegen_1 = /* @__PURE__ */ requireCodegen();
   const util_1 = /* @__PURE__ */ requireUtil();
   const ucs2length_1 = /* @__PURE__ */ requireUcs2length();
-  const error2 = {
+  const error = {
     message({ keyword: keyword2, schemaCode }) {
       const comp = keyword2 === "maxLength" ? "more" : "fewer";
       return (0, codegen_1.str)`must NOT have ${comp} than ${schemaCode} characters`;
@@ -27108,7 +22319,7 @@ function requireLimitLength() {
     type: "string",
     schemaType: "number",
     $data: true,
-    error: error2,
+    error,
     code(cxt) {
       const { keyword: keyword2, data, schemaCode, it } = cxt;
       const op = keyword2 === "maxLength" ? codegen_1.operators.GT : codegen_1.operators.LT;
@@ -27128,7 +22339,7 @@ function requirePattern() {
   const code_1 = /* @__PURE__ */ requireCode();
   const util_1 = /* @__PURE__ */ requireUtil();
   const codegen_1 = /* @__PURE__ */ requireCodegen();
-  const error2 = {
+  const error = {
     message: ({ schemaCode }) => (0, codegen_1.str)`must match pattern "${schemaCode}"`,
     params: ({ schemaCode }) => (0, codegen_1._)`{pattern: ${schemaCode}}`
   };
@@ -27137,7 +22348,7 @@ function requirePattern() {
     type: "string",
     schemaType: "string",
     $data: true,
-    error: error2,
+    error,
     code(cxt) {
       const { gen, data, $data, schema, schemaCode, it } = cxt;
       const u = it.opts.unicodeRegExp ? "u" : "";
@@ -27163,7 +22374,7 @@ function requireLimitProperties() {
   hasRequiredLimitProperties = 1;
   Object.defineProperty(limitProperties, "__esModule", { value: true });
   const codegen_1 = /* @__PURE__ */ requireCodegen();
-  const error2 = {
+  const error = {
     message({ keyword: keyword2, schemaCode }) {
       const comp = keyword2 === "maxProperties" ? "more" : "fewer";
       return (0, codegen_1.str)`must NOT have ${comp} than ${schemaCode} properties`;
@@ -27175,7 +22386,7 @@ function requireLimitProperties() {
     type: "object",
     schemaType: "number",
     $data: true,
-    error: error2,
+    error,
     code(cxt) {
       const { keyword: keyword2, data, schemaCode } = cxt;
       const op = keyword2 === "maxProperties" ? codegen_1.operators.GT : codegen_1.operators.LT;
@@ -27194,7 +22405,7 @@ function requireRequired() {
   const code_1 = /* @__PURE__ */ requireCode();
   const codegen_1 = /* @__PURE__ */ requireCodegen();
   const util_1 = /* @__PURE__ */ requireUtil();
-  const error2 = {
+  const error = {
     message: ({ params: { missingProperty } }) => (0, codegen_1.str)`must have required property '${missingProperty}'`,
     params: ({ params: { missingProperty } }) => (0, codegen_1._)`{missingProperty: ${missingProperty}}`
   };
@@ -27203,7 +22414,7 @@ function requireRequired() {
     type: "object",
     schemaType: "array",
     $data: true,
-    error: error2,
+    error,
     code(cxt) {
       const { gen, schema, schemaCode, data, $data, it } = cxt;
       const { opts } = it;
@@ -27274,7 +22485,7 @@ function requireLimitItems() {
   hasRequiredLimitItems = 1;
   Object.defineProperty(limitItems, "__esModule", { value: true });
   const codegen_1 = /* @__PURE__ */ requireCodegen();
-  const error2 = {
+  const error = {
     message({ keyword: keyword2, schemaCode }) {
       const comp = keyword2 === "maxItems" ? "more" : "fewer";
       return (0, codegen_1.str)`must NOT have ${comp} than ${schemaCode} items`;
@@ -27286,7 +22497,7 @@ function requireLimitItems() {
     type: "array",
     schemaType: "number",
     $data: true,
-    error: error2,
+    error,
     code(cxt) {
       const { keyword: keyword2, data, schemaCode } = cxt;
       const op = keyword2 === "maxItems" ? codegen_1.operators.GT : codegen_1.operators.LT;
@@ -27317,7 +22528,7 @@ function requireUniqueItems() {
   const codegen_1 = /* @__PURE__ */ requireCodegen();
   const util_1 = /* @__PURE__ */ requireUtil();
   const equal_1 = /* @__PURE__ */ requireEqual();
-  const error2 = {
+  const error = {
     message: ({ params: { i, j } }) => (0, codegen_1.str)`must NOT have duplicate items (items ## ${j} and ${i} are identical)`,
     params: ({ params: { i, j } }) => (0, codegen_1._)`{i: ${i}, j: ${j}}`
   };
@@ -27326,7 +22537,7 @@ function requireUniqueItems() {
     type: "array",
     schemaType: "boolean",
     $data: true,
-    error: error2,
+    error,
     code(cxt) {
       const { gen, data, $data, schema, parentSchema, schemaCode, it } = cxt;
       if (!$data && !schema)
@@ -27383,14 +22594,14 @@ function require_const() {
   const codegen_1 = /* @__PURE__ */ requireCodegen();
   const util_1 = /* @__PURE__ */ requireUtil();
   const equal_1 = /* @__PURE__ */ requireEqual();
-  const error2 = {
+  const error = {
     message: "must be equal to constant",
     params: ({ schemaCode }) => (0, codegen_1._)`{allowedValue: ${schemaCode}}`
   };
   const def = {
     keyword: "const",
     $data: true,
-    error: error2,
+    error,
     code(cxt) {
       const { gen, data, $data, schemaCode, schema } = cxt;
       if ($data || schema && typeof schema == "object") {
@@ -27412,7 +22623,7 @@ function require_enum() {
   const codegen_1 = /* @__PURE__ */ requireCodegen();
   const util_1 = /* @__PURE__ */ requireUtil();
   const equal_1 = /* @__PURE__ */ requireEqual();
-  const error2 = {
+  const error = {
     message: "must be equal to one of the allowed values",
     params: ({ schemaCode }) => (0, codegen_1._)`{allowedValues: ${schemaCode}}`
   };
@@ -27420,7 +22631,7 @@ function require_enum() {
     keyword: "enum",
     schemaType: "array",
     $data: true,
-    error: error2,
+    error,
     code(cxt) {
       const { gen, data, $data, schema, schemaCode, it } = cxt;
       if (!$data && schema.length === 0)
@@ -27499,7 +22710,7 @@ function requireAdditionalItems() {
   additionalItems.validateAdditionalItems = void 0;
   const codegen_1 = /* @__PURE__ */ requireCodegen();
   const util_1 = /* @__PURE__ */ requireUtil();
-  const error2 = {
+  const error = {
     message: ({ params: { len } }) => (0, codegen_1.str)`must NOT have more than ${len} items`,
     params: ({ params: { len } }) => (0, codegen_1._)`{limit: ${len}}`
   };
@@ -27508,7 +22719,7 @@ function requireAdditionalItems() {
     type: "array",
     schemaType: ["boolean", "object"],
     before: "uniqueItems",
-    error: error2,
+    error,
     code(cxt) {
       const { parentSchema, it } = cxt;
       const { items: items2 } = parentSchema;
@@ -27627,7 +22838,7 @@ function requireItems2020() {
   const util_1 = /* @__PURE__ */ requireUtil();
   const code_1 = /* @__PURE__ */ requireCode();
   const additionalItems_1 = /* @__PURE__ */ requireAdditionalItems();
-  const error2 = {
+  const error = {
     message: ({ params: { len } }) => (0, codegen_1.str)`must NOT have more than ${len} items`,
     params: ({ params: { len } }) => (0, codegen_1._)`{limit: ${len}}`
   };
@@ -27636,7 +22847,7 @@ function requireItems2020() {
     type: "array",
     schemaType: ["object", "boolean"],
     before: "uniqueItems",
-    error: error2,
+    error,
     code(cxt) {
       const { schema, parentSchema, it } = cxt;
       const { prefixItems: prefixItems2 } = parentSchema;
@@ -27660,7 +22871,7 @@ function requireContains() {
   Object.defineProperty(contains, "__esModule", { value: true });
   const codegen_1 = /* @__PURE__ */ requireCodegen();
   const util_1 = /* @__PURE__ */ requireUtil();
-  const error2 = {
+  const error = {
     message: ({ params: { min, max } }) => max === void 0 ? (0, codegen_1.str)`must contain at least ${min} valid item(s)` : (0, codegen_1.str)`must contain at least ${min} and no more than ${max} valid item(s)`,
     params: ({ params: { min, max } }) => max === void 0 ? (0, codegen_1._)`{minContains: ${min}}` : (0, codegen_1._)`{minContains: ${min}, maxContains: ${max}}`
   };
@@ -27670,7 +22881,7 @@ function requireContains() {
     schemaType: ["object", "boolean"],
     before: "uniqueItems",
     trackErrors: true,
-    error: error2,
+    error,
     code(cxt) {
       const { gen, schema, parentSchema, data, it } = cxt;
       let min;
@@ -27718,7 +22929,7 @@ function requireContains() {
         const count = gen.let("count", 0);
         validateItems(schValid, () => gen.if(schValid, () => checkLimits(count)));
       }
-      function validateItems(_valid, block2) {
+      function validateItems(_valid, block) {
         gen.forRange("i", 0, len, (i) => {
           cxt.subschema({
             keyword: "contains",
@@ -27726,7 +22937,7 @@ function requireContains() {
             dataPropType: util_1.Type.Num,
             compositeRule: true
           }, _valid);
-          block2();
+          block();
         });
       }
       function checkLimits(count) {
@@ -27850,7 +23061,7 @@ function requirePropertyNames() {
   Object.defineProperty(propertyNames, "__esModule", { value: true });
   const codegen_1 = /* @__PURE__ */ requireCodegen();
   const util_1 = /* @__PURE__ */ requireUtil();
-  const error2 = {
+  const error = {
     message: "property name must be valid",
     params: ({ params }) => (0, codegen_1._)`{propertyName: ${params.propertyName}}`
   };
@@ -27858,7 +23069,7 @@ function requirePropertyNames() {
     keyword: "propertyNames",
     type: "object",
     schemaType: ["object", "boolean"],
-    error: error2,
+    error,
     code(cxt) {
       const { gen, schema, data, it } = cxt;
       if ((0, util_1.alwaysValidSchema)(it, schema))
@@ -27895,7 +23106,7 @@ function requireAdditionalProperties() {
   const codegen_1 = /* @__PURE__ */ requireCodegen();
   const names_1 = /* @__PURE__ */ requireNames();
   const util_1 = /* @__PURE__ */ requireUtil();
-  const error2 = {
+  const error = {
     message: "must NOT have additional properties",
     params: ({ params }) => (0, codegen_1._)`{additionalProperty: ${params.additionalProperty}}`
   };
@@ -27905,7 +23116,7 @@ function requireAdditionalProperties() {
     schemaType: ["boolean", "object"],
     allowUndefined: true,
     trackErrors: true,
-    error: error2,
+    error,
     code(cxt) {
       const { gen, schema, parentSchema, data, errsCount, it } = cxt;
       if (!errsCount)
@@ -28179,7 +23390,7 @@ function requireOneOf() {
   Object.defineProperty(oneOf, "__esModule", { value: true });
   const codegen_1 = /* @__PURE__ */ requireCodegen();
   const util_1 = /* @__PURE__ */ requireUtil();
-  const error2 = {
+  const error = {
     message: "must match exactly one schema in oneOf",
     params: ({ params }) => (0, codegen_1._)`{passingSchemas: ${params.passing}}`
   };
@@ -28187,7 +23398,7 @@ function requireOneOf() {
     keyword: "oneOf",
     schemaType: "array",
     trackErrors: true,
-    error: error2,
+    error,
     code(cxt) {
       const { gen, schema, parentSchema, it } = cxt;
       if (!Array.isArray(schema))
@@ -28264,7 +23475,7 @@ function require_if() {
   Object.defineProperty(_if, "__esModule", { value: true });
   const codegen_1 = /* @__PURE__ */ requireCodegen();
   const util_1 = /* @__PURE__ */ requireUtil();
-  const error2 = {
+  const error = {
     message: ({ params }) => (0, codegen_1.str)`must match "${params.ifClause}" schema`,
     params: ({ params }) => (0, codegen_1._)`{failingKeyword: ${params.ifClause}}`
   };
@@ -28272,7 +23483,7 @@ function require_if() {
     keyword: "if",
     schemaType: ["object", "boolean"],
     trackErrors: true,
-    error: error2,
+    error,
     code(cxt) {
       const { gen, parentSchema, it } = cxt;
       if (parentSchema.then === void 0 && parentSchema.else === void 0) {
@@ -28398,7 +23609,7 @@ function requireFormat$1() {
   hasRequiredFormat$1 = 1;
   Object.defineProperty(format, "__esModule", { value: true });
   const codegen_1 = /* @__PURE__ */ requireCodegen();
-  const error2 = {
+  const error = {
     message: ({ schemaCode }) => (0, codegen_1.str)`must match format "${schemaCode}"`,
     params: ({ schemaCode }) => (0, codegen_1._)`{format: ${schemaCode}}`
   };
@@ -28407,7 +23618,7 @@ function requireFormat$1() {
     type: ["number", "string"],
     schemaType: "string",
     $data: true,
-    error: error2,
+    error,
     code(cxt, ruleType) {
       const { gen, data, $data, schema, schemaCode, it } = cxt;
       const { opts, errSchemaPath, schemaEnv, self } = it;
@@ -28560,7 +23771,7 @@ function requireDiscriminator() {
   const compile_1 = /* @__PURE__ */ requireCompile();
   const ref_error_1 = /* @__PURE__ */ requireRef_error();
   const util_1 = /* @__PURE__ */ requireUtil();
-  const error2 = {
+  const error = {
     message: ({ params: { discrError, tagName } }) => discrError === types_1.DiscrError.Tag ? `tag "${tagName}" must be string` : `value of tag "${tagName}" must be in oneOf`,
     params: ({ params: { discrError, tag, tagName } }) => (0, codegen_1._)`{error: ${discrError}, tag: ${tagName}, tagValue: ${tag}}`
   };
@@ -28568,7 +23779,7 @@ function requireDiscriminator() {
     keyword: "discriminator",
     type: "object",
     schemaType: "object",
-    error: error2,
+    error,
     code(cxt) {
       const { gen, data, schema, parentSchema, it } = cxt;
       const { oneOf: oneOf2 } = parentSchema;
@@ -28604,7 +23815,7 @@ function requireDiscriminator() {
         return _valid;
       }
       function getMapping() {
-        var _a2;
+        var _a;
         const oneOfMapping = {};
         const topRequired = hasRequired(parentSchema);
         let tagRequired = true;
@@ -28618,7 +23829,7 @@ function requireDiscriminator() {
             if (sch === void 0)
               throw new ref_error_1.default(it.opts.uriResolver, it.baseId, ref2);
           }
-          const propSch = (_a2 = sch === null || sch === void 0 ? void 0 : sch.properties) === null || _a2 === void 0 ? void 0 : _a2[tagName];
+          const propSch = (_a = sch === null || sch === void 0 ? void 0 : sch.properties) === null || _a === void 0 ? void 0 : _a[tagName];
           if (typeof propSch != "object") {
             throw new Error(`discriminator: oneOf subschemas (or referenced schemas) must have "properties/${tagName}"`);
           }
@@ -28776,7 +23987,7 @@ function requireFormats() {
       // optimized https://www.safaribooksonline.com/library/view/regular-expressions-cookbook/9780596802837/ch07s16.html
       ipv4: /^(?:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)$/,
       ipv6: /^((([0-9a-f]{1,4}:){7}([0-9a-f]{1,4}|:))|(([0-9a-f]{1,4}:){6}(:[0-9a-f]{1,4}|((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9a-f]{1,4}:){5}(((:[0-9a-f]{1,4}){1,2})|:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9a-f]{1,4}:){4}(((:[0-9a-f]{1,4}){1,3})|((:[0-9a-f]{1,4})?:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9a-f]{1,4}:){3}(((:[0-9a-f]{1,4}){1,4})|((:[0-9a-f]{1,4}){0,2}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9a-f]{1,4}:){2}(((:[0-9a-f]{1,4}){1,5})|((:[0-9a-f]{1,4}){0,3}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9a-f]{1,4}:){1}(((:[0-9a-f]{1,4}){1,6})|((:[0-9a-f]{1,4}){0,4}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(:(((:[0-9a-f]{1,4}){1,7})|((:[0-9a-f]{1,4}){0,5}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:)))$/i,
-      regex: regex2,
+      regex,
       // uuid: http://tools.ietf.org/html/rfc4122
       uuid: /^(?:urn:uuid:)?[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i,
       // JSON-pointer: https://tools.ietf.org/html/rfc6901
@@ -28846,7 +24057,7 @@ function requireFormats() {
         const matches = TIME.exec(str);
         if (!matches)
           return false;
-        const hr2 = +matches[1];
+        const hr = +matches[1];
         const min = +matches[2];
         const sec = +matches[3];
         const tz = matches[4];
@@ -28855,10 +24066,10 @@ function requireFormats() {
         const tzM = +(matches[7] || 0);
         if (tzH > 23 || tzM > 59 || strictTimeZone && !tz)
           return false;
-        if (hr2 <= 23 && min <= 59 && sec < 60)
+        if (hr <= 23 && min <= 59 && sec < 60)
           return true;
         const utcMin = min - tzM * tzSign;
-        const utcHr = hr2 - tzH * tzSign - (utcMin < 0 ? 1 : 0);
+        const utcHr = hr - tzH * tzSign - (utcMin < 0 ? 1 : 0);
         return (utcHr === 23 || utcHr === -1) && (utcMin === 59 || utcMin === -1) && sec < 61;
       };
     }
@@ -28935,7 +24146,7 @@ function requireFormats() {
       return true;
     }
     const Z_ANCHOR = /[^\\]\\Z/;
-    function regex2(str) {
+    function regex(str) {
       if (Z_ANCHOR.test(str))
         return false;
       try {
@@ -28965,7 +24176,7 @@ function requireLimit() {
       formatExclusiveMaximum: { okStr: "<", ok: ops.LT, fail: ops.GTE },
       formatExclusiveMinimum: { okStr: ">", ok: ops.GT, fail: ops.LTE }
     };
-    const error2 = {
+    const error = {
       message: ({ keyword: keyword2, schemaCode }) => (0, codegen_1.str)`should be ${KWDs[keyword2].okStr} ${schemaCode}`,
       params: ({ keyword: keyword2, schemaCode }) => (0, codegen_1._)`{comparison: ${KWDs[keyword2].okStr}, limit: ${schemaCode}}`
     };
@@ -28974,7 +24185,7 @@ function requireLimit() {
       type: "string",
       schemaType: "string",
       $data: true,
-      error: error2,
+      error,
       code(cxt) {
         const { gen, data, schemaCode, keyword: keyword2, it } = cxt;
         const { opts, self } = it;
@@ -29039,8 +24250,8 @@ function requireDist() {
         return ajv2;
       }
       const [formats2, exportName] = opts.mode === "fast" ? [formats_1.fastFormats, fastName] : [formats_1.fullFormats, fullName];
-      const list2 = opts.formats || formats_1.formatNames;
-      addFormats(ajv2, list2, formats2, exportName);
+      const list = opts.formats || formats_1.formatNames;
+      addFormats(ajv2, list, formats2, exportName);
       if (opts.keywords)
         (0, limit_1.default)(ajv2);
       return ajv2;
@@ -29052,11 +24263,11 @@ function requireDist() {
         throw new Error(`Unknown format "${name}"`);
       return f;
     };
-    function addFormats(ajv2, list2, fs2, exportName) {
-      var _a2;
+    function addFormats(ajv2, list, fs2, exportName) {
+      var _a;
       var _b;
-      (_a2 = (_b = ajv2.opts.code).formats) !== null && _a2 !== void 0 ? _a2 : _b.formats = (0, codegen_1._)`require("ajv-formats/dist/formats").${exportName}`;
-      for (const f of list2)
+      (_a = (_b = ajv2.opts.code).formats) !== null && _a !== void 0 ? _a : _b.formats = (0, codegen_1._)`require("ajv-formats/dist/formats").${exportName}`;
+      for (const f of list)
         ajv2.addFormat(f, fs2[f]);
     }
     module.exports = exports = formatsPlugin;
@@ -29675,11 +24886,11 @@ class Server extends Protocol {
             if (!validationResult.valid) {
               throw new McpError(ErrorCode.InvalidParams, `Elicitation response content does not match requested schema: ${validationResult.errorMessage}`);
             }
-          } catch (error2) {
-            if (error2 instanceof McpError) {
-              throw error2;
+          } catch (error) {
+            if (error instanceof McpError) {
+              throw error;
             }
-            throw new McpError(ErrorCode.InternalError, `Error validating elicitation response: ${error2 instanceof Error ? error2.message : String(error2)}`);
+            throw new McpError(ErrorCode.InternalError, `Error validating elicitation response: ${error instanceof Error ? error.message : String(error)}`);
           }
         }
         return result;
@@ -29930,13 +25141,13 @@ class McpServer {
         }
         await this.validateToolOutput(tool, result, request.params.name);
         return result;
-      } catch (error2) {
-        if (error2 instanceof McpError) {
-          if (error2.code === ErrorCode.UrlElicitationRequired) {
-            throw error2;
+      } catch (error) {
+        if (error instanceof McpError) {
+          if (error.code === ErrorCode.UrlElicitationRequired) {
+            throw error;
           }
         }
-        return this.createToolError(error2 instanceof Error ? error2.message : String(error2));
+        return this.createToolError(error instanceof Error ? error.message : String(error));
       }
     });
     this._toolHandlersInitialized = true;
@@ -29969,8 +25180,8 @@ class McpServer {
     const schemaToParse = inputObj ?? tool.inputSchema;
     const parseResult = await safeParseAsync$1(schemaToParse, args);
     if (!parseResult.success) {
-      const error2 = "error" in parseResult ? parseResult.error : "Unknown error";
-      const errorMessage2 = getParseErrorMessage(error2);
+      const error = "error" in parseResult ? parseResult.error : "Unknown error";
+      const errorMessage2 = getParseErrorMessage(error);
       throw new McpError(ErrorCode.InvalidParams, `Input validation error: Invalid arguments for tool ${toolName}: ${errorMessage2}`);
     }
     return parseResult.data;
@@ -29994,8 +25205,8 @@ class McpServer {
     const outputObj = normalizeObjectSchema(tool.outputSchema);
     const parseResult = await safeParseAsync$1(outputObj, result.structuredContent);
     if (!parseResult.success) {
-      const error2 = "error" in parseResult ? parseResult.error : "Unknown error";
-      const errorMessage2 = getParseErrorMessage(error2);
+      const error = "error" in parseResult ? parseResult.error : "Unknown error";
+      const errorMessage2 = getParseErrorMessage(error);
       throw new McpError(ErrorCode.InvalidParams, `Output validation error: Invalid structured content for tool ${toolName}: ${errorMessage2}`);
     }
   }
@@ -30207,8 +25418,8 @@ class McpServer {
         const argsObj = normalizeObjectSchema(prompt.argsSchema);
         const parseResult = await safeParseAsync$1(argsObj, request.params.arguments);
         if (!parseResult.success) {
-          const error2 = "error" in parseResult ? parseResult.error : "Unknown error";
-          const errorMessage2 = getParseErrorMessage(error2);
+          const error = "error" in parseResult ? parseResult.error : "Unknown error";
+          const errorMessage2 = getParseErrorMessage(error);
           throw new McpError(ErrorCode.InvalidParams, `Invalid arguments for prompt ${request.params.name}: ${errorMessage2}`);
         }
         const args = parseResult.data;
@@ -30647,8 +25858,8 @@ class StdioServerTransport {
       this._readBuffer.append(chunk);
       this.processReadBuffer();
     };
-    this._onerror = (error2) => {
-      this.onerror?.(error2);
+    this._onerror = (error) => {
+      this.onerror?.(error);
     };
   }
   /**
@@ -30670,8 +25881,8 @@ class StdioServerTransport {
           break;
         }
         this.onmessage?.(message);
-      } catch (error2) {
-        this.onerror?.(error2);
+      } catch (error) {
+        this.onerror?.(error);
       }
     }
   }
@@ -30696,29 +25907,6 @@ class StdioServerTransport {
     });
   }
 }
-const nodeFs$2 = require("node:fs");
-async function isMathWorkspaceProject(rootPath) {
-  try {
-    return (await fs__namespace.stat(path__namespace.join(rootPath, ".math-workspace", "config.json"))).isFile();
-  } catch (_error) {
-    return false;
-  }
-}
-async function findMathWorkspaceRoot(startPath) {
-  let current = path__namespace.resolve(startPath);
-  try {
-    const stat = await fs__namespace.stat(current);
-    if (!stat.isDirectory()) current = path__namespace.dirname(current);
-  } catch (_error) {
-    return void 0;
-  }
-  while (true) {
-    if (await isMathWorkspaceProject(current)) return nodeFs$2.promises.realpath(current);
-    const parent2 = path__namespace.dirname(current);
-    if (parent2 === current) return void 0;
-    current = parent2;
-  }
-}
 const VERIFY_BLOCKING_WARNING_CODES$1 = /* @__PURE__ */ new Set([
   "non-hash-id",
   "formal-marker-outside-numbered-file",
@@ -30737,16 +25925,16 @@ function excerpt(value) {
 
 … [truncated by Math Workspace]`, truncated: true };
 }
-function display(label) {
-  const number2 = publication.formatDisplayNumber(label);
-  return number2 ? `${label.type} ${number2}` : label.type;
+function display(label2) {
+  const number2 = publication.formatDisplayNumber(label2);
+  return number2 ? `${label2.type} ${number2}` : label2.type;
 }
 function pageFor(snapshot, filePath) {
   return (snapshot.state.pages || []).find((page) => page.filePath === filePath);
 }
 function nodeSummary(snapshot, id2) {
   const graphNode = (snapshot.state.dependencyGraph?.nodes || []).find((node) => node.id === id2);
-  const label = snapshot.state.labels?.[id2];
+  const label2 = snapshot.state.labels?.[id2];
   if (graphNode) return {
     id: id2,
     display: graphNode.display,
@@ -30755,13 +25943,13 @@ function nodeSummary(snapshot, id2) {
     filePath: graphNode.path,
     line: graphNode.line
   };
-  if (label) return {
+  if (label2) return {
     id: id2,
-    display: display(label),
-    type: label.type,
-    title: label.title,
-    filePath: label.filePath,
-    line: (label.startLine || 0) + 1
+    display: display(label2),
+    type: label2.type,
+    title: label2.title,
+    filePath: label2.filePath,
+    line: (label2.startLine || 0) + 1
   };
   return { id: id2 };
 }
@@ -30852,23 +26040,23 @@ class WorkspaceQueries {
     const rootPath = await this.resolveRoot(projectRoot2);
     const snapshot = await publication.loadWorkspaceSnapshot(rootPath);
     const id2 = normalizeFormalId(idInput);
-    const label = snapshot.state.labels?.[id2];
-    if (!label) throw new Error(`No formal object with id ${idInput} exists in this Math Workspace project.`);
-    const content = excerpt(label.content);
-    const page = pageFor(snapshot, label.filePath);
+    const label2 = snapshot.state.labels?.[id2];
+    if (!label2) throw new Error(`No formal object with id ${idInput} exists in this Math Workspace project.`);
+    const content = excerpt(label2.content);
+    const page = pageFor(snapshot, label2.filePath);
     return {
       id: id2,
-      display: display(label),
-      type: label.type,
-      title: label.title,
-      filePath: label.filePath,
-      line: (label.startLine || 0) + 1,
-      endLine: label.endLine,
+      display: display(label2),
+      type: label2.type,
+      title: label2.title,
+      filePath: label2.filePath,
+      line: (label2.startLine || 0) + 1,
+      endLine: label2.endLine,
       pageTitle: page?.title,
-      solutionOf: label.solutionOf,
-      solutions: label.solutions,
-      supportRanges: label.supportRanges,
-      bodyEndLine: label.bodyEndLine === void 0 ? void 0 : label.bodyEndLine + 1,
+      solutionOf: label2.solutionOf,
+      solutions: label2.solutions,
+      supportRanges: label2.supportRanges,
+      bodyEndLine: label2.bodyEndLine === void 0 ? void 0 : label2.bodyEndLine + 1,
       content: content.value,
       truncated: content.truncated,
       leanAnchor: snapshot.state.leanIndex?.anchors?.[id2] ? {
@@ -30913,7 +26101,7 @@ class WorkspaceQueries {
       direction,
       depth: boundedDepth,
       strictOnly: true,
-      pedagogicalLinks: (graph2.pedagogicalLinks || []).filter((link2) => selectedIds.has(link2.exercise) || selectedIds.has(link2.solution)),
+      pedagogicalLinks: (graph2.pedagogicalLinks || []).filter((link) => selectedIds.has(link.exercise) || selectedIds.has(link.solution)),
       truncated: selectedIds.size >= MAX_GRAPH_NODES,
       nodes: Array.from(selectedIds).map((candidate) => nodeSummary(snapshot, candidate)),
       edges: Array.from(selectedEdges.values()).map((edge) => ({
@@ -31001,7 +26189,7 @@ class WorkspaceQueries {
       });
     }
     matches.sort((left, right) => left.score - right.score || left.sortKey.localeCompare(right.sortKey));
-    const projected = matches.slice(0, boundedLimit).map(({ score: _score, sortKey: _sortKey, ...match2 }) => match2);
+    const projected = matches.slice(0, boundedLimit).map(({ score: _score, sortKey: _sortKey, ...match }) => match);
     return {
       query: queryInput.trim(),
       total: matches.length,
@@ -31102,14 +26290,14 @@ class ReaderAppGateway {
     this.views = /* @__PURE__ */ new Map();
     this.creating = /* @__PURE__ */ new Map();
   }
-  async open(key, projectRoot2, launcher = false) {
+  async open(key, projectRoot2, launcher = false, pagePath) {
     if (this.closed) throw new Error("Math Workspace panel is closed.");
     if (!/^[a-f0-9]{32}$/.test(key)) throw new Error("Invalid Reader view identity.");
     if (!this.views.has(key)) {
       let pending = this.creating.get(key);
       if (!pending) {
         if (this.views.size + this.creating.size >= 16) throw new Error("Close an unused Math Workspace panel before opening another.");
-        pending = this.create(key, projectRoot2, launcher);
+        pending = this.create(key, projectRoot2, launcher, pagePath);
         this.creating.set(key, pending);
       }
       try {
@@ -31120,11 +26308,9 @@ class ReaderAppGateway {
     }
     return { ready: true };
   }
-  async create(key, projectRoot2, launcher = false) {
+  async create(key, projectRoot2, launcher = false, pagePath) {
     const requested = projectRoot2 || (launcher ? void 0 : this.defaultRoot);
-    const rootPath = requested ? await findMathWorkspaceRoot(path__namespace.resolve(requested)) : void 0;
-    if (projectRoot2 && !rootPath) throw new Error("Choose a prepared Math Workspace project.");
-    const reader = await startReaderServer({ rootPath });
+    const reader = await startReaderServer({ rootPath: requested ? path__namespace.resolve(requested) : void 0, initialPagePath: pagePath });
     if (this.closed) {
       await reader.close();
       throw new Error("Math Workspace panel is closed.");
@@ -31148,10 +26334,10 @@ class ReaderAppGateway {
           buffer += decoder.decode(chunk.value, { stream: true }).replace(/\r/g, "");
           let end;
           while ((end = buffer.indexOf("\n\n")) >= 0) {
-            const block2 = buffer.slice(0, end);
+            const block = buffer.slice(0, end);
             buffer = buffer.slice(end + 2);
-            const type2 = block2.match(/^event: (.+)$/m)?.[1];
-            const data = block2.split("\n").filter((line) => line.startsWith("data: ")).map((line) => line.slice(6)).join("\n");
+            const type2 = block.match(/^event: (.+)$/m)?.[1];
+            const data = block.split("\n").filter((line) => line.startsWith("data: ")).map((line) => line.slice(6)).join("\n");
             if (!type2 || !["workspace-update", "reader-navigate"].includes(type2)) continue;
             view.events.push({ sequence: ++view.sequence, type: type2, data });
             if (view.events.length > 32) view.events.shift();
@@ -31241,11 +26427,11 @@ async function readerAppHtml() {
   const script = html.match(/<script[^>]+src="([^"]+\.js)"[^>]*><\/script>/);
   if (!stylesheet || !script) throw new Error("Build the Math Workspace Reader before opening the plugin.");
   let css = await fs__namespace.readFile(path__namespace.join(root, stylesheet[1]), "utf8");
-  css = css.replace(/src:([^;}]+);/g, (declaration2, sources) => {
+  css = css.replace(/src:([^;}]+);/g, (declaration, sources) => {
     const woff2 = sources.match(/url\(([^)]+\.woff2)\)\s*format\(["']?woff2["']?\)/);
-    return woff2 ? "src:" + woff2[0] + ";" : declaration2;
+    return woff2 ? "src:" + woff2[0] + ";" : declaration;
   });
-  const fonts = [...new Set([...css.matchAll(/url\(([^)]+\.woff2)\)/g)].map((match2) => match2[1]))];
+  const fonts = [...new Set([...css.matchAll(/url\(([^)]+\.woff2)\)/g)].map((match) => match[1]))];
   for (const font of fonts) {
     const bytes = await fs__namespace.readFile(path__namespace.join(root, "assets", font.replace(/^["']|["']$/g, "")));
     css = css.split("url(" + font + ")").join("url(data:font/woff2;base64," + bytes.toString("base64") + ")");
@@ -31273,7 +26459,7 @@ function registerReaderApp(server, defaultRoot) {
       }
     }] };
   });
-  const projectRoot2 = stringType().optional().describe("Prepared Math Workspace project to open. Otherwise use the local project chooser.");
+  const projectRoot2 = stringType().optional().describe("Local Markdown file or folder to open; prepared projects enable workspace tools. Otherwise use the local chooser.");
   const currentProject = async () => {
     if (!server.server.getClientCapabilities()?.roots) return defaultRoot;
     try {
@@ -31284,10 +26470,34 @@ function registerReaderApp(server, defaultRoot) {
     }
   };
   const pagePath = stringType().optional().describe("Project-relative Markdown page.");
+  server.registerTool("open_file", {
+    title: "Math Workspace",
+    description: "Read the explicitly selected local Markdown file in the native side panel.",
+    inputSchema: { file: objectType({ name: stringType().max(4096), resourceUri: stringType().max(8192) }) },
+    annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
+    _meta: { ui: { resourceUri: RESOURCE_URI }, "openai/ui": { entrypoints: [{ type: "file", extensions: [".md"] }] } }
+  }, async (_input, extra) => {
+    try {
+      const context = extra._meta?.["openai/resource"];
+      const selected = context && typeof context === "object" && !Array.isArray(context) ? context.path : void 0;
+      if (typeof selected !== "string" || !path__namespace.isAbsolute(selected) || path__namespace.extname(selected).toLowerCase() !== ".md") {
+        throw new Error("Choose a local Markdown file through the host file menu.");
+      }
+      const target = await resolveReaderTarget(selected);
+      if (!target.pagePath) throw new Error("The selected Markdown file is unavailable.");
+      return {
+        content: [{ type: "text", text: "Math Workspace Reader is ready." }],
+        structuredContent: { ready: true },
+        _meta: { reader: { launcher: false, projectRoot: target.rootPath, pagePath: target.pagePath } }
+      };
+    } catch (error) {
+      return { isError: true, content: [{ type: "text", text: error instanceof Error ? error.message : String(error) }] };
+    }
+  });
   for (const entrypoint of ["global", "thread"]) {
     server.registerTool(entrypoint === "global" ? "open_workspace" : "open_reader", {
       title: "Math Workspace",
-      description: entrypoint === "global" ? "Open the current prepared Math Workspace project from the sidebar, or choose a local project." : "Open the existing Math Workspace Reader beside this conversation. Each panel keeps its own project and reading position.",
+      description: entrypoint === "global" ? "Open the current local project or Markdown folder; unconfigured documents use reading mode." : "Open the existing Math Workspace Reader beside this conversation. Each panel keeps its own project and reading position.",
       inputSchema: { projectRoot: projectRoot2, pagePath },
       annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
       _meta: {
@@ -31297,20 +26507,20 @@ function registerReaderApp(server, defaultRoot) {
     }, async (input) => {
       try {
         const requested = input.projectRoot || await currentProject();
-        const root = requested ? await findMathWorkspaceRoot(path__namespace.resolve(requested)) : void 0;
-        if (input.projectRoot && !root) throw new Error("Choose a prepared Math Workspace project.");
+        const target = requested ? await resolveReaderTarget(path__namespace.resolve(requested)) : void 0;
+        const root = target?.rootPath;
         const reader = {
           launcher: !root,
           ...root ? { projectRoot: root } : {},
-          ...input.pagePath ? { pagePath: input.pagePath } : {}
+          ...input.pagePath || target?.pagePath ? { pagePath: input.pagePath || target?.pagePath } : {}
         };
         return {
           content: [{ type: "text", text: "Math Workspace Reader is ready." }],
           structuredContent: { ready: true },
           _meta: { reader }
         };
-      } catch (error2) {
-        return { isError: true, content: [{ type: "text", text: error2 instanceof Error ? error2.message : String(error2) }] };
+      } catch (error) {
+        return { isError: true, content: [{ type: "text", text: error instanceof Error ? error.message : String(error) }] };
       }
     });
   }
@@ -31322,9 +26532,9 @@ function registerReaderApp(server, defaultRoot) {
     _meta: { ui: { visibility: ["app"] } }
   }, async ({ viewKey, projectRoot: projectRoot22, pagePath: pagePath2, scrollTop, launcher }) => {
     try {
-      return { content: [], structuredContent: await gateway.open(viewKey, projectRoot22, launcher) };
-    } catch (error2) {
-      return { isError: true, content: [{ type: "text", text: error2 instanceof Error ? error2.message : String(error2) }] };
+      return { content: [], structuredContent: await gateway.open(viewKey, projectRoot22, launcher, pagePath2) };
+    } catch (error) {
+      return { isError: true, content: [{ type: "text", text: error instanceof Error ? error.message : String(error) }] };
     }
   });
   server.registerTool("reader_request", {
@@ -31342,8 +26552,8 @@ function registerReaderApp(server, defaultRoot) {
   }, async ({ viewKey, route, method, headers, body }) => {
     try {
       return { content: [], structuredContent: await gateway.request(viewKey, route, method, headers, body) };
-    } catch (error2) {
-      return { isError: true, content: [{ type: "text", text: error2 instanceof Error ? error2.message : String(error2) }] };
+    } catch (error) {
+      return { isError: true, content: [{ type: "text", text: error instanceof Error ? error.message : String(error) }] };
     }
   });
   server.registerTool("reader_updates", {
@@ -31359,8 +26569,8 @@ function registerReaderApp(server, defaultRoot) {
   }, async ({ viewKey, cursor, waitMs }) => {
     try {
       return { content: [], structuredContent: await gateway.updates(viewKey, cursor, waitMs) };
-    } catch (error2) {
-      return { isError: true, content: [{ type: "text", text: error2 instanceof Error ? error2.message : String(error2) }] };
+    } catch (error) {
+      return { isError: true, content: [{ type: "text", text: error instanceof Error ? error.message : String(error) }] };
     }
   });
   server.registerTool("close_reader_view", {
@@ -31402,8 +26612,8 @@ function registerLeanAssistanceTools(server, service = new LeanAssistanceService
     try {
       const value = await work();
       return { content: [{ type: "text", text: JSON.stringify(value) }], structuredContent: { result: value } };
-    } catch (error2) {
-      return { content: [{ type: "text", text: error2 instanceof Error ? error2.message : String(error2) }], isError: true };
+    } catch (error) {
+      return { content: [{ type: "text", text: error instanceof Error ? error.message : String(error) }], isError: true };
     }
   };
   server.registerTool("read_lean_review_context", {
@@ -31441,18 +26651,13 @@ class ReaderServerRegistry {
   }
   async open(projectRoot2, pagePath) {
     const requestedRoot = projectRoot2 || this.options.rootPath || process.cwd();
-    const rootPath = await findMathWorkspaceRoot(path__namespace.resolve(requestedRoot));
-    const page = normalizePagePath(pagePath);
-    if (!rootPath) {
-      if (projectRoot2 || this.options.rootPath) {
-        throw new Error("No Math Workspace project was found at or above that path. Run `math-workspace init` first.");
-      }
-      return this.openLauncher();
-    }
+    const target = await resolveReaderTarget(path__namespace.resolve(requestedRoot));
+    const rootPath = target.rootPath;
+    const page = normalizePagePath(pagePath || target.pagePath);
     const key = `project:${rootPath}`;
     let reader = this.servers.get(key);
     if (!reader) {
-      reader = await startReaderServer({ rootPath, port: this.options.port || 0 });
+      reader = await startReaderServer({ rootPath, initialPagePath: page, port: this.options.port || 0 });
       this.servers.set(key, reader);
     }
     const url = page ? `${reader.url}/?path=${encodeURIComponent(page)}` : reader.url;
@@ -31496,8 +26701,8 @@ ${JSON.stringify(result, null, 2)}`
         }],
         structuredContent: { result }
       };
-    } catch (error2) {
-      return { content: [{ type: "text", text: error2 instanceof Error ? error2.message : String(error2) }], isError: true };
+    } catch (error) {
+      return { content: [{ type: "text", text: error instanceof Error ? error.message : String(error) }], isError: true };
     }
   };
   server.registerTool("read_archives", {
@@ -31578,7 +26783,7 @@ ${JSON.stringify(result, null, 2)}`
   }, ({ strictChapters, projectRoot: root }) => query(() => queries.verify(strictChapters, root), "Math Workspace read-only validation completed."));
   server.registerTool("open", {
     title: "Open Math Workspace",
-    description: "Start or reuse the local Math Workspace for a prepared project, optionally opening one Markdown page.",
+    description: "Open a local Markdown file or folder, with workspace tools for configured projects and reading mode otherwise.",
     inputSchema: {
       projectRoot: stringType().optional().describe("Absolute or relative root of a project containing .math-workspace/config.json. Defaults to the MCP working directory."),
       pagePath: stringType().optional().describe("Project-relative Markdown path to open, such as book/01-foundations.md.")
@@ -31604,11 +26809,11 @@ ${JSON.stringify(result, null, 2)}`
         }],
         structuredContent: launch
       };
-    } catch (error2) {
+    } catch (error) {
       return {
         content: [{
           type: "text",
-          text: error2 instanceof Error ? error2.message : String(error2)
+          text: error instanceof Error ? error.message : String(error)
         }],
         isError: true
       };
@@ -31683,15 +26888,15 @@ async function installHandler(packageRoot, cliPath) {
   let content = "";
   try {
     content = await fs__namespace.readFile(configPath, "utf8");
-  } catch (error2) {
-    if (error2?.code !== "ENOENT") throw error2;
+  } catch (error) {
+    if (error?.code !== "ENOENT") throw error;
   }
   const unmanagedTable = /^\s*\[desktop\.custom_file_handlers\.(?:math_workspace|"math_workspace")\]\s*$/m;
   if (!content.includes(CONFIG_BEGIN) && unmanagedTable.test(content)) {
     throw new Error("config.toml already defines desktop.custom_file_handlers.math_workspace outside the managed Math Workspace block.");
   }
   const icon = await handlerIconValue(packageRoot);
-  const block2 = [
+  const block = [
     CONFIG_BEGIN,
     "[desktop.custom_file_handlers.math_workspace]",
     'label = "Math Workspace"',
@@ -31701,8 +26906,8 @@ async function installHandler(packageRoot, cliPath) {
     'input = "json_argument"',
     CONFIG_END
   ].join("\n");
-  const base2 = removeManagedBlock(content);
-  const next = `${base2}${base2 ? "\n\n" : ""}${block2}
+  const base = removeManagedBlock(content);
+  const next = `${base}${base ? "\n\n" : ""}${block}
 `;
   await writeCodexConfig(configPath, next);
   console.log(`Installed Math Workspace file handler: ${configPath}`);
@@ -31713,12 +26918,12 @@ async function removeHandler() {
   let content;
   try {
     content = await fs__namespace.readFile(configPath, "utf8");
-  } catch (error2) {
-    if (error2?.code === "ENOENT") {
+  } catch (error) {
+    if (error?.code === "ENOENT") {
       console.log("Math Workspace file handler is not installed.");
       return;
     }
-    throw error2;
+    throw error;
   }
   if (!content.includes(CONFIG_BEGIN)) {
     console.log("Math Workspace file handler is not installed.");
@@ -31735,12 +26940,12 @@ async function handlerStatus() {
   try {
     const content = await fs__namespace.readFile(configPath, "utf8");
     console.log(content.includes(CONFIG_BEGIN) ? `Math Workspace file handler is installed: ${configPath}` : `Math Workspace file handler is not installed: ${configPath}`);
-  } catch (error2) {
-    if (error2?.code === "ENOENT") {
+  } catch (error) {
+    if (error?.code === "ENOENT") {
       console.log(`Math Workspace file handler is not installed: ${configPath}`);
       return;
     }
-    throw error2;
+    throw error;
   }
 }
 function openExternal(url) {
@@ -31753,16 +26958,16 @@ function openExternal(url) {
 function delay(milliseconds) {
   return new Promise((resolve2) => setTimeout(resolve2, milliseconds));
 }
-async function startReaderAndLocate(cliPath, rootPath, location) {
-  const child = spawn(process.execPath, [cliPath, "serve", rootPath, "--port", "0"], {
+async function startReaderAndLocate(cliPath, rootPath, location, inputPath = rootPath) {
+  const child = spawn(process.execPath, [cliPath, "serve", inputPath, "--port", "0"], {
     cwd: rootPath,
     detached: true,
     stdio: "ignore"
   });
   let startupError;
   let exitCode;
-  child.once("error", (error2) => {
-    startupError = error2;
+  child.once("error", (error) => {
+    startupError = error;
   });
   child.once("exit", (code2) => {
     exitCode = code2;
@@ -31780,9 +26985,9 @@ async function startReaderAndLocate(cliPath, rootPath, location) {
       await delay(80);
     }
     throw new Error("Math Workspace did not start in time.");
-  } catch (error2) {
+  } catch (error) {
     if (child.exitCode === null && child.signalCode === null) child.kill("SIGTERM");
-    throw error2;
+    throw error;
   }
 }
 async function openInput(rawInput, cliPath) {
@@ -31804,8 +27009,7 @@ async function openInput(rawInput, cliPath) {
   } catch (_error) {
     throw new Error("The selected Markdown file does not exist.");
   }
-  const rootPath = await findMathWorkspaceRoot(canonicalPath);
-  if (!rootPath) throw new Error("The selected file is not inside a prepared Math Workspace project.");
+  const { rootPath } = await resolveReaderTarget(canonicalPath);
   const filePath = path__namespace.relative(rootPath, canonicalPath).replaceAll(path__namespace.sep, "/");
   if (!filePath || filePath.startsWith("../") || path__namespace.isAbsolute(filePath)) {
     throw new Error("The selected file is outside its Math Workspace project.");
@@ -31821,7 +27025,7 @@ async function openInput(rawInput, cliPath) {
     console.log(`${existing.delivered > 0 ? "Located in" : "Opened"} Math Workspace: ${existing.url}`);
     return;
   }
-  const started = await startReaderAndLocate(cliPath, rootPath, location);
+  const started = await startReaderAndLocate(cliPath, rootPath, location, canonicalPath);
   if (started.delivered === 0) openExternal(started.url);
   console.log(`${started.delivered > 0 ? "Located in" : "Opened"} Math Workspace: ${started.url}`);
 }
@@ -32029,6 +27233,7 @@ math-workspace publication review-upload <profile-id> --build ID --pdf-sha256 SH
 math-workspace publication upload <profile-id> --build ID --pdf-sha256 SHA256 --remote-revision N --upload-fingerprint SHA256 [--manifest-sha256 SHA256]
 math-workspace publication publish <profile-id> --build ID --pdf-sha256 SHA256 --remote-revision N --record-id ID [--manifest-sha256 SHA256]
 math-workspace publication verify-published <profile-id> --build ID --pdf-sha256 SHA256 --record-id ID
+math-workspace publication validate-package <profile-id> --build ID --artifact lean.zip|source.zip --manifest-sha256 SHA256 --package-sha256 SHA256 [--allow-dependencies] [--timeout-ms N]
 math-workspace publication review-repository <profile-id> --build ID --manifest-sha256 SHA256
 math-workspace publication publish-repository <profile-id> --build ID --manifest-sha256 SHA256 --fingerprint SHA256
 math-workspace publication verify-repository <profile-id> --build ID --manifest-sha256 SHA256`;
@@ -32041,15 +27246,19 @@ async function runPublicationCli(args, root = process.cwd()) {
   const service = new publication.PublicationService(root), options = {};
   for (let index = 0; index < flags.length; index++) {
     const flag = flags[index];
+    if (flag === "--allow-dependencies") {
+      options["allow-dependencies"] = true;
+      continue;
+    }
     if (flag === "--new-version") {
       options["new-version"] = true;
       continue;
     }
-    const match2 = /^--(expected-revision|fingerprint|record-id|kind|build|pdf-sha256|remote-revision|upload-fingerprint|manifest-sha256)(?:=(.*))?$/.exec(flag);
-    if (!match2) throw new Error(`Unknown publication option: ${flag}`);
-    const value = match2[2] ?? flags[++index];
-    if (!value || value.startsWith("--")) throw new Error(`Missing ${match2[1]}.`);
-    options[match2[1]] = value;
+    const match = /^--(expected-revision|fingerprint|record-id|kind|build|pdf-sha256|remote-revision|upload-fingerprint|manifest-sha256|package-sha256|artifact|timeout-ms)(?:=(.*))?$/.exec(flag);
+    if (!match) throw new Error(`Unknown publication option: ${flag}`);
+    const value = match[2] ?? flags[++index];
+    if (!value || value.startsWith("--")) throw new Error(`Missing ${match[1]}.`);
+    options[match[1]] = value;
   }
   const required2 = (key) => {
     const value = options[key];
@@ -32077,7 +27286,18 @@ async function runPublicationCli(args, root = process.cwd()) {
   else if (action === "reserve-doi") result = await service.reserveDoi(selector, revision2("expected-revision"), { mode: options["new-version"] ? "new-version" : "reuse-or-create", expectedRecordId: options["new-version"] ? required2("record-id") : void 0 });
   else if (action === "attach-zenodo") result = await service.attachZenodo(selector, revision2("expected-revision"), { id: required2("record-id"), kind: required2("kind") });
   else if (action === "verify-published") result = await service.verifyPublished(selector, required2("build"), { pdfSha256: required2("pdf-sha256"), recordId: required2("record-id") });
-  else if (action === "review-repository") result = await service.reviewRepository(selector, required2("build"), required2("manifest-sha256"));
+  else if (action === "validate-package") {
+    const controller = new globalThis.AbortController(), interrupt = () => controller.abort();
+    process.once("SIGINT", interrupt);
+    process.once("SIGTERM", interrupt);
+    try {
+      result = await service.validatePackage(selector, required2("build"), { artifact: required2("artifact"), manifestSha256: required2("manifest-sha256"), packageSha256: required2("package-sha256"), allowDependencies: options["allow-dependencies"] === true, timeoutMs: options["timeout-ms"] ? Number(options["timeout-ms"]) : void 0 }, { signal: controller.signal });
+    } finally {
+      process.removeListener("SIGINT", interrupt);
+      process.removeListener("SIGTERM", interrupt);
+    }
+    if (result.state !== "passed") process.exitCode = result.state === "cancelled" ? 130 : 1;
+  } else if (action === "review-repository") result = await service.reviewRepository(selector, required2("build"), required2("manifest-sha256"));
   else if (action === "publish-repository") result = await service.publishRepository(selector, required2("build"), { manifestSha256: required2("manifest-sha256"), fingerprint: required2("fingerprint") });
   else if (action === "verify-repository") result = await service.verifyRepository(selector, required2("build"), required2("manifest-sha256"));
   else if (action === "review-upload" || action === "upload" || action === "publish") {
@@ -32154,10 +27374,6 @@ async function collectMarkdownFiles(config2, dir = ROOT, acc = []) {
 }
 function relativePath(filePath) {
   return publication.toPosix(path__namespace.relative(ROOT, filePath));
-}
-function isPathInside(parentPath, candidatePath) {
-  const relative = path__namespace.relative(parentPath, candidatePath);
-  return relative === "" || !!relative && !relative.startsWith("..") && !path__namespace.isAbsolute(relative);
 }
 async function readWorkspaceDocuments(files) {
   const documents = [];
@@ -32336,7 +27552,7 @@ function printLeanUsage() {
   math-workspace lean verify
   math-workspace lean capture
   math-workspace lean build [--project <key>]
-  math-workspace lean dependencies
+  math-workspace lean dependencies [--fresh]
 
 The Lean index records stable docstring anchors. \`capture\` records the reviewed Markdown/declaration contract; \`build\` records the configured Lake build result. Neither result by itself claims complete formalization or proof coverage.`);
 }
@@ -32350,12 +27566,13 @@ async function lean(args = []) {
   const projectOption = rest.indexOf("--project");
   const projectKey = projectOption >= 0 ? rest[projectOption + 1] : void 0;
   const validProjectOption = action === "build" && (rest.length === 0 || projectOption === 0 && rest.length === 2 && !!projectKey);
-  if (!["scan", "coverage", "verify", "capture", "build", "dependencies"].includes(action) || action !== "build" && rest.length > 0 || action === "build" && !validProjectOption) {
+  if (!["scan", "coverage", "verify", "capture", "build", "dependencies"].includes(action) || action !== "build" && rest.length > 0 && !(action === "dependencies" && rest.length === 1 && rest[0] === "--fresh") || action === "build" && !validProjectOption) {
     printLeanUsage();
     process.exitCode = 1;
     return;
   }
   let state = await scanWorkspace();
+  let dependencyQueryFailed = false;
   if (action === "capture") {
     await publication.writeLeanContracts(ROOT, publication.captureLeanContracts(state.leanIndex, state.labels));
     state = await scanWorkspace();
@@ -32367,14 +27584,18 @@ async function lean(args = []) {
     if (failed.length > 0) process.exitCode = 1;
   }
   if (action === "dependencies") {
-    const artifact = await publication.collectLeanDependencies(ROOT, state.leanIndex, state.dependencyGraph);
+    const artifact = await publication.collectLeanDependencies(ROOT, state.leanIndex, state.dependencyGraph, { cache: !rest.includes("--fresh") });
     state = await scanWorkspace();
-    if (artifact.diagnostics.length > 0) process.exitCode = 1;
+    if (artifact.diagnostics.length > 0) {
+      dependencyQueryFailed = true;
+      process.exitCode = 1;
+      artifact.diagnostics.forEach((diagnostic) => console.error(`Lean dependency query (${diagnostic.projectKey}): ${diagnostic.message}`));
+    }
   }
   await writeArtifacts(state);
   const summary = state.leanIndex.summary;
   const errors2 = state.leanIndex.diagnostics.filter((diagnostic) => diagnostic.severity === "error");
-  const status = errors2.length > 0 ? "ERROR" : "OK";
+  const status = errors2.length > 0 || dependencyQueryFailed ? "ERROR" : "OK";
   console.log(`${status} lean ${action}: ${summary.anchors} anchors, ${summary.declarations} declarations, ${summary.matchedAnchors} matched, ${summary.unknownAnchors} unknown`);
   const review = state.leanIndex.statusSummary;
   if (review) {
@@ -32661,13 +27882,13 @@ async function createPage(args) {
       json = true;
       continue;
     }
-    const match2 = argument.match(/^--(kind|container|title|slug|expect-state)(?:=(.*))?$/);
-    if (!match2) throw new Error(`Unknown create-page option: ${argument}.
+    const match = argument.match(/^--(kind|container|title|slug|expect-state)(?:=(.*))?$/);
+    if (!match) throw new Error(`Unknown create-page option: ${argument}.
 ${usage2}`);
-    if (Object.prototype.hasOwnProperty.call(values, match2[1])) throw new Error(`Duplicate create-page option: --${match2[1]}.`);
-    const value = match2[2] === void 0 ? args[++index] : match2[2];
-    if (!value || match2[2] === void 0 && match2[1] !== "title" && value.startsWith("--")) throw new Error(`Missing create-page value: --${match2[1]}.`);
-    values[match2[1]] = value;
+    if (Object.prototype.hasOwnProperty.call(values, match[1])) throw new Error(`Duplicate create-page option: --${match[1]}.`);
+    const value = match[2] === void 0 ? args[++index] : match[2];
+    if (!value || match[2] === void 0 && match[1] !== "title" && value.startsWith("--")) throw new Error(`Missing create-page value: --${match[1]}.`);
+    values[match[1]] = value;
   }
   if (!values.kind || !values.container || !values.title) throw new Error(usage2);
   const root = await findMathWorkspaceRoot(ROOT);
@@ -32743,9 +27964,9 @@ function rewritePageReferences(content, file) {
     return splitProtectedInlineSegments(line).map((part) => {
       if (part.kind !== "text") return part.text;
       pageRefRe.lastIndex = 0;
-      return part.text.replace(pageRefRe, (match2, prefix, kind, rawTarget, mode) => {
+      return part.text.replace(pageRefRe, (match, prefix, kind, rawTarget, mode) => {
         const normalized = publication.normalizeFormalPagePath(rawTarget, file);
-        if (!normalized || normalized === rawTarget) return match2;
+        if (!normalized || normalized === rawTarget) return match;
         changed = true;
         return `${prefix}@${kind}:${normalized}${mode ? `.${mode}` : ""}`;
       });
@@ -32753,50 +27974,50 @@ function rewritePageReferences(content, file) {
   });
   return changed ? updated.join(eol) : content;
 }
-function isPageLabel(label) {
-  return !!label && publication.isPageLabelType(label.type);
+function isPageLabel(label2) {
+  return !!label2 && publication.isPageLabelType(label2.type);
 }
-function pageFromLabel(label, state) {
-  const page = (state.pages || []).find((item2) => item2.id && state.labels[item2.id] === label);
+function pageFromLabel(label2, state) {
+  const page = (state.pages || []).find((item2) => item2.id && state.labels[item2.id] === label2);
   if (page) return page;
   return {
-    kind: label.type,
-    filePath: label.filePath,
-    title: label.title,
-    order: label.unitOrder || 0,
-    bookKey: label.bookKey,
-    bookTitle: label.bookTitle,
-    bookOrder: label.bookOrder,
-    volumeKey: label.volumeKey,
-    volumeTitle: label.volumeTitle,
-    volumeOrder: label.volumeOrder,
-    unitKind: label.unitKind,
-    unitKey: label.unitKey,
-    unitLabel: label.unitLabel,
-    unitOrder: label.unitOrder,
-    chapter: label.chapter,
-    appendix: label.appendix
+    kind: label2.type,
+    filePath: label2.filePath,
+    title: label2.title,
+    order: label2.unitOrder || 0,
+    bookKey: label2.bookKey,
+    bookTitle: label2.bookTitle,
+    bookOrder: label2.bookOrder,
+    volumeKey: label2.volumeKey,
+    volumeTitle: label2.volumeTitle,
+    volumeOrder: label2.volumeOrder,
+    unitKind: label2.unitKind,
+    unitKey: label2.unitKey,
+    unitLabel: label2.unitLabel,
+    unitOrder: label2.unitOrder,
+    chapter: label2.chapter,
+    appendix: label2.appendix
   };
 }
 function findDefinitionById(state, id2) {
   return (state.definitions || []).find((def) => def.id === id2);
 }
 function displayObjectReference(state, id2, mode = "default") {
-  const label = state.labels[id2];
-  if (!label) return `@${id2}${mode === "default" ? "" : `.${mode}`}`;
-  if (isPageLabel(label)) {
-    const page = pageFromLabel(label, state);
+  const label2 = state.labels[id2];
+  if (!label2) return `@${id2}${mode === "default" ? "" : `.${mode}`}`;
+  if (isPageLabel(label2)) {
+    const page = pageFromLabel(label2, state);
     const pageMode = mode === "title" || mode === "full" ? mode : "default";
     return publication.formatPageReference(page, state.config, pageMode);
   }
-  if (mode === "title") return label.title || id2;
+  if (mode === "title") return label2.title || id2;
   const def = findDefinitionById(state, id2);
-  const base2 = def ? publication.displayLabel(def, state.config) : label.title || id2;
-  if (mode !== "full" || !label.title) return base2;
+  const base = def ? publication.displayLabel(def, state.config) : label2.title || id2;
+  if (mode !== "full" || !label2.title) return base;
   const language = state.config?.language === "en" ? "en" : "zh";
   const open = language === "en" ? " (" : "（";
   const close = language === "en" ? ")" : "）";
-  return `${base2}${open}${label.title}${close}`;
+  return `${base}${open}${label2.title}${close}`;
 }
 function displayPagePathReference(state, sourceFilePath, kind, rawTarget, mode = "default") {
   const target = publication.normalizeFormalPagePath(rawTarget, sourceFilePath);
@@ -32807,9 +28028,9 @@ function displayPagePathReference(state, sourceFilePath, kind, rawTarget, mode =
 }
 function displayMarkerDeclaration(marker, state) {
   if (!marker?.id) return marker?.markerText || "";
-  const label = state.labels[marker.id];
-  if (!label) return marker.markerText;
-  if (isPageLabel(label)) return "";
+  const label2 = state.labels[marker.id];
+  if (!label2) return marker.markerText;
+  if (isPageLabel(label2)) return "";
   const def = findDefinitionById(state, marker.id);
   if (!def) return marker.markerText;
   if (marker.type === "section") return publication.displayNumber(def) || marker.title;
@@ -32818,9 +28039,9 @@ function displayMarkerDeclaration(marker, state) {
 function compileFormalMarkerLine(line, state) {
   const marker = publication.parseFormalMarkerLine(line);
   if (!marker?.id) return line;
-  const label = state.labels[marker.id];
-  if (isPageLabel(label)) {
-    const page = pageFromLabel(label, state);
+  const label2 = state.labels[marker.id];
+  if (isPageLabel(label2)) {
+    const page = pageFromLabel(label2, state);
     const headingRe = new RegExp(`^(\\s*#{1,6}\\s+)#${publication.escapeRegExp(marker.id)}\\b\\s*.*$`);
     return line.replace(headingRe, `$1${publication.formatPageHeading(page, state.config)}`);
   }
@@ -32828,59 +28049,30 @@ function compileFormalMarkerLine(line, state) {
   const compiled = line.replace(marker.markerText, replacement);
   return marker.type === "solution" ? publication.stripSolutionAssociation(compiled) : compiled;
 }
-function rewriteFormalRefsForExport(text2, sourceFilePath, state) {
+function rewriteFormalRefsForExport(text, sourceFilePath, state) {
   const pageRefRe = /(^|[^A-Za-z0-9_])@(chapter|page):([^\s<>"'`，。；;！？]+?\.md)(?:\.(title|full))?(?=$|[\s,，。；;:：.!！?？)\]}])/g;
   const idRefRe = /(^|[^A-Za-z0-9_])@([A-Za-z0-9_-]+)(?:\.(title|full))?\b(?!:)/g;
-  return text2.replace(pageRefRe, (_match, prefix, kind, rawTarget, mode) => {
+  return text.replace(pageRefRe, (_match, prefix, kind, rawTarget, mode) => {
     return `${prefix}${displayPagePathReference(state, sourceFilePath, kind, rawTarget, mode || "default")}`;
   }).replace(idRefRe, (_match, prefix, id2, mode) => {
     return `${prefix}${displayObjectReference(state, id2, mode || "default")}`;
   });
 }
-function normalizeExportLinkTarget(rawTarget, sourceFilePath) {
-  const raw = String(rawTarget || "");
-  const match2 = raw.match(/^(\s*<?)([^\s>]+)(>?[\s\S]*)$/);
-  if (!match2) return raw;
-  const target = match2[2];
-  if (!target || /^(?:[a-z][a-z0-9+.-]*:|#|\/)/i.test(target)) return raw;
-  if (target.startsWith("@")) return raw;
-  if (target.startsWith("{") || target.startsWith("[")) return raw;
-  const sourceDir = path__namespace.posix.dirname(sourceFilePath);
-  const normalized = path__namespace.posix.normalize(path__namespace.posix.join(sourceDir === "." ? "" : sourceDir, target)).replace(/^\.\/+/, "");
-  return `${match2[1]}${normalized}${match2[3]}`;
-}
-function rewriteMarkdownLinkTargetsForExport(segment, sourceFilePath, mode = "root") {
-  if (mode === "preserve") return segment;
-  return segment.replace(/(\[[^\]\n]*\]\()([^\)\n]+)(\))/g, (_match, prefix, target, suffix) => {
-    return `${prefix}${normalizeExportLinkTarget(target, sourceFilePath)}${suffix}`;
-  });
-}
 function compileFormalMarkdownContent(content, sourceFilePath, state, options = {}) {
   const lines2 = String(content || "").split(/\r?\n/);
+  const literalLines = publication.literalMarkdownMask(String(content || "")).split(/\r?\n/);
   const codeFence = new publication.MarkdownFence();
   const linkTargetMode = options.linkTargetMode || "root";
-  return lines2.map((line) => {
-    if (codeFence.consume(line)) return line;
-    const markerCompiled = compileFormalMarkerLine(staticFigureMarkdown(line), state);
-    if (linkTargetMode !== "preserve" && /^\s*\[[^\]]+\]:\s*/.test(markerCompiled)) {
-      return markerCompiled.replace(/^(\s*\[[^\]]+\]:\s*)(.+)$/, (_match, prefix, target) => `${prefix}${normalizeExportLinkTarget(target, sourceFilePath)}`);
-    }
+  const compiled = lines2.map((line, index) => {
+    if (codeFence.consume(line) || line.trim() && !literalLines[index]?.trim()) return line;
+    const markerCompiled = compileFormalMarkerLine(publication.staticFigureMarkdown(line), state);
     return splitProtectedInlineSegments(markerCompiled).map((part) => {
       if (part.kind === "code") return part.text;
-      if (part.kind === "link") return rewriteMarkdownLinkTargetsForExport(part.text, sourceFilePath, linkTargetMode);
-      return rewriteFormalRefsForExport(part.text, sourceFilePath, state);
+      return part.kind === "link" ? part.text : rewriteFormalRefsForExport(part.text, sourceFilePath, state);
     }).join("");
   }).join("\n");
-}
-async function compileFormalMarkdownForFiles(files, state, options = {}) {
-  const chunks = [];
-  for (const filePath of files) {
-    const relative = relativePath(filePath);
-    const content = await fs__namespace.readFile(filePath, "utf8");
-    chunks.push(compileFormalMarkdownContent(content, relative, state, options).trimEnd());
-  }
-  return `${chunks.filter(Boolean).join("\n\n\\pagebreak\n\n")}
-`;
+  const normalized = publication.normalizeDisplayMath(compiled, sourceFilePath);
+  return linkTargetMode === "preserve" ? normalized : publication.rebaseMarkdownResources(normalized, sourceFilePath);
 }
 function sortExportFiles(files, state) {
   const pageByPath = new Map((state.pages || []).map((page) => [page.filePath, page]));
@@ -32894,8 +28086,8 @@ const PDF_TOC_PAGEBREAK_HEADER = "\\let\\markdownFormalOldTableOfContents\\table
 function latexEscapeText(value) {
   return String(value || "").replace(/\\/g, "\\textbackslash{}").replace(/([#$%&_{}])/g, "\\$1").replace(/\^/g, "\\textasciicircum{}").replace(/~/g, "\\textasciitilde{}");
 }
-function latexLine(text2, size, options = {}) {
-  const content = latexEscapeText(text2);
+function latexLine(text, size, options = {}) {
+  const content = latexEscapeText(text);
   if (!content) return "";
   const leading = String(size || "").replace(/pt$/i, "");
   const baseline = Number.isFinite(Number(leading)) ? `${Math.round(Number(leading) * 1.25)}pt` : size;
@@ -32910,11 +28102,32 @@ function simpleTitlePageHeader(options) {
   const date2 = latexLine(options.date, options.dateSize);
   const version2 = options.showVersionOnCover ? latexLine(options.releaseVersion, options.dateSize) : "";
   const authorBlock = [author, date2, version2].filter(Boolean).join("\\vspace{0.8em}");
-  const image2 = options.coverImage ? `\\includegraphics[width=0.82\\textwidth,height=0.38\\textheight,keepaspectratio]{\\detokenize{${options.coverImage}}}\\par\\vspace{1.5em}` : "";
+  if (options.coverImage) return [
+    "\\newsavebox{\\markdownFormalCoverTitle}\\newsavebox{\\markdownFormalCoverFooter}",
+    "\\newlength{\\markdownFormalCoverTextZone}\\newlength{\\markdownFormalCoverImageHeight}",
+    "\\renewcommand{\\maketitle}{",
+    "\\begin{titlepage}\\thispagestyle{empty}\\noindent",
+    "\\vbox to\\textheight{\\parskip=0pt\\parindent=0pt",
+    "\\setbox\\markdownFormalCoverTitle=\\vbox{\\hsize=\\textwidth\\centering\\vspace*{0.04\\textheight}",
+    title2,
+    subtitle ? `\\vspace{1.2em}${subtitle}` : "",
+    "\\vskip0pt}",
+    `\\setbox\\markdownFormalCoverFooter=\\vbox{\\hsize=\\textwidth\\centering${authorBlock}\\vskip0pt}`,
+    "\\setlength{\\markdownFormalCoverTextZone}{\\ht\\markdownFormalCoverTitle}",
+    "\\ifdim\\ht\\markdownFormalCoverFooter>\\markdownFormalCoverTextZone\\setlength{\\markdownFormalCoverTextZone}{\\ht\\markdownFormalCoverFooter}\\fi",
+    "\\setlength{\\markdownFormalCoverImageHeight}{\\dimexpr\\textheight-2\\markdownFormalCoverTextZone-2em\\relax}",
+    "\\ifdim\\markdownFormalCoverImageHeight>0.58\\paperheight\\setlength{\\markdownFormalCoverImageHeight}{0.58\\paperheight}\\fi",
+    "\\ifdim\\markdownFormalCoverImageHeight<1pt\\PackageError{math-workspace}{Cover text leaves no room for the image}{Reduce cover text or font sizes.}\\fi",
+    "\\vbox to\\markdownFormalCoverTextZone{\\unvbox\\markdownFormalCoverTitle\\vfil}\\nointerlineskip\\vfill",
+    `\\hbox to\\textwidth{\\hss\\includegraphics[width=0.82\\paperwidth,height=\\markdownFormalCoverImageHeight,keepaspectratio]{\\detokenize{${options.coverImage}}}\\hss}`,
+    "\\vfill\\nointerlineskip",
+    "\\vbox to\\markdownFormalCoverTextZone{\\vfil\\unvbox\\markdownFormalCoverFooter\\vskip0pt}",
+    "}\\end{titlepage}",
+    "}"
+  ].filter(Boolean).join("");
   return [
     "\\renewcommand{\\maketitle}{",
-    `\\begin{titlepage}\\thispagestyle{empty}\\vspace*{${image2 ? "0.04" : "0.20"}\\textheight}\\begin{center}`,
-    image2,
+    "\\begin{titlepage}\\thispagestyle{empty}\\vspace*{0.20\\textheight}\\begin{center}",
     title2,
     subtitle ? `\\vspace{1.2em}${subtitle}` : "",
     authorBlock ? `\\vfill${authorBlock}` : "",
@@ -32923,8 +28136,8 @@ function simpleTitlePageHeader(options) {
   ].filter(Boolean).join("");
 }
 function normalizedMetadataUrl(value) {
-  const text2 = String(value || "").trim();
-  return text2;
+  const text = String(value || "").trim();
+  return text;
 }
 function publicationMetadataRows(options) {
   const rows = [];
@@ -32941,7 +28154,7 @@ function publicationMetadataRows(options) {
     tag: "发布标签",
     commit: "提交版本",
     doi: "本版 DOI",
-    workDoi: "作品 DOI",
+    workDoi: "作品 DOI（Concept DOI，所有版本）",
     doiNote: "DOI 说明",
     citation: "推荐引用"
   } : {
@@ -32956,39 +28169,39 @@ function publicationMetadataRows(options) {
     tag: "Release tag",
     commit: "Commit",
     doi: "DOI",
-    workDoi: "Work DOI",
+    workDoi: "Work DOI (Concept DOI, all versions)",
     doiNote: "DOI provenance",
     citation: "Preferred citation"
   };
-  const add2 = (label, value) => {
+  const add = (label2, value) => {
     const normalized = String(value || "").trim();
-    if (normalized) rows.push([label, normalized]);
+    if (normalized) rows.push([label2, normalized]);
   };
   if (options.authors?.length) for (const [index, author] of options.authors.entries()) {
     const prefix = options.authors.length > 1 ? `${labels.author} ${index + 1} · ` : "";
-    add2(options.authors.length > 1 ? `${labels.author} ${index + 1}` : labels.author, author.name);
-    add2(`${prefix}${labels.nativeName}`, author.nativeName);
-    add2(`${prefix}${labels.aliases}`, (author.aliases || []).join("; "));
-    add2(`${prefix}ORCID`, author.orcid);
-    add2(`${prefix}${labels.affiliation}`, author.affiliation);
+    add(options.authors.length > 1 ? `${labels.author} ${index + 1}` : labels.author, author.name);
+    add(`${prefix}${labels.nativeName}`, author.nativeName);
+    add(`${prefix}${labels.aliases}`, (author.aliases || []).join("; "));
+    add(`${prefix}ORCID`, author.orcid);
+    add(`${prefix}${labels.affiliation}`, author.affiliation);
   }
   else {
-    add2(labels.author, options.author);
-    add2(labels.nativeName, options.authorNative);
-    add2(labels.aliases, (options.authorAliases || []).join("; "));
-    add2("ORCID", normalizedMetadataUrl(options.orcid));
+    add(labels.author, options.author);
+    add(labels.nativeName, options.authorNative);
+    add(labels.aliases, (options.authorAliases || []).join("; "));
+    add("ORCID", normalizedMetadataUrl(options.orcid));
   }
-  add2(labels.website, options.website);
-  add2(labels.repository, normalizedMetadataUrl(options.repository));
+  add(labels.website, options.website);
+  add(labels.repository, normalizedMetadataUrl(options.repository));
   const license = options.licenseUrl ? `${options.license || options.licenseUrl}${options.license ? " " : ""}(${normalizedMetadataUrl(options.licenseUrl)})` : options.license;
-  add2(labels.license, license);
-  add2(labels.version, options.releaseVersion);
-  add2(labels.tag, options.releaseTag);
-  add2(labels.commit, options.releaseCommit);
-  add2(labels.doi, options.doi);
-  add2(labels.workDoi, options.workDoi);
-  if (String(options.doi || "").trim() || String(options.workDoi || "").trim()) add2(labels.doiNote, options.doiState);
-  add2(labels.citation, options.preferredCitation);
+  add(labels.license, license);
+  add(labels.version, options.releaseVersion);
+  add(labels.tag, options.releaseTag);
+  add(labels.commit, options.releaseCommit);
+  add(labels.doi, options.doi);
+  add(labels.workDoi, options.workDoi);
+  if (String(options.doi || "").trim() || String(options.workDoi || "").trim()) add(labels.doiNote, options.doiState);
+  add(labels.citation, options.preferredCitation);
   return rows;
 }
 function latexMetadataText(value) {
@@ -33012,7 +28225,7 @@ function frontMatterMarkdownWithSafeHeadings(content, includeHeadingsInToc) {
 function markdownToLatexSnippet(content, sourceLabel) {
   const result = spawnSync("pandoc", ["-f", "markdown", "-t", "latex"], {
     cwd: ROOT,
-    input: content,
+    input: noteMarkdownForPdf(content),
     encoding: "utf8"
   });
   if (result.error) {
@@ -33064,7 +28277,7 @@ function publicationMetadataLatex(options) {
     `\\section*{${String(options.lang || "").toLowerCase().startsWith("zh") ? "出版信息" : "Publication Metadata"}}`,
     "\\markboth{}{}",
     "\\begin{description}",
-    ...rows.map(([label, value]) => `\\item[${latexMetadataText(label)}] ${latexMetadataText(value)}`),
+    ...rows.map(([label2, value]) => `\\item[${latexMetadataText(label2)}] ${latexMetadataText(value)}`),
     "\\end{description}",
     "\\clearpage",
     ""
@@ -33083,8 +28296,8 @@ async function preparePdfIncludeBeforeBody(options, inputMarkdownPath) {
     };
   }
   const frontMatter = chunks.join("\n\n");
-  const base2 = path__namespace.basename(inputMarkdownPath).replace(/[^A-Za-z0-9_.-]/g, "_");
-  const name = `.${base2}.${process.pid}.${Date.now()}.publication.tex`;
+  const base = path__namespace.basename(inputMarkdownPath).replace(/[^A-Za-z0-9_.-]/g, "_");
+  const name = `.${base}.${process.pid}.${Date.now()}.publication.tex`;
   const candidate = path__namespace.join(path__namespace.dirname(inputMarkdownPath), name);
   await fs__namespace.writeFile(candidate, frontMatter, "utf8");
   return {
@@ -33457,12 +28670,21 @@ async function exportMarkdown(args = []) {
     process.exitCode = 1;
     return "";
   }
-  const outputPath = path__namespace.resolve(ROOT, options.output);
-  const compiled = await compileFormalMarkdownForFiles(files, state);
-  await fs__namespace.mkdir(path__namespace.dirname(outputPath), { recursive: true });
-  await fs__namespace.writeFile(outputPath, compiled, "utf8");
-  console.log(`OK export-md: ${files.length} files -> ${relativePath(outputPath)}`);
-  return outputPath;
+  const outputPath2 = path__namespace.resolve(ROOT, options.output);
+  const documents = /* @__PURE__ */ new Map();
+  for (const file of files) {
+    const source = relativePath(file);
+    documents.set(source, compileFormalMarkdownContent(await fs__namespace.readFile(await publication.safePath(ROOT, publication.relativeInput(source)), "utf8"), source, state, { linkTargetMode: "preserve" }));
+  }
+  const resources = await publication.collectResources(ROOT, documents);
+  const compiled = `${[...documents].map(([source, content]) => publication.rebaseMarkdownResources(content, source).trimEnd()).filter(Boolean).join("\n\n\\pagebreak\n\n")}
+`;
+  const outputFiles = new Map(resources), name = path__namespace.basename(outputPath2);
+  if (outputFiles.has(name)) throw new Error(`Markdown output conflicts with a resource: ${name}`);
+  outputFiles.set(name, Buffer.from(compiled));
+  await writeMarkdownExport(path__namespace.dirname(outputPath2), outputFiles, [name], new Set(resources.keys()), files);
+  console.log(`OK export-md: ${files.length} files -> ${relativePath(outputPath2)}`);
+  return outputPath2;
 }
 async function compilePublicationFragment(args) {
   if (args.length !== 3) throw new Error("Invalid publication fragment request.");
@@ -33479,8 +28701,8 @@ async function exportMarkdownSplit(args = []) {
     process.exitCode = 1;
     return "";
   }
-  const state = await scanWorkspace();
-  await writeArtifacts(state);
+  const state = await scanWorkspace({ readOnly: args.includes("--read-only") });
+  if (!args.includes("--read-only")) await writeArtifacts(state);
   const errors2 = state.issues.filter((issue2) => issue2.severity === "error");
   if (errors2.length > 0) {
     printSummary("export-md-split", state);
@@ -33499,20 +28721,19 @@ async function exportMarkdownSplit(args = []) {
     process.exitCode = 1;
     return "";
   }
+  const documents = /* @__PURE__ */ new Map();
   for (const filePath of files) {
-    const relative = relativePath(filePath);
-    const outputPath = path__namespace.resolve(outputRoot, relative);
-    if (!isPathInside(outputRoot, outputPath)) {
-      console.error(`Refusing to export ${relative} outside output directory ${relativePath(outputRoot)}.`);
-      process.exitCode = 1;
-      return "";
-    }
-    const content = await fs__namespace.readFile(filePath, "utf8");
-    const compiled = `${compileFormalMarkdownContent(content, relative, state, { linkTargetMode: "preserve" }).trimEnd()}
-`;
-    await fs__namespace.mkdir(path__namespace.dirname(outputPath), { recursive: true });
-    await fs__namespace.writeFile(outputPath, compiled, "utf8");
+    const relative = publication.relativeInput(relativePath(filePath));
+    const content = await fs__namespace.readFile(await publication.safePath(ROOT, relative), "utf8");
+    documents.set(relative, `${compileFormalMarkdownContent(content, relative, state, { linkTargetMode: "preserve" }).trimEnd()}
+`);
   }
+  const resources = await publication.collectResources(ROOT, documents), outputFiles = new Map(resources);
+  for (const [name, content] of documents) {
+    if (outputFiles.has(name)) throw new Error(`Markdown output conflicts with a resource: ${name}`);
+    outputFiles.set(name, Buffer.from(content));
+  }
+  await writeMarkdownExport(outputRoot, outputFiles, [...documents.keys()], new Set(resources.keys()), files);
   console.log(`OK export-md-split: ${files.length} files -> ${relativePath(outputRoot)}`);
   return outputRoot;
 }
@@ -33536,6 +28757,7 @@ function buildPandocPdfArgs(inputMarkdownPath, outputPdfPath, options) {
     options.titlePage ? "classoption:titlepage" : "",
     titlePageHeader ? `header-includes:${titlePageHeader}` : "",
     options.toc && options.tocPageBreak ? `header-includes:${PDF_TOC_PAGEBREAK_HEADER}` : "",
+    ...options.coverImage ? ["graphics:true"] : [],
     ...options.variables
   ].filter(Boolean);
   const pandocArgs = [
@@ -33543,6 +28765,8 @@ function buildPandocPdfArgs(inputMarkdownPath, outputPdfPath, options) {
     // Formal figure captions already carry their source numbering.
     "--from",
     "markdown-implicit_figures",
+    "--resource-path",
+    [path__namespace.dirname(inputMarkdownPath), ROOT].join(require("node:path").delimiter),
     "-o",
     relativePath(outputPdfPath),
     "--pdf-engine",
@@ -33576,21 +28800,21 @@ async function renderPdfFile(inputMarkdownPath, outputPdfPath, options) {
   }
   options.includeBeforeBodyPath = preparedInclude.path;
   let result;
-  let figureInput = "";
+  let layoutInput = "";
   try {
     const source = await fs__namespace.readFile(inputMarkdownPath, "utf8");
-    const formatted = figureMarkdownForPdf(source);
+    const formatted = figureMarkdownForPdf(noteMarkdownForPdf(source));
     if (formatted !== source) {
-      figureInput = path__namespace.join(path__namespace.dirname(inputMarkdownPath), `.${path__namespace.basename(inputMarkdownPath)}.figures-${process.pid}-${Date.now()}.md`);
-      await fs__namespace.writeFile(figureInput, formatted, "utf8");
+      layoutInput = path__namespace.join(path__namespace.dirname(inputMarkdownPath), `.${path__namespace.basename(inputMarkdownPath)}.layout-${process.pid}-${Date.now()}.md`);
+      await fs__namespace.writeFile(layoutInput, formatted, "utf8");
     }
-    result = spawnSync("pandoc", buildPandocPdfArgs(figureInput || inputMarkdownPath, outputPdfPath, options), {
+    result = spawnSync("pandoc", buildPandocPdfArgs(layoutInput || inputMarkdownPath, outputPdfPath, options), {
       cwd: ROOT,
       encoding: "utf8"
     });
   } finally {
     options.includeBeforeBodyPath = "";
-    if (figureInput) await fs__namespace.rm(figureInput, { force: true });
+    if (layoutInput) await fs__namespace.rm(layoutInput, { force: true });
     await preparedInclude.cleanup();
   }
   if (result.error) {
@@ -33860,14 +29084,14 @@ function splitProtectedInlineSegments(line) {
   const segments = [];
   const re = /(`[^`]*`|\[[^\]\n]+\]\([^\)\n]*\))/g;
   let lastIndex = 0;
-  let match2;
-  while (match2 = re.exec(line)) {
-    if (match2.index > lastIndex) {
-      segments.push({ text: line.slice(lastIndex, match2.index), kind: "text" });
+  let match;
+  while (match = re.exec(line)) {
+    if (match.index > lastIndex) {
+      segments.push({ text: line.slice(lastIndex, match.index), kind: "text" });
     }
     segments.push({
-      text: match2[0],
-      kind: match2[0].startsWith("`") ? "code" : "link"
+      text: match[0],
+      kind: match[0].startsWith("`") ? "code" : "link"
     });
     lastIndex = re.lastIndex;
   }
@@ -33877,12 +29101,12 @@ function splitProtectedInlineSegments(line) {
   return segments;
 }
 function collectLinkedTextReferences(segment, pattern2, byAlias, file, lineNumber, linkedReferences, options = {}) {
-  const match2 = segment.match(/^\[([^\]\n]+)\]\(([^\)\n]*)\)$/);
-  if (!match2) return;
-  const label = match2[1];
+  const match = segment.match(/^\[([^\]\n]+)\]\(([^\)\n]*)\)$/);
+  if (!match) return;
+  const label2 = match[1];
   pattern2.lastIndex = 0;
   let refMatch;
-  while (refMatch = pattern2.exec(label)) {
+  while (refMatch = pattern2.exec(label2)) {
     const alias = refMatch[2];
     const description2 = describeTextReference(alias, byAlias);
     if (description2.status === "unresolved" && options.recordUnresolved === false) continue;
@@ -33905,7 +29129,7 @@ function rewriteTextReferenceLine(line, pattern2, byAlias, file, lineNumber, rep
       collectLinkedTextReferences(part.text, pattern2, byAlias, file, lineNumber, linkedReferences, options);
       return part.text;
     }
-    return part.text.replace(pattern2, (match2, prefix, alias) => {
+    return part.text.replace(pattern2, (match, prefix, alias) => {
       const defs = byAlias.get(normalizeTextReferenceAlias(alias)) || [];
       if (defs.length === 1) {
         const def = defs[0];
@@ -33935,7 +29159,7 @@ function rewriteTextReferenceLine(line, pattern2, byAlias, file, lineNumber, rep
       } else if (options.recordUnresolved !== false) {
         unresolved.push(record2);
       }
-      return match2;
+      return match;
     });
   }).join("");
   return { line: updated, changed };
@@ -33947,33 +29171,33 @@ function findAuditPageTitleHeadingLine(content) {
   for (let index = 0; index < lines2.length; index++) {
     const line = lines2[index];
     if (codeFence.consume(line)) continue;
-    const match2 = line.match(/^[ \t]{0,3}(#{1,6})[ \t]+(.+?)\s*$/);
-    if (!match2) continue;
-    const title2 = match2[2].replace(/[ \t]+#+[ \t]*$/, "").trim();
+    const match = line.match(/^[ \t]{0,3}(#{1,6})[ \t]+(.+?)\s*$/);
+    if (!match) continue;
+    const title2 = match[2].replace(/[ \t]+#+[ \t]*$/, "").trim();
     if (!title2) continue;
     headings.push({
-      level: match2[1].length,
+      level: match[1].length,
       line: index + 1,
       formalMarker: /^#[A-Za-z0-9_-]+\b/.test(title2)
     });
   }
   if (headings.length === 0) return void 0;
-  const topLevel = Math.min(...headings.map((heading2) => heading2.level));
-  const topHeadings = headings.filter((heading2) => heading2.level === topLevel);
+  const topLevel = Math.min(...headings.map((heading) => heading.level));
+  const topHeadings = headings.filter((heading) => heading.level === topLevel);
   if (topHeadings.length !== 1 || topHeadings[0].formalMarker) return void 0;
   return topHeadings[0].line;
 }
 function collectSectionHeadingAudit(line, file, lineNumber, sectionHeadings, pageTitleHeadingLine) {
-  const match2 = line.match(/^(#{2,6})\s+(.+?)\s*$/);
-  if (!match2) return;
+  const match = line.match(/^(#{2,6})\s+(.+?)\s*$/);
+  if (!match) return;
   if (lineNumber === pageTitleHeadingLine) return;
-  const rawTitle = match2[2].replace(/\s*\{#[^}]+\}\s*$/, "").trim();
+  const rawTitle = match[2].replace(/\s*\{#[^}]+\}\s*$/, "").trim();
   if (!rawTitle) return;
   if (/^#[A-Za-z0-9_-]+\b/.test(rawTitle)) return;
   sectionHeadings.push({
     file,
     line: lineNumber,
-    level: match2[1].length,
+    level: match[1].length,
     title: rawTitle,
     text: line.trim()
   });
@@ -34088,10 +29312,10 @@ function splitAuditTextSegments(line) {
   const segments = [];
   const re = /(`[^`]*`|\[[^\]\n]+\]\([^\)\n]*\)|\$[^$\n]+\$|\\\([\s\S]*?\\\))/g;
   let lastIndex = 0;
-  let match2;
-  while (match2 = re.exec(line)) {
-    if (match2.index > lastIndex) {
-      segments.push({ text: line.slice(lastIndex, match2.index), offset: lastIndex });
+  let match;
+  while (match = re.exec(line)) {
+    if (match.index > lastIndex) {
+      segments.push({ text: line.slice(lastIndex, match.index), offset: lastIndex });
     }
     lastIndex = re.lastIndex;
   }
@@ -34117,11 +29341,11 @@ function collectBareNumberCandidates(content, file) {
     if (codeFence.consume(line)) return;
     for (const segment of splitAuditTextSegments(line)) {
       numberRe.lastIndex = 0;
-      let match2;
-      while (match2 = numberRe.exec(segment.text)) {
-        const localStart = match2.index + match2[1].length;
+      let match;
+      while (match = numberRe.exec(segment.text)) {
+        const localStart = match.index + match[1].length;
         const start = segment.offset + localStart;
-        const end = start + match2[2].length;
+        const end = start + match[2].length;
         const before = line.slice(0, start);
         const after = line.slice(end);
         if (isTypedNumberContext(before, after)) continue;
@@ -34130,7 +29354,7 @@ function collectBareNumberCandidates(content, file) {
           code: "bare-number-candidate",
           file,
           line: index + 1,
-          text: match2[2],
+          text: match[2],
           context: line.trim()
         });
       }
@@ -34138,15 +29362,15 @@ function collectBareNumberCandidates(content, file) {
   });
   return candidates;
 }
-function chapterReferenceNumber(text2) {
-  const zh = String(text2).match(/^第\s*(\d+)\s*章$/);
+function chapterReferenceNumber(text) {
+  const zh = String(text).match(/^第\s*(\d+)\s*章$/);
   if (zh) return Number(zh[1]);
-  const en = String(text2).match(/^Chapter\s+(\d+)$/i);
+  const en = String(text).match(/^Chapter\s+(\d+)$/i);
   if (en) return Number(en[1]);
   return void 0;
 }
-function describeChapterReference(text2, file, pages) {
-  const number2 = chapterReferenceNumber(text2);
+function describeChapterReference(text, file, pages) {
+  const number2 = chapterReferenceNumber(text);
   if (!number2) return { status: "unresolved" };
   const sourcePage = pages.find((page) => page.filePath === file);
   const candidates = pages.filter((page) => page.kind === "chapter" && page.chapter === number2 && (!sourcePage?.bookKey || page.bookKey === sourcePage.bookKey));
@@ -34169,14 +29393,14 @@ function collectChapterReferenceCandidates(content, file, pages) {
     if (codeFence.consume(line) || /^#{1,6}\s+/.test(line)) return;
     for (const segment of splitAuditTextSegments(line)) {
       chapterRe.lastIndex = 0;
-      let match2;
-      while (match2 = chapterRe.exec(segment.text)) {
+      let match;
+      while (match = chapterRe.exec(segment.text)) {
         candidates.push({
           code: "chapter-ref-candidate",
           file,
           line: index + 1,
-          text: match2[2],
-          ...describeChapterReference(match2[2], file, pages)
+          text: match[2],
+          ...describeChapterReference(match[2], file, pages)
         });
       }
     }
@@ -34187,8 +29411,8 @@ function normalizeAuditProofLine(line) {
   return line.trim().replace(/^>\s*/, "").replace(/^\s*[-+*]\s+/, "").replace(/^\*\*(.+?)\*\*/, "$1").replace(/^__(.+?)__/, "$1").replace(/^\*(.+?)\*/, "$1").replace(/^_(.+?)_/, "$1").trim();
 }
 function isAuditProofBoundary(line) {
-  const text2 = normalizeAuditProofLine(line);
-  return /^(?:证明(?:概要|草图|思路|如下|在此略去)?|Proof(?:\s+sketch)?|Sketch of proof)\s*(?:[：:。.．.]|$|\s)/i.test(text2);
+  const text = normalizeAuditProofLine(line);
+  return /^(?:证明(?:概要|草图|思路|如下|在此略去)?|Proof(?:\s+sketch)?|Sketch of proof)\s*(?:[：:。.．.]|$|\s)/i.test(text);
 }
 function isAuditBlockBoundary(line) {
   return /^#{1,6}\s+/.test(line) || !!publication.parseFormalMarkerLine(line);
@@ -34612,9 +29836,9 @@ async function printArtifactPaths() {
     ["release doc", path__namespace.join(PACKAGE_ROOT, "docs", "release.md")]
   ];
   console.log("math-workspace paths");
-  for (const [label, filePath] of rows) {
+  for (const [label2, filePath] of rows) {
     const exists = await pathExists(filePath);
-    console.log(`${label}: ${publication.toPosix(filePath)}${exists ? "" : " (missing)"}`);
+    console.log(`${label2}: ${publication.toPosix(filePath)}${exists ? "" : " (missing)"}`);
   }
   console.log("");
   console.log("AI workflow: review skills/editor.md, skills/math-writing.md, and skills/integrator.md; for Lean projects, also review skills/lean-formalization.md.");
@@ -34679,12 +29903,7 @@ async function serveReader(args) {
 async function openReader(args) {
   const options = parseReaderArgs(args, "open");
   if (options.help) return;
-  const startPath = options.rootPath || ROOT;
-  const rootPath = await findMathWorkspaceRoot(startPath);
-  if (options.rootPath && !rootPath) {
-    throw new Error("No Math Workspace project was found at or above that path. Run `math-workspace init` first.");
-  }
-  await runReader({ rootPath, port: options.port });
+  await runReader({ rootPath: options.rootPath || ROOT, port: options.port });
 }
 function parseReaderMcpArgs(args) {
   let rootPath;
